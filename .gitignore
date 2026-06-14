@@ -1,0 +1,44 @@
+﻿# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build artifacts
+build/
+dist/
+
+# Runtime data
+instances/
+logs/
+storage/
+backups/
+
+# Local user data
+data/*.json
+data/skins/
+
+# Website generated downloads
+website/downloads/*.zip
+website/downloads/*.exe
+
+# Reports / temp
+project_structure_for_cleanup.txt
+project_audit_report.txt
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Website release packages
+website/*.zip
+website/*.exe
+website/downloads/*.zip
+website/downloads/*.exe
+
+# Secrets / env
+.env
+*.env
+auth/oauth_config.local.py

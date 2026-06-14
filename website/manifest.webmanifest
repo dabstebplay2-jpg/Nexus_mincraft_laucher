@@ -1,0 +1,16 @@
+{
+  "name": "Nexus Launcher",
+  "short_name": "Nexus",
+  "description": "Smart Minecraft Launcher",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#060b0a",
+  "theme_color": "#22c55e",
+  "icons": [
+    {
+      "src": "assets/favicon.svg",
+      "sizes": "128x128",
+      "type": "image/svg+xml"
+    }
+  ]
+}
