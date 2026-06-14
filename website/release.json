@@ -1,6 +1,6 @@
 ﻿{
-  "name": "Nexus Launcher",
-  "version": "0.5.0",
-  "platform": "Windows 10/11",
-  "package": "NexusLauncher_Windows.zip"
+  "repo": "dabstebplay2-jpg/Nexus_mincraft_laucher",
+  "latest_release_api": "https://api.github.com/repos/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest",
+  "latest_release_page": "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest",
+  "download_fallback": "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest"
 }

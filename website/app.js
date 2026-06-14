@@ -314,3 +314,62 @@ document.addEventListener("DOMContentLoaded", () => {
     showToast("Скачивание Nexus Launcher");
   });
 });
+
+async function setupLatestGitHubRelease() {
+  const api = "https://api.github.com/repos/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest";
+  const fallback = "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest";
+
+  const btn = document.querySelector("#downloadBtn");
+  const versionPill = document.querySelector("#versionPill");
+  const metricVersion = document.querySelector("#metricVersion");
+  const footerVersion = document.querySelector("#footerVersion");
+  const downloadVersion = document.querySelector("#downloadVersion");
+
+  try {
+    const response = await fetch(api, {
+      headers: {
+        "Accept": "application/vnd.github+json"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error("GitHub release not available");
+    }
+
+    const release = await response.json();
+    const tag = release.tag_name || "latest";
+    const version = tag.replace(/^v/i, "");
+
+    const assets = Array.isArray(release.assets) ? release.assets : [];
+    const asset = assets.find((item) => {
+      const name = String(item.name || "").toLowerCase();
+      return name.endsWith(".exe") || name.endsWith(".zip");
+    });
+
+    const downloadUrl = asset?.browser_download_url || release.html_url || fallback;
+    const assetName = asset?.name || "последний релиз";
+
+    if (btn) {
+      btn.href = downloadUrl;
+      btn.textContent = "▣ Скачать " + assetName;
+      btn.setAttribute("download", "");
+    }
+
+    [versionPill, metricVersion, footerVersion].forEach((el) => {
+      if (el) el.textContent = version;
+    });
+
+    if (downloadVersion) {
+      downloadVersion.textContent = "Версия " + version;
+    }
+  }
+  catch (error) {
+    if (btn) {
+      btn.href = fallback;
+      btn.textContent = "▣ Открыть последнюю версию на GitHub";
+      btn.removeAttribute("download");
+    }
+  }
+}
+
+document.addEventListener("DOMContentLoaded", setupLatestGitHubRelease);
