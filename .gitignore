@@ -42,3 +42,6 @@ website/downloads/*.exe
 .env
 *.env
 auth/oauth_config.local.py
+
+# Local release packages
+release/
