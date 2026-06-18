@@ -3,7 +3,7 @@ import shutil
 import webbrowser
 from pathlib import Path
 
-from PySide6.QtCore import Signal, Qt
+from PySide6.QtCore import Signal, Qt, QThread
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
