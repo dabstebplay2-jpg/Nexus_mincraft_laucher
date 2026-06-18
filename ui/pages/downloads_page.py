@@ -11,9 +11,11 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QVBoxLayout,
     QWidget,
+    QGridLayout,
 )
 
 from core.download_manager import DownloadManager
+from ui.utils.helpers import clear_layout
 
 
 class DownloadsPage(QWidget):
@@ -86,6 +88,7 @@ class DownloadsPage(QWidget):
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll.setObjectName("ScrollArea")
         self.scroll.setFrameShape(QFrame.NoFrame)
 
@@ -122,19 +125,6 @@ class DownloadsPage(QWidget):
 
         return card
 
-    def clear_layout(self, layout):
-        while layout.count():
-            item = layout.takeAt(0)
-
-            widget = item.widget()
-            child_layout = item.layout()
-
-            if widget:
-                widget.deleteLater()
-
-            if child_layout:
-                self.clear_layout(child_layout)
-
     def refresh(self):
         tasks = self.manager.list_tasks()
 
@@ -147,7 +137,7 @@ class DownloadsPage(QWidget):
         self.failed_stat.value_label.setText(str(len(failed)))
         self.total_stat.value_label.setText(str(len(tasks)))
 
-        self.clear_layout(self.list_layout)
+        clear_layout(self.list_layout)
 
         if not tasks:
             self.list_layout.addWidget(self.empty_card())
@@ -172,6 +162,57 @@ class DownloadsPage(QWidget):
         label = QLabel(text)
         label.setObjectName("SectionTitle")
         return label
+
+
+    def format_bytes(self, value):
+        try:
+            value = int(value or 0)
+        except Exception:
+            value = 0
+
+        units = ["B", "KB", "MB", "GB"]
+        size = float(value)
+        for unit in units:
+            if size < 1024 or unit == units[-1]:
+                if unit == "B":
+                    return f"{int(size)} {unit}"
+                return f"{size:.1f} {unit}"
+            size /= 1024
+
+        return "0 B"
+
+    def duration_text(self, task):
+        start = task.get("created_at")
+        end = task.get("finished_at") or task.get("updated_at")
+        try:
+            if not start or not end:
+                return "—"
+            seconds = max(0, int(end) - int(start))
+            if seconds < 60:
+                return f"{seconds} сек"
+            minutes = seconds // 60
+            rest = seconds % 60
+            return f"{minutes} мин {rest} сек"
+        except Exception:
+            return "—"
+
+    def task_detail_row(self, label, value):
+        box = QFrame()
+        box.setObjectName("MiniCard")
+        layout = QVBoxLayout(box)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(4)
+
+        title = QLabel(label)
+        title.setObjectName("HeroStatTitle")
+
+        val = QLabel(str(value))
+        val.setObjectName("InstanceMeta")
+        val.setWordWrap(True)
+
+        layout.addWidget(title)
+        layout.addWidget(val)
+        return box
 
     def empty_card(self):
         card = QFrame()
@@ -218,6 +259,7 @@ class DownloadsPage(QWidget):
 
         title = QLabel(task.get("title", "Загрузка"))
         title.setObjectName("CardTitle")
+        title.setWordWrap(True)
 
         subtitle = QLabel(task.get("subtitle") or task.get("status") or "")
         subtitle.setObjectName("PageDescription")
@@ -225,6 +267,7 @@ class DownloadsPage(QWidget):
 
         status = QLabel(self.status_text(task))
         status.setObjectName("DownloadStatus")
+        status.setWordWrap(True)
 
         info.addWidget(title)
         info.addWidget(subtitle)
@@ -242,14 +285,40 @@ class DownloadsPage(QWidget):
         progress.setRange(0, 100)
         progress.setValue(int(task.get("progress") or 0))
         progress.setTextVisible(False)
-        progress.setFixedHeight(8)
+        progress.setFixedHeight(9)
 
-        meta = QLabel("Создано: " + self.manager.time_text(task.get("created_at")))
-        meta.setObjectName("InstanceMeta")
+        details = QGridLayout()
+        details.setHorizontalSpacing(10)
+        details.setVerticalSpacing(10)
+
+        downloaded = task.get("downloaded_bytes")
+        total = task.get("total_bytes")
+        speed = task.get("speed_bps")
+        metadata = task.get("metadata") or {}
+
+        details.addWidget(self.task_detail_row("Тип", task.get("kind", "download")), 0, 0)
+        details.addWidget(self.task_detail_row("Создано", self.manager.time_text(task.get("created_at"))), 0, 1)
+        details.addWidget(self.task_detail_row("Обновлено", self.manager.time_text(task.get("updated_at"))), 0, 2)
+        details.addWidget(self.task_detail_row("Длительность", self.duration_text(task)), 0, 3)
+
+        size_text = "—"
+        if downloaded or total:
+            if total:
+                size_text = f"{self.format_bytes(downloaded)} / {self.format_bytes(total)}"
+            else:
+                size_text = self.format_bytes(downloaded)
+
+        speed_text = f"{self.format_bytes(speed)}/s" if speed else "—"
+        source_text = metadata.get("instance_name") or metadata.get("slug") or metadata.get("project_id") or "Nexus"
+
+        details.addWidget(self.task_detail_row("Размер", size_text), 1, 0)
+        details.addWidget(self.task_detail_row("Скорость", speed_text), 1, 1)
+        details.addWidget(self.task_detail_row("Источник", source_text), 1, 2)
+        details.addWidget(self.task_detail_row("Прогресс", f"{int(task.get('progress') or 0)}%"), 1, 3)
 
         layout.addLayout(top)
         layout.addWidget(progress)
-        layout.addWidget(meta)
+        layout.addLayout(details)
 
         error = task.get("error")
         if error:

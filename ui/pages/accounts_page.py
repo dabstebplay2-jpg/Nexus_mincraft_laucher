@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QThread
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -12,17 +12,86 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QInputDialog,
+    QLineEdit,
     QLabel,
     QMessageBox,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
+    QSizePolicy,
+    QBoxLayout,
 )
 
 from auth.account_manager import AccountManager
 from core.skin_manager import SkinError, SkinManager
 from ui.components.skin_preview import SkinFaceWidget
+from ui.utils.helpers import clear_layout
+
+
+
+class AuthLoginWorker(QThread):
+    status = Signal(str)
+    success = Signal(dict)
+    failed = Signal(str, str)
+
+    def __init__(self, provider: str):
+        super().__init__()
+        self.provider = provider
+
+    def run(self):
+        import traceback
+
+        try:
+            if self.provider == "microsoft":
+                from auth.microsoft_auth import MicrosoftAuthService
+                from auth import oauth_config
+                from auth.oauth_callback_server import OAuthCallbackServer
+
+                service = MicrosoftAuthService()
+                service.ensure_configured()
+
+                callback = OAuthCallbackServer(oauth_config.get_microsoft_redirect_uri(), timeout=240)
+                callback.start()
+
+                self.status.emit("Открываю браузер Microsoft...")
+                service.open_login_page()
+
+                self.status.emit("Ожидаю подтверждение Microsoft в браузере...")
+                redirect_url = callback.wait()
+                callback.close()
+
+                self.status.emit("Получаю Minecraft profile...")
+                account = service.complete_login_from_redirect_url(redirect_url)
+                self.success.emit(account)
+                return
+
+            if self.provider == "ely":
+                from auth.ely_auth import ElyAuthService
+                from auth import oauth_config
+                from auth.oauth_callback_server import OAuthCallbackServer
+
+                service = ElyAuthService()
+                service.ensure_configured()
+
+                callback = OAuthCallbackServer(oauth_config.get_ely_redirect_uri(), timeout=240)
+                callback.start()
+
+                self.status.emit("Открываю браузер Ely.by...")
+                service.open_login_page()
+
+                self.status.emit("Ожидаю подтверждение Ely.by в браузере...")
+                redirect_url = callback.wait()
+                callback.close()
+
+                self.status.emit("Получаю профиль Ely.by...")
+                account = service.complete_login_from_redirect_url(redirect_url)
+                self.success.emit(account)
+                return
+
+            raise RuntimeError("Unknown provider")
+        except Exception as error:
+            self.failed.emit(str(error), traceback.format_exc())
 
 
 class AccountsPage(QWidget):
@@ -35,10 +104,27 @@ class AccountsPage(QWidget):
         self.skins = SkinManager()
         self.active_account = None
         self.active_skin = None
+        self.auth_worker = None
 
-        self.root_layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        self.scroll = QScrollArea()
+        self.scroll.setObjectName("ScrollArea")
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        self.content_widget = QWidget()
+        self.root_layout = QVBoxLayout(self.content_widget)
         self.root_layout.setContentsMargins(28, 22, 28, 18)
         self.root_layout.setSpacing(18)
+
+        self.scroll.setWidget(self.content_widget)
+        outer.addWidget(self.scroll)
+
+        self.responsive_breakpoint = 980
+        self.compact_breakpoint = 760
 
         self.build_ui()
         self.refresh_all()
@@ -64,15 +150,132 @@ class AccountsPage(QWidget):
         header.addWidget(self.active_badge, 0, Qt.AlignTop)
 
         self.root_layout.addLayout(header)
-        self.root_layout.addWidget(self.create_skin_studio_panel())
-        self.root_layout.addWidget(self.create_providers_panel())
 
-        content = QHBoxLayout()
-        content.setSpacing(16)
-        content.addWidget(self.create_accounts_panel(), 1)
-        content.addWidget(self.create_skins_panel(), 2)
+        self.stats_grid = QGridLayout()
+        self.stats_grid.setSpacing(14)
+        self.accounts_stat = self.create_stat_card("Профили", "0", "доступно")
+        self.skins_stat = self.create_stat_card("Скины", "0", "в библиотеке")
+        self.active_provider_stat = self.create_stat_card("Активный", "OFFLINE", "провайдер")
+        self.model_stat = self.create_stat_card("Модель", "AUTO", "руки персонажа")
+        self.stat_cards = [
+            self.accounts_stat,
+            self.skins_stat,
+            self.active_provider_stat,
+            self.model_stat,
+        ]
+        self.reflow_stat_cards()
+        self.root_layout.addLayout(self.stats_grid)
 
-        self.root_layout.addLayout(content, 1)
+        self.skin_studio_panel = self.create_skin_studio_panel()
+        self.providers_panel = self.create_providers_panel()
+        self.accounts_panel = self.create_accounts_panel()
+        self.skins_panel = self.create_skins_panel()
+
+        self.root_layout.addWidget(self.skin_studio_panel)
+        self.root_layout.addWidget(self.providers_panel)
+
+        self.content_layout = QHBoxLayout()
+        self.content_layout.setSpacing(16)
+        self.content_layout.addWidget(self.accounts_panel, 1)
+        self.content_layout.addWidget(self.skins_panel, 2)
+
+        self.root_layout.addLayout(self.content_layout, 1)
+
+
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.apply_responsive_layout()
+
+    def apply_responsive_layout(self):
+        width = self.width()
+        compact = width < self.compact_breakpoint
+        narrow = width < self.responsive_breakpoint
+
+        margins = (14, 14, 14, 14) if compact else (28, 22, 28, 18)
+        self.root_layout.setContentsMargins(*margins)
+
+        self.reflow_stat_cards()
+        self.reflow_provider_cards()
+
+        if hasattr(self, "content_layout"):
+            while self.content_layout.count():
+                item = self.content_layout.takeAt(0)
+                widget = item.widget()
+                if widget:
+                    widget.setParent(None)
+
+            if narrow:
+                self.content_layout.addWidget(self.accounts_panel)
+                self.content_layout.addWidget(self.skins_panel)
+                self.content_layout.setDirection(QBoxLayout.Direction.TopToBottom)
+            else:
+                self.content_layout.setDirection(QBoxLayout.Direction.LeftToRight)
+                self.content_layout.addWidget(self.accounts_panel, 1)
+                self.content_layout.addWidget(self.skins_panel, 2)
+
+        if hasattr(self, "stats"):
+            pass
+
+
+    def reflow_stat_cards(self):
+        if not hasattr(self, "stats_grid"):
+            return
+
+        while self.stats_grid.count():
+            item = self.stats_grid.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.setParent(None)
+
+        columns = 1 if self.width() < self.compact_breakpoint else (2 if self.width() < self.responsive_breakpoint else 4)
+        for index, card in enumerate(getattr(self, "stat_cards", [])):
+            self.stats_grid.addWidget(card, index // columns, index % columns)
+
+    def reflow_provider_cards(self):
+        if not hasattr(self, "providers_grid"):
+            return
+
+        while self.providers_grid.count():
+            item = self.providers_grid.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.setParent(None)
+
+        cards = [
+            self.offline_provider_card,
+            self.microsoft_provider_card,
+            self.ely_provider_card,
+        ]
+
+        columns = 1 if self.width() < self.responsive_breakpoint else 3
+        for index, card in enumerate(cards):
+            self.providers_grid.addWidget(card, index // columns, index % columns)
+
+    def create_stat_card(self, title, value, desc):
+        card = QFrame()
+        card.setObjectName("DownloadSummaryCard")
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(18, 16, 18, 16)
+        layout.setSpacing(6)
+
+        title_label = QLabel(title)
+        title_label.setObjectName("HeroStatTitle")
+
+        value_label = QLabel(value)
+        value_label.setObjectName("DownloadBigNumber")
+
+        desc_label = QLabel(desc)
+        desc_label.setObjectName("InstanceMeta")
+
+        card.value_label = value_label
+        card.desc_label = desc_label
+
+        layout.addWidget(title_label)
+        layout.addWidget(value_label)
+        layout.addWidget(desc_label)
+        return card
 
     def create_skin_studio_panel(self) -> QWidget:
         panel = QFrame()
@@ -146,11 +349,12 @@ class AccountsPage(QWidget):
         wrap = QFrame()
         wrap.setObjectName("Card")
 
-        layout = QHBoxLayout(wrap)
+        layout = QGridLayout(wrap)
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(14)
+        self.providers_grid = layout
 
-        layout.addWidget(self.provider_card(
+        self.offline_provider_card = self.provider_card(
             title="Offline профиль",
             badge="LOCAL",
             description="Локальный профиль для тестов и запуска без авторизации.",
@@ -158,28 +362,29 @@ class AccountsPage(QWidget):
             secondary_text="Скопировать UUID",
             primary_action=self.add_offline_account,
             secondary_action=self.copy_active_uuid,
-        ))
+        )
 
-        layout.addWidget(self.provider_card(
+        self.microsoft_provider_card = self.provider_card(
             title="Microsoft",
-            badge="SOON",
-            description="После OAuth можно будет загружать скин в официальный профиль Minecraft.",
-            primary_text="Скоро",
-            secondary_text="Что нужно?",
-            primary_action=self.microsoft_stub,
-            secondary_action=self.microsoft_info,
-        ))
+            badge="OAuth",
+            description="Вход через Microsoft с синхронизацией скина и скинов Minecraft.",
+            primary_text="Войти через Microsoft",
+            secondary_text="Настроить",
+            primary_action=self.login_microsoft,
+            secondary_action=self.configure_microsoft_oauth,
+        )
 
-        layout.addWidget(self.provider_card(
+        self.ely_provider_card = self.provider_card(
             title="Ely.by",
-            badge="SOON",
-            description="После подключения Ely.by можно будет использовать их систему скинов.",
-            primary_text="Скоро",
-            secondary_text="Открыть сайт",
-            primary_action=self.ely_stub,
-            secondary_action=self.open_ely_site,
-        ))
+            badge="OAuth",
+            description="Вход через Ely.by с поддержкой кастомных скинов.",
+            primary_text="Войти через Ely.by",
+            secondary_text="Настроить",
+            primary_action=self.login_ely,
+            secondary_action=self.configure_ely_oauth,
+        )
 
+        self.reflow_provider_cards()
         return wrap
 
     def provider_card(self, title, badge, description, primary_text, secondary_text, primary_action, secondary_action):
@@ -302,8 +507,30 @@ class AccountsPage(QWidget):
         self.active_skin = self.skins.get_account_skin(self.active_account)
 
         self.refresh_header()
+        self.refresh_account_stats()
         self.refresh_accounts()
         self.refresh_skins()
+
+
+    def refresh_account_stats(self):
+        try:
+            accounts = self.manager.list_accounts()
+        except Exception:
+            accounts = []
+
+        try:
+            skins = self.skins.list_skins()
+        except Exception:
+            skins = []
+
+        account = self.active_account or {}
+        provider = self.manager.format_provider(account.get("provider", "offline")).upper() if account else "OFFLINE"
+        model = account.get("skin_model", "auto") if account else "auto"
+
+        self.accounts_stat.value_label.setText(str(len(accounts)))
+        self.skins_stat.value_label.setText(str(len(skins)))
+        self.active_provider_stat.value_label.setText(provider)
+        self.model_stat.value_label.setText(str(model).upper())
 
     def refresh_header(self):
         account = self.active_account
@@ -336,17 +563,8 @@ class AccountsPage(QWidget):
             self.skin_title.setText(f"Персонаж {username}")
             self.skin_subtitle.setText("Скин не выбран. Загрузи PNG-скин Minecraft и привяжи его к активному профилю.")
 
-    def clear_layout(self, layout):
-        while layout.count():
-            item = layout.takeAt(0)
-
-            if item.widget():
-                item.widget().deleteLater()
-            elif item.layout():
-                self.clear_layout(item.layout())
-
     def refresh_accounts(self):
-        self.clear_layout(self.accounts_layout)
+        clear_layout(self.accounts_layout)
 
         accounts = self.manager.list_accounts()
         active_id = self.active_account.get("id") if self.active_account else None
@@ -359,7 +577,7 @@ class AccountsPage(QWidget):
         self.accounts_layout.addStretch(1)
 
     def refresh_skins(self):
-        self.clear_layout(self.skins_grid)
+        clear_layout(self.skins_grid)
 
         skins = self.skins.list_skins()
         self.skins_count.setText(f"{len(skins)} скинов")
@@ -405,11 +623,11 @@ class AccountsPage(QWidget):
         set_btn = QPushButton("Активировать")
         set_btn.setObjectName("SecondaryButton")
         set_btn.setEnabled(account.get("id") != active_id)
-        set_btn.clicked.connect(lambda: self.set_active(account.get("id")))
+        set_btn.clicked.connect(lambda checked=False, account_id=account.get("id"): self.set_active(account_id))
 
         del_btn = QPushButton("Удалить")
         del_btn.setObjectName("DangerButton")
-        del_btn.clicked.connect(lambda: self.delete_account(account.get("id")))
+        del_btn.clicked.connect(lambda checked=False, account_id=account.get("id"): self.delete_account(account_id))
 
         layout.addWidget(avatar)
         layout.addLayout(info, 1)
@@ -451,15 +669,15 @@ class AccountsPage(QWidget):
 
         apply_btn = QPushButton("Применить")
         apply_btn.setObjectName("PrimaryButton")
-        apply_btn.clicked.connect(lambda: self.apply_skin(skin.get("id")))
+        apply_btn.clicked.connect(lambda checked=False, skin_id=skin.get("id"): self.apply_skin(skin_id))
 
         open_btn = QPushButton("Файл")
         open_btn.setObjectName("SecondaryButton")
-        open_btn.clicked.connect(lambda: self.open_file(skin.get("path")))
+        open_btn.clicked.connect(lambda checked=False, path=skin.get("path"): self.open_file(path))
 
         delete_btn = QPushButton("Удалить")
         delete_btn.setObjectName("DangerButton")
-        delete_btn.clicked.connect(lambda: self.delete_skin(skin.get("id")))
+        delete_btn.clicked.connect(lambda checked=False, skin_id=skin.get("id"): self.delete_skin(skin_id))
 
         buttons.addWidget(apply_btn)
         buttons.addWidget(open_btn)
@@ -575,14 +793,35 @@ class AccountsPage(QWidget):
             subprocess.Popen(["xdg-open", str(p.parent)])
 
     def add_offline_account(self):
-        name, ok = QInputDialog.getText(self, "Offline профиль", "Введите никнейм:")
+        while True:
+            name, ok = QInputDialog.getText(self, "Offline профиль", "Введите никнейм (3-16 символов, a-z, 0-9, _):")
 
-        if not ok:
+            if not ok:
+                return
+
+            name = name.strip()
+
+            if not name:
+                QMessageBox.warning(self, "Ошибка", "Никнейм не может быть пустым.")
+                continue
+
+            if len(name) < 3:
+                QMessageBox.warning(self, "Ошибка", "Никнейм должен быть не короче 3 символов.")
+                continue
+
+            if len(name) > 16:
+                QMessageBox.warning(self, "Ошибка", "Никнейм должен быть не длиннее 16 символов.")
+                continue
+
+            import re
+            if not re.match(r"^[A-Za-z0-9_]+$", name):
+                QMessageBox.warning(self, "Ошибка", "Никнейм может содержать только латинские буквы, цифры и нижнее подчёркивание.")
+                continue
+
+            account = self.manager.create_offline_account(name, make_active=True)
+            self.refresh_all()
+            self.account_changed.emit(account)
             return
-
-        account = self.manager.create_offline_account(name, make_active=True)
-        self.refresh_all()
-        self.account_changed.emit(account)
 
     def set_active(self, account_id: str):
         account = self.manager.set_active_account(account_id)
@@ -621,12 +860,15 @@ class AccountsPage(QWidget):
         QApplication.clipboard().setText(str(account.get("uuid", "")))
         QMessageBox.information(self, "Скопировано", "UUID активного профиля скопирован.")
 
-    def microsoft_stub(self):
-        QMessageBox.information(
-            self,
-            "Microsoft skins",
-            "После подключения Microsoft OAuth здесь появится загрузка скина в официальный профиль Minecraft.",
-        )
+    def login_microsoft(self):
+        from auth import oauth_config
+
+        if not oauth_config.microsoft_is_configured():
+            configured = self.configure_microsoft_oauth()
+            if not configured:
+                return
+
+        self.start_auth_worker("microsoft")
 
     def microsoft_info(self):
         QMessageBox.information(
@@ -635,16 +877,128 @@ class AccountsPage(QWidget):
             "Нужен вход Microsoft OAuth, Minecraft Services token и вызов profile/skin API. Пока лаунчер сохраняет локальный скин и preview.",
         )
 
-    def ely_stub(self):
-        QMessageBox.information(
+    def login_ely(self):
+        from auth import oauth_config
+
+        if not oauth_config.ely_is_configured():
+            configured = self.configure_ely_oauth()
+            if not configured:
+                return
+
+        self.start_auth_worker("ely")
+
+    def configure_microsoft_oauth(self):
+        from auth import oauth_config
+
+        current_id = oauth_config.get_microsoft_client_id()
+        current_redirect = oauth_config.get_microsoft_redirect_uri()
+
+        client_id, ok = QInputDialog.getText(
             self,
-            "Ely.by skins",
-            "После подключения Ely.by можно будет связать локальный скин с Ely-профилем или skin-server.",
+            "Microsoft OAuth",
+            "Вставь Microsoft Application (client) ID из Azure App Registration:",
+            text=current_id,
+        )
+        if not ok:
+            return False
+
+        client_id = str(client_id or "").strip()
+        if not client_id:
+            QMessageBox.warning(self, "Client ID не задан", "Без Microsoft Client ID вход работать не сможет.")
+            return False
+
+        redirect_uri, ok = QInputDialog.getText(
+            self,
+            "Microsoft Redirect URI",
+            "Redirect URI должен быть добавлен в Azure App Registration.\nОставь стандартный вариант, если не менял порт:",
+            text=current_redirect or "http://localhost:8089/auth/microsoft/callback",
+        )
+        if not ok:
+            return False
+
+        redirect_uri = str(redirect_uri or "").strip() or "http://localhost:8089/auth/microsoft/callback"
+
+        oauth_config.update_oauth_settings(
+            microsoft_client_id=client_id,
+            microsoft_redirect_uri=redirect_uri,
         )
 
-    def open_ely_site(self):
-        import webbrowser
-        webbrowser.open("https://ely.by/")
+        QMessageBox.information(
+            self,
+            "Microsoft OAuth сохранён",
+            "Настройки сохранены в data/oauth_settings.json.\n\n"
+            "Теперь можно нажать «Войти через Microsoft». Nexus сам откроет браузер и поймает localhost callback."
+        )
+        return True
+
+    def configure_ely_oauth(self):
+        from auth import oauth_config
+
+        current_id = oauth_config.get_ely_client_id()
+        current_secret = oauth_config.get_ely_client_secret()
+        current_redirect = oauth_config.get_ely_redirect_uri()
+
+        client_id, ok = QInputDialog.getText(
+            self,
+            "Ely.by OAuth",
+            "Вставь Ely.by clientId:",
+            text=current_id,
+        )
+        if not ok:
+            return False
+
+        client_id = str(client_id or "").strip()
+        if not client_id:
+            QMessageBox.warning(self, "clientId не задан", "Без Ely.by clientId вход работать не сможет.")
+            return False
+
+        client_secret, ok = QInputDialog.getText(
+            self,
+            "Ely.by OAuth",
+            "Вставь Ely.by clientSecret:",
+            QLineEdit.Password,
+            current_secret,
+        )
+        if not ok:
+            return False
+
+        client_secret = str(client_secret or "").strip()
+        if not client_secret:
+            QMessageBox.warning(self, "clientSecret не задан", "Без Ely.by clientSecret вход работать не сможет.")
+            return False
+
+        redirect_uri, ok = QInputDialog.getText(
+            self,
+            "Ely.by Redirect URI",
+            "Redirect URI должен совпадать с тем, что указан в приложении Ely.by:",
+            text=current_redirect or "http://localhost:8089/auth/ely/callback",
+        )
+        if not ok:
+            return False
+
+        redirect_uri = str(redirect_uri or "").strip() or "http://localhost:8089/auth/ely/callback"
+
+        oauth_config.update_oauth_settings(
+            ely_client_id=client_id,
+            ely_client_secret=client_secret,
+            ely_redirect_uri=redirect_uri,
+        )
+
+        QMessageBox.information(
+            self,
+            "Ely.by OAuth сохранён",
+            "Настройки сохранены в data/oauth_settings.json.\n\n"
+            "Теперь можно нажать «Войти через Ely.by». Nexus сам откроет браузер и поймает localhost callback."
+        )
+        return True
+
+    def ely_info(self):
+        QMessageBox.information(
+            self,
+            "Ely.by",
+            "Ely.by — бесплатная система скинов для Minecraft.\n\n"
+            "После входа можно использовать кастомные скины в лаунчере."
+        )
 
     def refresh(self):
         self.refresh_all()

@@ -3,11 +3,7 @@ import webbrowser
 
 import minecraft_launcher_lib
 
-from auth.oauth_config import (
-    MICROSOFT_CLIENT_ID,
-    MICROSOFT_REDIRECT_URI,
-    microsoft_is_configured,
-)
+from auth import oauth_config
 from auth.account_manager import get_account_manager
 
 
@@ -19,12 +15,12 @@ class MicrosoftAuthService:
         self.secure_data = None
 
     def ensure_configured(self):
-        if not microsoft_is_configured():
+        if not oauth_config.microsoft_is_configured():
             raise RuntimeError(
                 "Microsoft OAuth не настроен.\n\n"
                 "Нужно задать переменные окружения:\n"
-                "NEXUS_MICROSOFT_CLIENT_ID\n"
-                "NEXUS_MICROSOFT_REDIRECT_URI\n\n"
+                "NEXUS_oauth_config.get_microsoft_client_id()\n"
+                "NEXUS_oauth_config.get_microsoft_redirect_uri()\n\n"
                 "Для полноценного входа также нужен Azure App с доступом к Minecraft API."
             )
 
@@ -33,8 +29,8 @@ class MicrosoftAuthService:
 
         self.secure_data = (
             minecraft_launcher_lib.microsoft_account.get_secure_login_data(
-                MICROSOFT_CLIENT_ID,
-                MICROSOFT_REDIRECT_URI,
+                oauth_config.get_microsoft_client_id(),
+                oauth_config.get_microsoft_redirect_uri(),
             )
         )
 
@@ -63,8 +59,8 @@ class MicrosoftAuthService:
         code_verifier = self.secure_data["code_verifier"]
 
         login_result = minecraft_launcher_lib.microsoft_account.complete_login(
-            MICROSOFT_CLIENT_ID,
-            MICROSOFT_REDIRECT_URI,
+            oauth_config.get_microsoft_client_id(),
+            oauth_config.get_microsoft_redirect_uri(),
             auth_code,
             code_verifier,
         )
@@ -76,12 +72,15 @@ class MicrosoftAuthService:
             "username": login_result.get("name"),
             "display_name": login_result.get("name"),
             "uuid": login_result.get("id"),
-            "provider": "Microsoft",
+            "provider": "microsoft",
+            "access_token": login_result.get("access_token", ""),
+            "refresh_token_saved": True,
             "skins": login_result.get("skins", []),
             "capes": login_result.get("capes", []),
         }
 
         saved = manager.upsert_account(account)
+        manager.set_active_account(saved["id"])
 
         manager.save_tokens(
             saved["id"],
@@ -105,17 +104,20 @@ class MicrosoftAuthService:
             raise RuntimeError("Refresh token отсутствует. Нужно войти заново.")
 
         result = minecraft_launcher_lib.microsoft_account.complete_refresh(
-            MICROSOFT_CLIENT_ID,
+            oauth_config.get_microsoft_client_id(),
             refresh_token,
         )
 
         account["username"] = result.get("name", account.get("username"))
         account["display_name"] = result.get("name", account.get("display_name"))
         account["uuid"] = result.get("id", account.get("uuid"))
+        account["access_token"] = result.get("access_token", account.get("access_token", ""))
+        account["refresh_token_saved"] = True
         account["skins"] = result.get("skins", account.get("skins", []))
         account["capes"] = result.get("capes", account.get("capes", []))
 
         saved = manager.upsert_account(account)
+        manager.set_active_account(saved["id"])
 
         manager.save_tokens(
             saved["id"],

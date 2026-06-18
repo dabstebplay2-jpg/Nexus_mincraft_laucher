@@ -1,8 +1,9 @@
-APP_STYLE = r"""
+APP_STYLE = r'''
 * {
     font-family: "Segoe UI";
     color: #E5E7EB;
     font-size: 13px;
+    outline: none;
 }
 
 QMainWindow {
@@ -13,52 +14,347 @@ QWidget {
     background-color: transparent;
 }
 
+QMainWindow::separator {
+    background: rgba(148, 163, 184, 0.15);
+    width: 1px;
+    height: 1px;
+}
+
 #AppContent {
     background: qlineargradient(
         x1:0, y1:0, x2:1, y2:1,
         stop:0 #020617,
-        stop:0.45 #071426,
+        stop:0.42 #071427,
         stop:1 #130B20
     );
 }
 
-QScrollArea {
+QScrollArea,
+#ScrollArea {
     background: transparent;
     border: none;
 }
 
 QScrollBar:vertical {
-    background: rgba(15, 23, 42, 130);
+    background: rgba(15, 23, 42, 150);
     width: 10px;
     border-radius: 5px;
+    margin: 4px 0 4px 0;
 }
 
 QScrollBar::handle:vertical {
-    background: rgba(34, 197, 94, 160);
+    background: rgba(74, 222, 128, 165);
     border-radius: 5px;
+    min-height: 28px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: rgba(74, 222, 128, 210);
 }
 
 QScrollBar::add-line:vertical,
-QScrollBar::sub-line:vertical {
+QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical,
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal,
+QScrollBar::add-page:horizontal,
+QScrollBar::sub-page:horizontal {
     height: 0px;
+    width: 0px;
+    background: transparent;
 }
 
-/* SIDEBAR */
-
-#Sidebar {
-    background-color: rgba(2, 6, 23, 245);
-    border-right: 1px solid rgba(148, 163, 184, 35);
+QScrollBar:horizontal {
+    background: rgba(15, 23, 42, 150);
+    height: 10px;
+    border-radius: 5px;
+    margin: 0 4px;
 }
 
-#SidebarLogoCard {
-    background-color: rgba(15, 23, 42, 210);
-    border: 1px solid rgba(34, 197, 94, 90);
+QScrollBar::handle:horizontal {
+    background: rgba(74, 222, 128, 165);
+    border-radius: 5px;
+    min-width: 28px;
+}
+
+QLineEdit,
+QTextEdit,
+QPlainTextEdit,
+QComboBox,
+QSpinBox,
+QDoubleSpinBox {
+    background-color: rgba(10, 16, 32, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 16px;
+    color: #F8FAFC;
+    padding: 12px 14px;
+    font-size: 14px;
+    selection-background-color: rgba(34, 197, 94, 0.28);
+}
+
+QTextEdit,
+QPlainTextEdit {
+    padding: 10px 12px;
+}
+
+QLineEdit:hover,
+QTextEdit:hover,
+QPlainTextEdit:hover,
+QComboBox:hover,
+QSpinBox:hover,
+QDoubleSpinBox:hover {
+    border: 1px solid rgba(74, 222, 128, 0.35);
+}
+
+QLineEdit:focus,
+QTextEdit:focus,
+QPlainTextEdit:focus,
+QComboBox:focus,
+QSpinBox:focus,
+QDoubleSpinBox:focus {
+    border: 1px solid #22C55E;
+    background-color: rgba(12, 20, 38, 0.92);
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 24px;
+}
+
+QComboBox::down-arrow {
+    image: none;
+    width: 0;
+    height: 0;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #0B1427;
+    border: 1px solid rgba(74, 222, 128, 0.24);
+    border-radius: 12px;
+    padding: 6px;
+    selection-background-color: rgba(34, 197, 94, 0.22);
+    selection-color: #F8FAFC;
+}
+
+QPushButton {
+    border: none;
+}
+
+QPushButton:disabled {
+    color: #64748B;
+    border-color: rgba(100, 116, 139, 0.18);
+    background-color: rgba(15, 23, 42, 0.45);
+}
+
+QCheckBox {
+    spacing: 10px;
+    color: #E2E8F0;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    background: rgba(15, 23, 42, 0.92);
+}
+
+QCheckBox::indicator:checked {
+    background: #22C55E;
+    border-color: #4ADE80;
+}
+
+QSlider::groove:horizontal {
+    height: 8px;
+    background: rgba(15, 23, 42, 0.85);
+    border-radius: 4px;
+}
+
+QSlider::sub-page:horizontal {
+    background: #22C55E;
+    border-radius: 4px;
+}
+
+QSlider::handle:horizontal {
+    background: #86EFAC;
+    border: 2px solid #22C55E;
+    width: 22px;
+    margin: -8px 0;
+    border-radius: 11px;
+}
+
+QProgressBar {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 8px;
+}
+
+QProgressBar::chunk {
+    background: #22C55E;
+    border-radius: 8px;
+}
+
+QDialog, QMessageBox {
+    background-color: #050C1B;
+}
+
+QTabWidget::pane,
+QFrame#Card,
+QFrame#Panel,
+QFrame#DashboardPanel,
+QFrame#MiniCard,
+QFrame#SettingsOptionsBox,
+QFrame#DownloadSummaryCard,
+QFrame#InstanceCard,
+QFrame#ModResultCard,
+QFrame#DownloadTaskCard,
+QFrame#DownloadTaskCardActive,
+QFrame#HeroStatCard,
+QFrame#SettingsStatCard,
+QFrame#SkinCard,
+QFrame#AccountRow,
+QFrame#AccountRowActive,
+QFrame#DetailInfoRow,
+QWidget#InstanceCard,
+QWidget#Card {
+    background-color: rgba(10, 17, 32, 0.84);
+    border: 1px solid rgba(148, 163, 184, 0.16);
     border-radius: 22px;
 }
 
-#NexusMark {
-    background-color: transparent;
-    border-radius: 16px;
+QFrame#DownloadTaskCardActive,
+QFrame#AccountRowActive,
+QFrame#InstanceDashboardRowActive,
+QFrame#HeroStatCard:hover,
+QFrame#DashboardPanel:hover,
+QFrame#InstanceCard:hover,
+QWidget#InstanceCard:hover,
+QFrame#ModResultCard:hover,
+QFrame#SkinCard:hover,
+QFrame#DownloadSummaryCard:hover,
+QFrame#DownloadTaskCard:hover,
+QFrame#MiniCard:hover,
+QFrame#Card:hover,
+QWidget#Card:hover,
+QFrame#SettingsStatCard:hover,
+QFrame#DetailInfoRow:hover {
+    border: 1px solid rgba(74, 222, 128, 0.32);
+    background-color: rgba(11, 20, 37, 0.94);
+}
+
+#PageTitle {
+    color: #F8FAFC;
+    font-size: 40px;
+    font-weight: 900;
+    letter-spacing: 0.3px;
+}
+
+#PageDescription,
+#PanelText,
+#MutedText {
+    color: #CBD5E1;
+    font-size: 14px;
+    line-height: 1.4em;
+}
+
+#PanelText,
+#MutedText {
+    color: #B6C2D1;
+}
+
+#SectionTitle,
+#PanelTitle {
+    color: #F8FAFC;
+    font-size: 20px;
+    font-weight: 900;
+}
+
+#CardTitle,
+#InstanceTitle,
+#SettingsSectionLabel {
+    color: #F8FAFC;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+#InstanceMeta,
+#EmptyText {
+    color: #8CA0B8;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#EmptyText {
+    font-size: 14px;
+}
+
+#StatusBadge,
+#SmallBadge,
+#InstanceBadge,
+#ModTag {
+    background-color: rgba(22, 101, 52, 0.22);
+    border: 1px solid rgba(74, 222, 128, 0.24);
+    color: #D1FAE5;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+#StatusBadge {
+    padding: 7px 14px;
+}
+
+#DownloadBigNumber,
+#HeroStatValue,
+#SettingsRamValue {
+    color: #F8FAFC;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+#DownloadBigNumber {
+    font-size: 28px;
+}
+
+#HeroStatTitle {
+    color: #A9BDD4;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}
+
+#MiniProgress,
+#BigProgress,
+#DownloadProgress {
+    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid rgba(148, 163, 184, 0.08);
+    border-radius: 999px;
+}
+
+#MiniProgress::chunk,
+#BigProgress::chunk,
+#DownloadProgress::chunk {
+    background: qlineargradient(
+        x1:0, y1:0, x2:1, y2:0,
+        stop:0 #22C55E,
+        stop:1 #4ADE80
+    );
+    border-radius: 999px;
+}
+
+/* Sidebar */
+#Sidebar {
+    background-color: rgba(2, 6, 23, 0.98);
+    border-right: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+#SidebarLogoCard {
+    background-color: rgba(11, 18, 32, 0.95);
+    border: 1px solid rgba(34, 197, 94, 0.22);
+    border-radius: 26px;
 }
 
 #NexusLogoTitle {
@@ -85,23 +381,23 @@ QScrollBar::sub-line:vertical {
 
 #SidebarNavButton {
     text-align: left;
-    color: #CBD5E1;
+    color: #D5DFEB;
     background-color: transparent;
     border: 1px solid transparent;
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 0 16px;
     font-size: 14px;
     font-weight: 800;
 }
 
 #SidebarNavButton:hover {
-    background-color: rgba(34, 197, 94, 35);
-    border: 1px solid rgba(34, 197, 94, 80);
+    background-color: rgba(34, 197, 94, 0.08);
+    border: 1px solid rgba(74, 222, 128, 0.2);
     color: #F8FAFC;
 }
 
 #SidebarNavButton[active="true"] {
-    background-color: rgba(34, 197, 94, 215);
+    background-color: #22C55E;
     border: 1px solid #4ADE80;
     color: white;
 }
@@ -111,14 +407,9 @@ QScrollBar::sub-line:vertical {
 }
 
 #SidebarProfileCard {
-    background-color: rgba(15, 23, 42, 220);
-    border: 1px solid rgba(148, 163, 184, 55);
-    border-radius: 18px;
-}
-
-#SidebarAvatar {
-    background-color: transparent;
-    border-radius: 14px;
+    background-color: rgba(11, 18, 32, 0.96);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 20px;
 }
 
 #SidebarProfileName {
@@ -139,845 +430,465 @@ QScrollBar::sub-line:vertical {
     font-weight: 900;
 }
 
-#SidebarIconButton {
-    background-color: rgba(15, 23, 42, 190);
-    border: 1px solid rgba(148, 163, 184, 45);
-    border-radius: 12px;
-    color: #CBD5E1;
-    font-weight: 900;
-}
-
-#SidebarIconButton:hover {
-    border: 1px solid #22C55E;
-    color: #BBF7D0;
-}
-
-/* TOPBAR */
-
+/* Topbar */
 #Topbar {
-    background-color: rgba(2, 6, 23, 220);
-    border-bottom: 1px solid rgba(148, 163, 184, 35);
+    background-color: rgba(2, 6, 23, 0.72);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
 }
 
 #TopbarTitle {
     color: #F8FAFC;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 900;
 }
 
 #TopbarSubtitle {
-    color: #64748B;
+    color: #6B829B;
     font-size: 12px;
     font-weight: 700;
 }
 
-#TopbarSearch {
-    background-color: rgba(15, 23, 42, 220);
-    border: 1px solid rgba(148, 163, 184, 55);
-    border-radius: 14px;
+#TopbarSearch,
+#SearchInput,
+QLineEdit#Input {
+    background-color: rgba(10, 17, 32, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 16px;
     color: #F8FAFC;
     padding: 12px 16px;
     font-size: 14px;
 }
 
-#TopbarSearch:focus {
+#TopbarSearch:focus,
+#SearchInput:focus,
+QLineEdit#Input:focus {
     border: 1px solid #22C55E;
 }
 
 #TopbarStatusButton {
-    background-color: rgba(20, 83, 45, 160);
-    border: 1px solid rgba(34, 197, 94, 130);
-    border-radius: 14px;
-    color: #BBF7D0;
+    background-color: rgba(20, 83, 45, 0.32);
+    border: 1px solid rgba(74, 222, 128, 0.24);
+    border-radius: 16px;
+    color: #D1FAE5;
     padding: 12px 18px;
     font-size: 13px;
     font-weight: 900;
 }
 
-#TopbarPlayButton {
+#TopbarPlayButton,
+#HeroPlayButton,
+#PrimaryButton {
     background-color: #22C55E;
     border: 1px solid #4ADE80;
     border-radius: 16px;
     color: white;
+    padding: 12px 22px;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+#TopbarPlayButton {
     padding: 13px 28px;
     font-size: 15px;
-    font-weight: 900;
 }
 
-#TopbarPlayButton:hover {
-    background-color: #16A34A;
-}
-
-/* GENERAL */
-
-#PageTitle {
-    color: #F8FAFC;
-    font-size: 34px;
-    font-weight: 900;
-}
-
-#PageDescription {
-    color: #CBD5E1;
-    font-size: 14px;
-}
-
-#Panel,
-#DashboardPanel {
-    background-color: rgba(15, 23, 42, 210);
-    border: 1px solid rgba(148, 163, 184, 45);
-    border-radius: 20px;
-}
-
-#DashboardPanel:hover,
-#Panel:hover {
-    border: 1px solid rgba(34, 197, 94, 95);
-}
-
-#PanelTitle {
-    color: #F8FAFC;
-    font-size: 18px;
-    font-weight: 900;
-}
-
-#PanelText {
-    color: #CBD5E1;
-    font-size: 13px;
-}
-
-#EmptyText {
-    color: #94A3B8;
-    font-size: 14px;
-    font-weight: 700;
-}
-
-#PrimaryButton {
-    background-color: #22C55E;
-    border: 1px solid #4ADE80;
-    border-radius: 14px;
-    color: white;
-    padding: 11px 20px;
-    font-weight: 900;
-}
-
+#TopbarPlayButton:hover,
+#HeroPlayButton:hover,
 #PrimaryButton:hover {
     background-color: #16A34A;
 }
 
-#SecondaryButton {
-    background-color: rgba(15, 23, 42, 190);
-    border: 1px solid rgba(148, 163, 184, 60);
-    border-radius: 14px;
-    color: #CBD5E1;
-    padding: 11px 20px;
-    font-weight: 900;
+#SecondaryButton,
+#SmallGhostButton,
+#WideGhostButton,
+#GhostButton {
+    background-color: rgba(15, 23, 42, 0.78);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 16px;
+    color: #E2E8F0;
+    padding: 11px 18px;
+    font-size: 13px;
+    font-weight: 800;
 }
 
-#SecondaryButton:hover {
-    border: 1px solid #22C55E;
-    color: #BBF7D0;
+#SmallGhostButton {
+    padding: 9px 14px;
+    font-size: 12px;
+}
+
+#WideGhostButton {
+    padding: 12px 18px;
+}
+
+#SecondaryButton:hover,
+#SmallGhostButton:hover,
+#WideGhostButton:hover,
+#GhostButton:hover {
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    background-color: rgba(17, 30, 54, 0.92);
 }
 
 #DangerButton {
-    background-color: rgba(127, 29, 29, 180);
-    color: #FEE2E2;
-    border: 1px solid #EF4444;
-    border-radius: 12px;
-    padding: 10px 16px;
+    background-color: rgba(127, 29, 29, 0.38);
+    border: 1px solid rgba(248, 113, 113, 0.28);
+    border-radius: 16px;
+    color: #FECACA;
+    padding: 11px 18px;
+    font-size: 13px;
     font-weight: 800;
 }
 
 #DangerButton:hover {
-    background-color: #DC2626;
-    color: white;
+    background-color: rgba(153, 27, 27, 0.55);
 }
 
-#SearchInput {
-    background-color: rgba(15, 23, 42, 210);
-    border: 1px solid rgba(148, 163, 184, 55);
-    border-radius: 14px;
-    color: #F8FAFC;
-    padding: 12px 16px;
-}
-
-#SearchInput:focus {
-    border: 1px solid #22C55E;
-}
-
-QLineEdit,
-QComboBox,
-QTextEdit {
-    background-color: rgba(15, 23, 42, 210);
-    border: 1px solid rgba(148, 163, 184, 55);
-    border-radius: 12px;
-    color: #F8FAFC;
-    padding: 10px 12px;
-}
-
-QComboBox::drop-down {
-    border: none;
-}
-
-QComboBox QAbstractItemView {
-    background-color: #0F172A;
-    color: #E5E7EB;
-    selection-background-color: #22C55E;
-    selection-color: white;
-}
-
-#BottomStatusBar {
-    background-color: rgba(2, 6, 23, 230);
-    border-top: 1px solid rgba(148, 163, 184, 35);
-}
-
-#BottomStatusText {
-    color: #94A3B8;
-    font-size: 12px;
-}
-
-/* HOME */
-
+/* Dashboard / Home */
 #MinecraftHero {
-    border: 1px solid rgba(34, 197, 94, 90);
-    border-radius: 26px;
-    background: qlineargradient(
-        x1:0, y1:0, x2:1, y2:1,
-        stop:0 #071426,
-        stop:0.38 #082B2B,
-        stop:0.7 #0B3A26,
-        stop:1 #14532D
-    );
+    background-color: rgba(6, 14, 29, 0.98);
+    border: 1px solid rgba(74, 222, 128, 0.16);
+    border-radius: 30px;
 }
 
 #HeroWelcome {
-    color: #CBD5E1;
-    font-size: 18px;
+    color: #B6C2D1;
+    font-size: 16px;
     font-weight: 700;
 }
 
 #HeroTitle {
     color: #F8FAFC;
-    font-size: 52px;
+    font-size: 42px;
     font-weight: 900;
 }
 
 #HeroSubtitle {
-    color: #CBD5E1;
+    color: #D4DEE8;
     font-size: 15px;
-    font-weight: 700;
 }
 
-#HeroPlayButton {
-    background-color: #22C55E;
-    border: 1px solid #4ADE80;
-    border-radius: 18px;
-    color: #02130A;
-    padding: 18px 42px;
-    font-size: 20px;
-    font-weight: 900;
-}
-
-#HeroPlayButton:hover {
-    background-color: #4ADE80;
-}
-
-#HeroStatCard {
-    background-color: rgba(15, 23, 42, 170);
-    border: 1px solid rgba(34, 197, 94, 65);
-    border-radius: 16px;
-}
-
-#HeroStatIcon {
-    background-color: transparent;
-}
-
-#HeroStatTitle {
-    color: #94A3B8;
-    font-size: 12px;
-    font-weight: 800;
-}
-
-#HeroStatValue {
-    color: #F8FAFC;
-    font-size: 14px;
-    font-weight: 900;
-}
-
-#MiniProgress,
-#BigProgress {
-    background-color: rgba(15, 23, 42, 180);
-    border: 1px solid rgba(148, 163, 184, 35);
-    border-radius: 4px;
-}
-
-#MiniProgress::chunk,
-#BigProgress::chunk {
-    background-color: #22C55E;
-    border-radius: 4px;
-}
-
+#QuickActionCard,
+#OverviewStatCard,
+#ActivityRow,
+#RecommendationRow,
 #InstanceDashboardRow,
 #InstanceDashboardRowActive {
-    background-color: rgba(15, 23, 42, 145);
-    border: 1px solid rgba(148, 163, 184, 35);
-    border-radius: 14px;
+    background-color: rgba(10, 17, 32, 0.78);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 20px;
 }
 
-#InstanceDashboardRowActive {
-    border: 1px solid #22C55E;
-    background-color: rgba(20, 83, 45, 95);
+#QuickActionCard:hover,
+#OverviewStatCard:hover,
+#ActivityRow:hover,
+#RecommendationRow:hover,
+#InstanceDashboardRow:hover,
+#InstanceDashboardRowActive:hover {
+    border: 1px solid rgba(74, 222, 128, 0.26);
+    background-color: rgba(11, 20, 37, 0.92);
 }
 
-#InstanceDashboardRow:hover {
-    border: 1px solid rgba(34, 197, 94, 100);
-}
-
-#BlockIcon {
-    background-color: transparent;
-}
-
-#InstanceTitle {
-    color: #F8FAFC;
-    font-size: 14px;
-    font-weight: 900;
-}
-
-#InstanceMeta {
-    color: #94A3B8;
+#OverviewStatLabel {
+    color: #8CA0B8;
     font-size: 12px;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
 }
 
-#MiniPlayButton {
-    background-color: rgba(34, 197, 94, 170);
-    border: 1px solid rgba(34, 197, 94, 200);
-    border-radius: 10px;
-    color: white;
+#OverviewStatValue {
+    color: #F8FAFC;
+    font-size: 26px;
     font-weight: 900;
 }
 
-#SmallGhostButton,
-#WideGhostButton,
-#SquareGhostButton {
-    background-color: rgba(15, 23, 42, 180);
-    border: 1px solid rgba(148, 163, 184, 45);
-    border-radius: 12px;
-    color: #CBD5E1;
-    padding: 8px 14px;
-    font-weight: 800;
-}
-
-#SmallGhostButton:hover,
-#WideGhostButton:hover,
-#SquareGhostButton:hover {
-    border: 1px solid #22C55E;
-    color: #BBF7D0;
-}
-
-/* MODS / ACCOUNT */
-
-#ModCard,
-#AccountProviderCard,
-#AccountCard {
-    background-color: rgba(15, 23, 42, 175);
-    border: 1px solid #243B2D;
-    border-radius: 22px;
-}
-
-#ModCard:hover,
-#AccountProviderCard:hover,
-#AccountCard:hover {
-    background-color: rgba(15, 35, 28, 210);
-    border: 1px solid #22C55E;
-}
-
-#AccountCardSelected {
-    background-color: rgba(22, 101, 52, 120);
-    border: 1px solid #22C55E;
-    border-radius: 18px;
-}
-
-#AccountProviderIcon,
-#AccountAvatar,
-#ModIconBox {
-    background-color: rgba(34, 197, 94, 45);
-    border: 1px solid #22C55E;
-    border-radius: 16px;
-    color: #BBF7D0;
-    font-weight: 900;
-}
-
-#AccountStatusActive {
-    background-color: rgba(34, 197, 94, 55);
-    color: #BBF7D0;
-    border: 1px solid #22C55E;
-    border-radius: 10px;
-    padding: 4px 10px;
-    font-weight: 800;
-}
-
-#AccountEmptyState {
-    background-color: rgba(15, 23, 42, 110);
-    border: 1px dashed #31563D;
-    border-radius: 22px;
-    min-height: 220px;
-}
-
-#LogViewer {
-    background-color: rgba(2, 6, 23, 220);
-    border: 1px solid rgba(148, 163, 184, 45);
-    border-radius: 16px;
-    color: #E5E7EB;
-    font-family: Consolas;
+#OverviewStatMeta,
+#ActivityMeta {
+    color: #A9BDD4;
     font-size: 12px;
 }
-"""
 
-
-APP_STYLE += r"""
-
-/* SETTINGS FIX PACK */
-
-#SettingsContent {
-    background-color: transparent;
-}
-
-#SettingsRamValue {
-    color: #22C55E;
-    font-size: 22px;
+#QuickActionTitle {
+    color: #F8FAFC;
+    font-size: 15px;
     font-weight: 900;
 }
 
-#SettingsSectionLabel {
-    color: #94A3B8;
-    font-size: 12px;
-    font-weight: 900;
-    letter-spacing: 1px;
-}
-
-#SettingsStatCard {
-    background-color: rgba(15, 23, 42, 165);
-    border: 1px solid rgba(34, 197, 94, 65);
-    border-radius: 16px;
-}
-
-#SettingsOptionsBox {
-    background-color: rgba(2, 6, 23, 95);
-    border: 1px solid rgba(148, 163, 184, 35);
-    border-radius: 16px;
-}
-
-#RamPresetButton {
-    background-color: rgba(15, 23, 42, 180);
-    border: 1px solid rgba(148, 163, 184, 50);
-    border-radius: 12px;
-    color: #CBD5E1;
-    padding: 9px 14px;
-    font-weight: 900;
-}
-
-#RamPresetButton:hover {
-    border: 1px solid #22C55E;
-    color: #BBF7D0;
-}
-
-#RamPresetButton:disabled {
-    color: #475569;
-    border: 1px solid rgba(71, 85, 105, 70);
-    background-color: rgba(15, 23, 42, 90);
-}
-
-#RamPresetButton[selected="true"] {
-    background-color: rgba(34, 197, 94, 165);
-    border: 1px solid #22C55E;
-    color: white;
-}
-
-#SettingsCheckBox {
-    color: #E5E7EB;
-    font-weight: 800;
-    spacing: 10px;
-}
-
-#SettingsCheckBox::indicator {
-    width: 18px;
-    height: 18px;
-    border-radius: 5px;
-    border: 1px solid rgba(148, 163, 184, 80);
-    background-color: rgba(15, 23, 42, 210);
-}
-
-#SettingsCheckBox::indicator:checked {
-    background-color: #22C55E;
-    border: 1px solid #4ADE80;
-}
-
-#RamSlider::groove:horizontal {
-    height: 8px;
-    background-color: rgba(15, 23, 42, 210);
-    border: 1px solid rgba(148, 163, 184, 45);
-    border-radius: 4px;
-}
-
-#RamSlider::sub-page:horizontal {
-    background-color: #22C55E;
-    border-radius: 4px;
-}
-
-#RamSlider::add-page:horizontal {
-    background-color: rgba(15, 23, 42, 160);
-    border-radius: 4px;
-}
-
-#RamSlider::handle:horizontal {
-    background-color: #BBF7D0;
-    border: 2px solid #22C55E;
-    width: 20px;
-    height: 20px;
-    margin: -7px 0;
-    border-radius: 10px;
-}
-
-#RamSlider::handle:horizontal:hover {
-    background-color: white;
-}
-
-"""
-
-
-
-APP_STYLE += r"""
-
-/* FUNCTIONAL UI FIX PACK */
-
-#InstanceCard {
-    background-color: rgba(15, 23, 42, 195);
-    border: 1px solid rgba(148, 163, 184, 45);
-    border-radius: 20px;
-}
-
-#InstanceCard:hover {
-    border: 1px solid rgba(34, 197, 94, 95);
-}
-
-#InstanceDetailHero {
-    background: qlineargradient(
-        x1:0, y1:0, x2:1, y2:1,
-        stop:0 rgba(15, 23, 42, 230),
-        stop:0.45 rgba(20, 83, 45, 180),
-        stop:1 rgba(15, 23, 42, 210)
-    );
-    border: 1px solid rgba(34, 197, 94, 85);
-    border-radius: 24px;
-}
-
-#InstanceDetailTabs::pane {
-    background-color: rgba(15, 23, 42, 190);
-    border: 1px solid rgba(148, 163, 184, 45);
-    border-radius: 18px;
-    padding: 8px;
-}
-
-#InstanceDetailTabs QTabBar::tab {
-    background-color: rgba(15, 23, 42, 190);
-    color: #CBD5E1;
-    border: 1px solid rgba(148, 163, 184, 35);
-    border-radius: 12px;
-    padding: 10px 18px;
-    margin-right: 8px;
-    font-weight: 900;
-}
-
-#InstanceDetailTabs QTabBar::tab:selected {
-    background-color: rgba(34, 197, 94, 180);
-    border: 1px solid #22C55E;
-    color: white;
-}
-
-#DetailInfoRow {
-    background-color: rgba(2, 6, 23, 90);
-    border: 1px solid rgba(148, 163, 184, 35);
-    border-radius: 14px;
-}
-
-QProgressDialog {
-    background-color: #0F172A;
-    color: #E5E7EB;
-}
-
-QProgressDialog QLabel {
-    color: #E5E7EB;
-    font-weight: 800;
-}
-
-QProgressDialog QPushButton {
-    background-color: rgba(15, 23, 42, 190);
-    border: 1px solid rgba(148, 163, 184, 60);
-    border-radius: 12px;
-    color: #CBD5E1;
-    padding: 8px 14px;
-    font-weight: 900;
-}
-
-"""
-
-APP_STYLE += r"""
-
-/* SAFE MODRINTH PAGE */
-
-#ModResultCard {
-    background-color: rgba(15, 23, 42, 190);
-    border: 1px solid rgba(148, 163, 184, 45);
-    border-radius: 20px;
-}
-
-#ModResultCard:hover {
-    border: 1px solid rgba(34, 197, 94, 95);
-    background-color: rgba(15, 35, 28, 210);
-}
-
-#ModIconPlaceholder {
-    background-color: rgba(34, 197, 94, 45);
-    border: 1px solid rgba(34, 197, 94, 130);
-    border-radius: 16px;
-    color: #BBF7D0;
-    font-size: 22px;
-    font-weight: 900;
-}
-
-#ModTag {
-    background-color: rgba(20, 83, 45, 105);
-    border: 1px solid rgba(34, 197, 94, 100);
-    border-radius: 10px;
-    color: #BBF7D0;
-    padding: 5px 10px;
-    font-size: 11px;
-    font-weight: 800;
-}
-
-"""
-
-APP_STYLE += r"""
-
-/* MODRINTH IMAGES AND DETAILS */
-
-#ModResultCard {
-    background-color: rgba(15, 23, 42, 190);
-    border: 1px solid rgba(148, 163, 184, 45);
-    border-radius: 20px;
-}
-
-#ModResultCard:hover {
-    border: 1px solid rgba(34, 197, 94, 95);
-    background-color: rgba(15, 35, 28, 210);
-}
-
-#ModIconImage,
-#ModDetailsIcon {
-    background-color: rgba(34, 197, 94, 45);
-    border: 1px solid rgba(34, 197, 94, 130);
-    border-radius: 16px;
-    color: #BBF7D0;
-    font-size: 22px;
-    font-weight: 900;
-}
-
-#ModScreenshot {
-    background-color: rgba(2, 6, 23, 160);
-    border: 1px solid rgba(148, 163, 184, 50);
-    border-radius: 14px;
-    color: #94A3B8;
-}
-
-#ModTag {
-    background-color: rgba(20, 83, 45, 105);
-    border: 1px solid rgba(34, 197, 94, 100);
-    border-radius: 10px;
-    color: #BBF7D0;
-    padding: 5px 10px;
-    font-size: 11px;
-    font-weight: 800;
-}
-
-#ModDescriptionBox {
-    background-color: rgba(2, 6, 23, 180);
-    border: 1px solid rgba(148, 163, 184, 45);
-    border-radius: 14px;
-    color: #E5E7EB;
-    padding: 12px;
+#QuickActionText {
+    color: #B8C4D5;
     font-size: 13px;
 }
 
-"""
+#BlockIcon,
+#DownloadIcon,
+#OverviewIcon,
+#QuickActionIcon {
+    background-color: rgba(20, 83, 45, 0.2);
+    border: 1px solid rgba(74, 222, 128, 0.18);
+    border-radius: 14px;
+    color: #D1FAE5;
+}
 
-APP_STYLE += r"""
-/* NEXUS SKIN STUDIO 0.7.1 */
-#SkinCard {
-    background-color: rgba(15, 26, 46, 0.92);
-    border: 1px solid rgba(36, 212, 107, 0.22);
-    border-radius: 18px;
-}
-#SkinCard:hover {
-    border: 1px solid rgba(36, 212, 107, 0.62);
-    background-color: rgba(18, 45, 42, 0.92);
-}
-#AccountRow, #AccountRowActive {
-    background-color: rgba(15, 26, 46, 0.88);
-    border: 1px solid rgba(124, 155, 190, 0.20);
-    border-radius: 16px;
-}
-#AccountRowActive {
-    border: 1px solid rgba(36, 212, 107, 0.85);
-    background-color: rgba(11, 54, 38, 0.88);
-}
-#MiniCard {
-    background-color: rgba(15, 26, 46, 0.72);
-    border: 1px solid rgba(124, 155, 190, 0.18);
-    border-radius: 16px;
-}
-#SmallBadge {
-    color: #8affb9;
-    background-color: rgba(36, 212, 107, 0.14);
-    border: 1px solid rgba(36, 212, 107, 0.34);
-    border-radius: 10px;
-    padding: 4px 8px;
-    font-weight: 800;
-}
-#DangerButton {
-    background-color: rgba(70, 22, 31, 0.55);
-    border: 1px solid rgba(255, 92, 122, 0.38);
+#MiniPlayButton {
+    background-color: rgba(34, 197, 94, 0.16);
+    border: 1px solid rgba(74, 222, 128, 0.24);
     border-radius: 12px;
-    color: #ffd5dd;
+}
+
+#MiniPlayButton:hover {
+    background-color: rgba(34, 197, 94, 0.28);
+}
+
+/* Mods */
+#ModIconImage,
+#ModIconBox,
+#ModDetailsIcon,
+#ModScreenshot {
+    background-color: rgba(15, 23, 42, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 16px;
+}
+
+#ModDescriptionBox,
+#LogViewer {
+    background-color: rgba(5, 10, 22, 0.96);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 18px;
+    color: #DDE6F1;
+}
+
+#LogViewer {
+    font-family: "Consolas", "JetBrains Mono", monospace;
+    font-size: 12px;
+    line-height: 1.3em;
+}
+
+#DownloadStatus {
+    color: #DDE6F1;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+#DownloadError {
+    background: rgba(127, 29, 29, 0.22);
+    border: 1px solid rgba(248, 113, 113, 0.18);
+    border-radius: 14px;
+    color: #FECACA;
+    padding: 10px 12px;
+}
+
+#BottomStatusBar {
+    background-color: rgba(2, 6, 23, 0.88);
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+#BottomStatusText {
+    color: #94A3B8;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* Detail pages and tabs */
+#InstanceDetailHero {
+    background: qlineargradient(
+        x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(10, 17, 32, 0.96),
+        stop:0.55 rgba(11, 26, 45, 0.94),
+        stop:1 rgba(20, 83, 45, 0.28)
+    );
+    border: 1px solid rgba(74, 222, 128, 0.2);
+    border-radius: 28px;
+}
+
+#InstanceDetailTabs::pane {
+    background-color: rgba(10, 17, 32, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 22px;
+    top: -1px;
+}
+
+QTabBar::tab {
+    background-color: rgba(15, 23, 42, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    color: #A9BDD4;
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    padding: 10px 15px;
+    margin-right: 4px;
     font-weight: 800;
+}
+
+QTabBar::tab:hover {
+    color: #F8FAFC;
+    border-color: rgba(74, 222, 128, 0.25);
+}
+
+QTabBar::tab:selected {
+    background-color: rgba(34, 197, 94, 0.2);
+    color: #D1FAE5;
+    border-color: rgba(74, 222, 128, 0.34);
+}
+
+#AccountRow, #AccountRowActive, #SkinCard {
+    background-color: rgba(10, 17, 32, 0.84);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 20px;
+}
+
+#AccountRowActive {
+    border: 1px solid rgba(74, 222, 128, 0.32);
+    background-color: rgba(20, 83, 45, 0.18);
+}
+
+#Card {
+    background-color: rgba(10, 17, 32, 0.84);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 22px;
+}
+
+#Input {
+    background-color: rgba(10, 16, 32, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 16px;
+    color: #F8FAFC;
     padding: 10px 14px;
 }
-#DangerButton:hover {
-    background-color: rgba(120, 32, 48, 0.75);
-    border: 1px solid rgba(255, 92, 122, 0.85);
+
+#MiniCard {
+    background-color: rgba(10, 17, 32, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 20px;
+}
+
+'''
+
+
+def _read_saved_theme():
+    try:
+        import json
+        from storage.paths import DATA_DIR
+        settings_file = DATA_DIR / "launcher_settings.json"
+        if not settings_file.exists():
+            return "dark"
+        data = json.loads(settings_file.read_text(encoding="utf-8"))
+        return data.get("theme", "dark")
+    except Exception:
+        return "dark"
+
+
+AMOLED_STYLE = r"""
+QMainWindow, #AppContent, #Sidebar, #Topbar, #BottomStatusBar {
+    background-color: #000000;
+}
+#AppContent {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #000000, stop:0.55 #020617, stop:1 #08030F);
 }
 """
 
-
-APP_STYLE += r"""
-/* NEXUS DOWNLOADS CENTER 0.7.2 */
-
-#DownloadSummaryCard {
-    background-color: rgba(15, 26, 46, 0.88);
-    border: 1px solid rgba(36, 212, 107, 0.22);
-    border-radius: 18px;
+LIGHT_STYLE = r"""
+* {
+    color: #0F172A;
 }
 
-#DownloadBigNumber {
-    color: #8affb9;
-    font-size: 34px;
-    font-weight: 900;
+QMainWindow {
+    background-color: #F8FAFC;
 }
 
+#AppContent {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #F8FAFC, stop:0.55 #EEF6FF, stop:1 #F5F3FF);
+}
+
+#Sidebar {
+    background-color: #FFFFFF;
+    border-right: 1px solid rgba(15, 23, 42, 0.10);
+}
+
+#Topbar, #BottomStatusBar {
+    background-color: rgba(248, 250, 252, 0.96);
+    border-color: rgba(15, 23, 42, 0.10);
+}
+
+#SidebarLogoCard,
+#SidebarProfileCard,
+#DashboardPanel,
+#Panel,
+#Card,
+#MiniCard,
+#SettingsOptionsBox,
+#DownloadSummaryCard,
+#InstanceCard,
+#ModResultCard,
 #DownloadTaskCard,
-#DownloadTaskCardActive {
-    background-color: rgba(15, 26, 46, 0.90);
-    border: 1px solid rgba(124, 155, 190, 0.20);
-    border-radius: 18px;
+#DownloadTaskCardActive,
+#HeroStatCard,
+#SettingsStatCard,
+#SkinCard,
+#AccountRow,
+#AccountRowActive,
+#DetailInfoRow,
+#QuickActionCard,
+#OverviewStatCard,
+#ActivityRow,
+#RecommendationRow,
+QWidget#InstanceCard,
+QWidget#Card {
+    background-color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(15, 23, 42, 0.10);
 }
 
-#DownloadTaskCardActive {
-    border: 1px solid rgba(36, 212, 107, 0.72);
-    background-color: rgba(10, 45, 36, 0.92);
+#PageTitle,
+#PanelTitle,
+#SectionTitle,
+#CardTitle,
+#InstanceTitle,
+#TopbarTitle,
+#NexusLogoTitle,
+#HeroTitle,
+#HeroStatValue,
+#OverviewStatValue,
+#DownloadBigNumber,
+#SettingsRamValue {
+    color: #0F172A;
 }
 
-#DownloadIcon {
-    background-color: rgba(36, 212, 107, 0.14);
-    border: 1px solid rgba(36, 212, 107, 0.44);
-    border-radius: 16px;
-    color: #8affb9;
-    font-size: 24px;
-    font-weight: 900;
+#PageDescription,
+#PanelText,
+#MutedText,
+#TopbarSubtitle,
+#InstanceMeta,
+#OverviewStatMeta,
+#ActivityMeta,
+#QuickActionText,
+#EmptyText {
+    color: #475569;
 }
 
-#DownloadStatus {
-    color: #cfe9ff;
-    font-size: 12px;
-    font-weight: 700;
+QLineEdit,
+QTextEdit,
+QPlainTextEdit,
+QComboBox,
+#TopbarSearch,
+#SearchInput,
+#Input {
+    background-color: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    color: #0F172A;
 }
 
-#DownloadError {
-    color: #ffb4c3;
-    background-color: rgba(80, 20, 34, 0.35);
-    border: 1px solid rgba(255, 92, 122, 0.28);
-    border-radius: 12px;
-    padding: 10px;
-}
-
-#DownloadProgress {
-    background-color: rgba(5, 10, 22, 0.8);
-    border: 1px solid rgba(124, 155, 190, 0.18);
-    border-radius: 4px;
-}
-
-#DownloadProgress::chunk {
-    background-color: #24d46b;
-    border-radius: 4px;
-}
-"""
-
-
-APP_STYLE += r"""
-/* REAL DOWNLOADS PAGE FIX */
-
-#DownloadSummaryCard {
-    background-color: rgba(15, 26, 46, 0.88);
-    border: 1px solid rgba(36, 212, 107, 0.22);
-    border-radius: 18px;
-}
-
-#DownloadBigNumber {
-    color: #8affb9;
-    font-size: 34px;
-    font-weight: 900;
-}
-
-#DownloadTaskCard,
-#DownloadTaskCardActive {
-    background-color: rgba(15, 26, 46, 0.90);
-    border: 1px solid rgba(124, 155, 190, 0.20);
-    border-radius: 18px;
-}
-
-#DownloadTaskCardActive {
-    border: 1px solid rgba(36, 212, 107, 0.72);
-    background-color: rgba(10, 45, 36, 0.92);
-}
-
-#DownloadIcon {
-    background-color: rgba(36, 212, 107, 0.14);
-    border: 1px solid rgba(36, 212, 107, 0.44);
-    border-radius: 16px;
-    color: #8affb9;
-    font-size: 24px;
-    font-weight: 900;
-}
-
-#DownloadStatus {
-    color: #cfe9ff;
-    font-size: 12px;
-    font-weight: 700;
-}
-
-#DownloadError {
-    color: #ffb4c3;
-    background-color: rgba(80, 20, 34, 0.35);
-    border: 1px solid rgba(255, 92, 122, 0.28);
-    border-radius: 12px;
-    padding: 10px;
-}
-
-#DownloadProgress {
-    background-color: rgba(5, 10, 22, 0.8);
-    border: 1px solid rgba(124, 155, 190, 0.18);
-    border-radius: 4px;
-}
-
-#DownloadProgress::chunk {
-    background-color: #24d46b;
-    border-radius: 4px;
+#LogViewer,
+#ModDescriptionBox {
+    background-color: #FFFFFF;
+    color: #0F172A;
 }
 """
+
+
+def get_app_style(theme=None):
+    theme = (theme or _read_saved_theme() or "dark").lower()
+
+    if theme == "amoled":
+        return APP_STYLE + AMOLED_STYLE
+
+    if theme == "light":
+        return APP_STYLE + LIGHT_STYLE
+
+    return APP_STYLE

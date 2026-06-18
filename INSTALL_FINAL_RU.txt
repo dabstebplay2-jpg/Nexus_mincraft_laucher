@@ -1,0 +1,12 @@
+Как поставить финальную версию Nexus Launcher:
+
+1. Закрой Nexus и Minecraft.
+2. В PowerShell перейди в проект:
+   cd C:\Nexus_minecraft_launcher
+3. Сделай бэкап данных:
+   Copy-Item -Recurse -Force .\data .\data_backup_before_final
+4. Скопируй содержимое архива в C:\Nexus_minecraft_launcher с заменой файлов.
+5. Очисти кэш Python:
+   Get-ChildItem -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
+6. Запусти:
+   .\.venv\Scripts\python.exe main.py

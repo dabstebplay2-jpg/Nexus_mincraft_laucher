@@ -9,6 +9,53 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+_java_version_cache: dict[str, int | None] = {}
+
+
+def get_java_major_version(java_path: str):
+    if not java_path:
+        return None
+
+    cached = _java_version_cache.get(java_path)
+    if cached is not None:
+        return cached
+
+    try:
+        result = subprocess.run(
+            [java_path, "-version"],
+            capture_output=True,
+            text=True,
+            timeout=8,
+        )
+
+        output = result.stderr + result.stdout
+
+        match = re.search(r'version "(\d+)', output)
+
+        if match:
+            major = int(match.group(1))
+
+            if major == 1:
+                legacy = re.search(r'version "1\.(\d+)', output)
+                if legacy:
+                    _java_version_cache[java_path] = int(legacy.group(1))
+                    return _java_version_cache[java_path]
+
+            _java_version_cache[java_path] = major
+            return major
+
+        match = re.search(r'openjdk (\d+)', output.lower())
+
+        if match:
+            _java_version_cache[java_path] = int(match.group(1))
+            return _java_version_cache[java_path]
+
+    except Exception:
+        logger.exception("Failed to detect Java version: %s", java_path)
+
+    _java_version_cache[java_path] = None
+    return None
+
 
 def find_java_candidates():
     candidates = []
@@ -80,43 +127,6 @@ def find_java_candidates():
     return unique
 
 
-def get_java_major_version(java_path: str):
-    if not java_path:
-        return None
-
-    try:
-        result = subprocess.run(
-            [java_path, "-version"],
-            capture_output=True,
-            text=True,
-            timeout=8,
-        )
-
-        output = result.stderr + result.stdout
-
-        match = re.search(r'version "(\d+)', output)
-
-        if match:
-            major = int(match.group(1))
-
-            if major == 1:
-                legacy = re.search(r'version "1\.(\d+)', output)
-                if legacy:
-                    return int(legacy.group(1))
-
-            return major
-
-        match = re.search(r'openjdk (\d+)', output.lower())
-
-        if match:
-            return int(match.group(1))
-
-    except Exception:
-        logger.exception("Failed to detect Java version: %s", java_path)
-
-    return None
-
-
 def find_java_executable(min_major: int | None = None):
     candidates = find_java_candidates()
 
@@ -136,6 +146,7 @@ def find_java_executable(min_major: int | None = None):
                 {
                     "path": str(candidate),
                     "major": major,
+                    "version": major,
                 }
             )
 
@@ -198,6 +209,7 @@ def get_best_installed_java_info():
                 {
                     "path": str(candidate),
                     "major": major,
+                    "version": major,
                 }
             )
 

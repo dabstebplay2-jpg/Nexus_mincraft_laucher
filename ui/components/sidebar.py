@@ -49,13 +49,18 @@ class Sidebar(QWidget):
         super().__init__()
 
         self.setObjectName("Sidebar")
-        self.setFixedWidth(292)
+        self.setFixedWidth(260)
+        self.compact = False
+        self._nav_labels = []
+        self._logo_text_widgets = []
+        self._profile_text_widgets = []
 
         self.buttons = []
         self.disabled_pages = set()
 
-        root = QVBoxLayout(self)
-        root.setContentsMargins(18, 18, 18, 18)
+        self.root_layout = QVBoxLayout(self)
+        root = self.root_layout
+        root.setContentsMargins(14, 16, 14, 16)
         root.setSpacing(14)
 
         root.addWidget(self.create_logo())
@@ -89,7 +94,6 @@ class Sidebar(QWidget):
 
         root.addStretch()
         root.addWidget(self.create_profile_card())
-        root.addWidget(self.create_bottom_actions())
 
     def create_logo(self):
         card = QFrame()
@@ -117,6 +121,7 @@ class Sidebar(QWidget):
 
         subtitle = QLabel("LAUNCHER")
         subtitle.setObjectName("NexusLogoSubtitle")
+        self._logo_text_widgets.extend([title, subtitle])
 
         text.addWidget(title)
         text.addWidget(subtitle)
@@ -129,9 +134,30 @@ class Sidebar(QWidget):
 
     def create_nav_button(self, icon_name, text, index):
         button = SidebarButton(icon_name, text, index)
+        button.full_text = text
         button.clicked.connect(lambda checked=False, i=index: self.page_changed.emit(i))
         self.buttons.append(button)
         return button
+
+
+    def set_compact(self, compact: bool):
+        compact = bool(compact)
+        if self.compact == compact:
+            return
+
+        self.compact = compact
+        self.setFixedWidth(74 if compact else 260)
+        self.root_layout.setContentsMargins(8 if compact else 14, 12 if compact else 16, 8 if compact else 14, 12 if compact else 16)
+        self.root_layout.setSpacing(10 if compact else 14)
+
+        for button in self.buttons:
+            button.setText("" if compact else getattr(button, "full_text", button.text()))
+            button.setMinimumHeight(46 if compact else 48)
+            button.setIconSize(QSize(22, 22) if compact else QSize(19, 19))
+            button.setToolTip(getattr(button, "full_text", ""))
+
+        for widget in self._logo_text_widgets + self._profile_text_widgets:
+            widget.setVisible(not compact)
 
     def set_active(self, index):
         for button in self.buttons:
@@ -179,6 +205,7 @@ class Sidebar(QWidget):
 
         status = QLabel("● Offline")
         status.setObjectName("SidebarProfileStatus")
+        self._profile_text_widgets.extend([name, status])
 
         info.addWidget(name)
         info.addWidget(status)
@@ -194,35 +221,4 @@ class Sidebar(QWidget):
 
         return card
 
-    def create_bottom_actions(self):
-        wrapper = QWidget()
 
-        row = QHBoxLayout(wrapper)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(12)
-
-        actions = [
-            ("settings", 6, "Настройки"),
-            ("logs", 7, "Логи"),
-            ("accounts", 5, "Аккаунты"),
-        ]
-
-        for icon_name, page_index, tooltip in actions:
-            button = QPushButton()
-            button.setObjectName("SidebarIconButton")
-            button.setFixedSize(44, 44)
-            button.setToolTip(tooltip)
-
-            qicon = get_icon(icon_name)
-            if qicon:
-                button.setIcon(qicon)
-                button.setIconSize(QSize(18, 18))
-            else:
-                button.setText(tooltip[0])
-
-            button.clicked.connect(lambda checked=False, i=page_index: self.page_changed.emit(i))
-            row.addWidget(button)
-
-        row.addStretch()
-
-        return wrapper

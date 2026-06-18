@@ -7,6 +7,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from storage.paths import DATA_DIR
+
 
 class SkinError(RuntimeError):
     pass
@@ -16,8 +18,7 @@ class SkinManager:
     SCHEMA_VERSION = 1
 
     def __init__(self, root: str | Path | None = None):
-        self.root = Path(root) if root else Path(__file__).resolve().parents[1]
-        self.data_dir = self.root / "data"
+        self.data_dir = Path(root) / "data" if root else DATA_DIR
         self.skins_dir = self.data_dir / "skins"
         self.skins_file = self.data_dir / "skins.json"
         self.accounts_file = self.data_dir / "accounts.json"

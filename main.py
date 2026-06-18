@@ -1,11 +1,30 @@
 import logging
 import sys
 import traceback
+import threading
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from core.logger import setup_logging
 from core.network_manager import disable_proxy_for_launcher, log_proxy_environment
+
+
+def install_global_exception_hooks():
+    def log_unhandled_exception(exc_type, exc_value, exc_traceback):
+        logging.getLogger(__name__).critical(
+            "Unhandled exception",
+            exc_info=(exc_type, exc_value, exc_traceback),
+        )
+
+    def log_thread_exception(args):
+        logging.getLogger(__name__).critical(
+            "Unhandled thread exception in %s",
+            getattr(args.thread, "name", "thread"),
+            exc_info=(args.exc_type, args.exc_value, args.exc_traceback),
+        )
+
+    sys.excepthook = log_unhandled_exception
+    threading.excepthook = log_thread_exception
 
 
 def show_fatal_error(error: BaseException):
@@ -20,7 +39,13 @@ def show_fatal_error(error: BaseException):
 
 def main():
     setup_logging()
+    install_global_exception_hooks()
     logger = logging.getLogger(__name__)
+
+    if "--diagnose" in sys.argv:
+        from tools.diagnose_nexus import run_diagnostics
+        run_diagnostics()
+        return
 
     try:
         logger.info("Checking proxy environment before cleanup")
@@ -31,10 +56,37 @@ def main():
         logger.info("Checking proxy environment after cleanup")
         log_proxy_environment()
 
+        from core.i18n import set_language
+        from storage.paths import DATA_DIR
+        import json
+
+        settings_file = DATA_DIR / "launcher_settings.json"
+        if settings_file.exists():
+            try:
+                settings_data = json.loads(settings_file.read_text(encoding="utf-8"))
+                lang = settings_data.get("language", "ru")
+                set_language(lang)
+                logger.info("Loaded language: %s", lang)
+            except Exception:
+                pass
+
         from app.window import MainWindow
 
         logger.info("Creating QApplication")
         app = QApplication(sys.argv)
+
+        from ui.styles import get_app_style
+        try:
+            settings_data = {}
+            settings_file = DATA_DIR / "launcher_settings.json"
+            if settings_file.exists():
+                settings_data = json.loads(settings_file.read_text(encoding="utf-8"))
+            theme = settings_data.get("theme", "dark")
+            app.setStyleSheet(get_app_style(theme))
+            logger.info("Applied theme: %s", theme)
+        except Exception:
+            logger.exception("Failed to apply saved theme")
+            app.setStyleSheet(get_app_style("dark"))
 
         logger.info("Creating main window")
         window = MainWindow()

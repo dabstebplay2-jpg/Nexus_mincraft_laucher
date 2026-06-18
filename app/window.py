@@ -1,3 +1,5 @@
+from PySide6.QtCore import QTimer, QThread, Signal
+
 from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -9,7 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.constants import APP_VERSION
-from ui.styles import APP_STYLE
+from ui.styles import get_app_style
 from ui.components.sidebar import Sidebar
 from ui.components.topbar import Topbar
 from ui.components.toast import Toast
@@ -24,14 +26,26 @@ from ui.pages.logs_page import LogsPage
 from ui.pages.settings_page import SettingsPage
 
 
+
+class StartupUpdateCheckWorker(QThread):
+    success = Signal(object)
+
+    def run(self):
+        try:
+            from core.updater import fetch_latest_release
+            self.success.emit(fetch_latest_release(timeout=6))
+        except Exception:
+            self.success.emit(None)
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle("Nexus Launcher")
-        self.setMinimumSize(1280, 760)
+        self.setMinimumSize(640, 460)
         self.resize(1440, 860)
-        self.setStyleSheet(APP_STYLE)
+        self.setStyleSheet(get_app_style())
 
         self.last_play_instance = None
 
@@ -78,7 +92,7 @@ class MainWindow(QMainWindow):
         self.instances_page.instance_details_requested.connect(self.open_instance_details)
 
         self.instance_detail_page = InstanceDetailPage()
-        self.instance_detail_page.back_clicked.connect(lambda: self.change_page(1))
+        self.instance_detail_page.back_clicked.connect(lambda checked=False: self.change_page(1))
         self.instance_detail_page.play_clicked.connect(self.instances_page.launch_instance)
 
         self.mods_page = ModsPage()
@@ -108,7 +122,51 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self.sidebar)
         root_layout.addWidget(self.content)
 
+        self.startup_update_worker = None
         self.change_page(0)
+        QTimer.singleShot(3000, self.check_updates_on_startup)
+
+
+
+
+    def check_updates_on_startup(self):
+        if self.startup_update_worker and self.startup_update_worker.isRunning():
+            return
+
+        self.startup_update_worker = StartupUpdateCheckWorker()
+        self.startup_update_worker.success.connect(self.on_startup_update_checked)
+        self.startup_update_worker.start()
+
+    def on_startup_update_checked(self, release):
+        if not release or not getattr(release, "is_newer", False):
+            return
+
+        asset = release.preferred_asset.name if release.preferred_asset else "asset не найден"
+        result = QMessageBox.question(
+            self,
+            "Доступно обновление Nexus",
+            f"Найдена новая версия: {release.tag}\n"
+            f"Текущая версия: {APP_VERSION}\n"
+            f"Repo: {release.repo}\n"
+            f"Asset: {asset}\n\n"
+            "Открыть настройки обновления?"
+        )
+
+        if result == QMessageBox.Yes:
+            self.change_page(6)
+            if hasattr(self.settings_page, "check_updates_from_settings"):
+                self.settings_page.check_updates_from_settings()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        compact = self.width() < 900
+        if hasattr(self.sidebar, "set_compact"):
+            self.sidebar.set_compact(compact)
+        if hasattr(self.topbar, "set_compact"):
+            self.topbar.set_compact(compact)
+
+    def apply_theme(self, theme=None):
+        self.setStyleSheet(get_app_style(theme))
 
     def change_page(self, index):
         if index == 0 and hasattr(self.home_page, "refresh"):
@@ -190,17 +248,31 @@ class MainWindow(QMainWindow):
         self.instances_page.launch_instance(latest)
 
     def open_instance_details(self, instance):
-        self.last_play_instance = instance
-        self.instance_detail_page.set_instance(instance)
-        self.pages.setCurrentWidget(self.instance_detail_page)
+        try:
+            instance = instance or {}
+            self.last_play_instance = instance
+            self.instance_detail_page.set_instance(instance)
 
-        self.topbar.set_page(
-            instance.get("name", "Сборка"),
-            f'Minecraft {instance.get("minecraft_version", "unknown")} • {instance.get("loader", "vanilla").capitalize()}'
-        )
+            detail_index = self.pages.indexOf(self.instance_detail_page)
+            if detail_index >= 0:
+                self.pages.setCurrentIndex(detail_index)
+            else:
+                self.pages.setCurrentWidget(self.instance_detail_page)
 
-        self.status_label.setText(f'Открыта сборка • {instance.get("name", "Сборка")}')
-        self.sidebar.set_active(1)
+            self.topbar.set_page(
+                instance.get("name", "Сборка"),
+                f'Minecraft {instance.get("minecraft_version", "unknown")} • {instance.get("loader", "vanilla").capitalize()}'
+            )
+
+            self.status_label.setText(f'Открыта сборка • {instance.get("name", "Сборка")}')
+            self.sidebar.set_active(1)
+        except Exception as error:
+            QMessageBox.critical(
+                self,
+                "Ошибка страницы сборки",
+                f"Не удалось открыть подробности сборки.\n\n{error}",
+            )
+            self.change_page(1)
 
     def show_toast(self, title, text):
         toast = Toast(self, title, text)

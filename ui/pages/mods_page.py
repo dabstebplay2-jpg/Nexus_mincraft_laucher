@@ -6,7 +6,6 @@ import webbrowser
 from pathlib import Path
 
 import requests
-from core.download_manager import DownloadManager
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
@@ -24,6 +23,8 @@ from PySide6.QtWidgets import (
     QProgressDialog,
     QDialog,
     QTextEdit,
+    QFileDialog,
+    QInputDialog,
 )
 
 try:
@@ -34,24 +35,119 @@ except Exception:
     def get_instance_manager():
         return InstanceManager()
 
+from mods.mod_installer import ModInstallerWorker
+from mods.mod_status import installed_state, cleanup_missing_records
+from mods.shader_support import has_shader_loader, recommended_shader_loader, shader_status_text, shaderpacks_dir
+from ui.pages.smart_builder_page import SmartBuilderDialog
+from ui.utils.helpers import clear_layout
+from ui.utils.image_loader import RemoteImageLabel
 
 MODRINTH_API = "https://api.modrinth.com/v2"
-USER_AGENT = "NexusLauncher/0.5.0 (Minecraft Launcher)"
-CACHE_DIR = Path.cwd() / "storage" / "modrinth_cache" / "images"
+from core.constants import USER_AGENT
+from storage.paths import STORAGE_DIR
 
+CACHE_DIR = STORAGE_DIR / "modrinth_cache" / "images"
 
-def clear_layout(layout):
-    while layout.count():
-        item = layout.takeAt(0)
+PROJECT_TYPES = [
+    {
+        "label": "Моды",
+        "value": "mod",
+        "placeholder": "sodium, iris, jei...",
+        "description": "Клиентские и серверные .jar-моды для Fabric/Forge/NeoForge/Quilt.",
+        "installable": True,
+    },
+    {
+        "label": "Модпаки",
+        "value": "modpack",
+        "placeholder": "fabulously optimized, better mc...",
+        "description": "Готовые .mrpack-сборки. В Nexus пока доступен просмотр и открытие на Modrinth.",
+        "installable": False,
+    },
+    {
+        "label": "Ресурспаки",
+        "value": "resourcepack",
+        "placeholder": "faithful, fresh animations...",
+        "description": "Текстуры и визуальные resource packs. Устанавливаются в resourcepacks.",
+        "installable": True,
+    },
+    {
+        "label": "Шейдеры",
+        "value": "shader",
+        "placeholder": "complementary, bsl, sildur...",
+        "description": "Shader packs. Nexus скачивает .zip в .minecraft/shaderpacks и подсказывает, если нужен Iris/Oculus/OptiFine.",
+        "installable": True,
+    },
+]
 
-        widget = item.widget()
-        child_layout = item.layout()
+TYPE_CATEGORY_PRESETS = {
+    "mod": [
+        ("Все категории", ""),
+        ("Оптимизация", "optimization"),
+        ("Библиотеки/API", "library"),
+        ("Утилиты", "utility"),
+        ("Геймплей", "game-mechanics"),
+        ("Приключения", "adventure"),
+        ("Мобы", "mobs"),
+        ("Магия", "magic"),
+        ("Технологии", "technology"),
+        ("Мир/генерация", "worldgen"),
+        ("Декор", "decoration"),
+        ("Еда", "food"),
+        ("Снаряжение", "equipment"),
+        ("Транспорт", "transportation"),
+    ],
+    "modpack": [
+        ("Все категории", ""),
+        ("Оптимизация", "optimization"),
+        ("Квесты", "quests"),
+        ("Приключения", "adventure"),
+        ("Магия", "magic"),
+        ("Технологии", "technology"),
+        ("Мультиплеер", "multiplayer"),
+        ("Vanilla+", "vanilla-plus"),
+        ("Хоррор", "horror"),
+        ("Сложность", "challenging"),
+    ],
+    "resourcepack": [
+        ("Все категории", ""),
+        ("Vanilla-like", "vanilla-like"),
+        ("Realistic", "realistic"),
+        ("Simplistic", "simplistic"),
+        ("Themed", "themed"),
+        ("Animated", "animated"),
+        ("Modded", "modded"),
+        ("16x", "16x"),
+        ("32x", "32x"),
+        ("64x", "64x"),
+        ("128x+", "128x"),
+    ],
+    "shader": [
+        ("Все категории", ""),
+        ("Iris", "iris"),
+        ("OptiFine", "optifine"),
+        ("Canvas", "canvas"),
+        ("Realistic", "realistic"),
+        ("Fantasy", "fantasy"),
+        ("Path Tracing", "path-tracing"),
+        ("Low-end", "low-end"),
+    ],
+}
 
-        if widget:
-            widget.deleteLater()
+SIDE_FILTERS = [
+    ("Любая сторона", ""),
+    ("Клиент", "client_side"),
+    ("Сервер", "server_side"),
+    ("Клиент + сервер", "both"),
+]
 
-        if child_layout:
-            clear_layout(child_layout)
+SORT_OPTIONS = [
+    ("По скачиваниям", "downloads"),
+    ("По релевантности", "relevance"),
+    ("Недавно обновлённые", "updated"),
+    ("Новые", "newest"),
+    ("По подписчикам", "follows"),
+]
+
 
 
 def fmt_num(value):
@@ -160,11 +256,14 @@ class ModrinthSearchWorker(QThread):
     success = Signal(object, int, int)
     failed = Signal(str, str)
 
-    def __init__(self, query="", project_type="mod", offset=0, limit=24, minecraft_version=None, loader=None):
+    def __init__(self, query="", project_type="mod", category="", side="", sort_index="downloads", offset=0, limit=12, minecraft_version=None, loader=None):
         super().__init__()
 
         self.query = query or ""
         self.project_type = project_type or "mod"
+        self.category = category or ""
+        self.side = side or ""
+        self.sort_index = sort_index or "downloads"
         self.offset = int(offset or 0)
         self.limit = int(limit or 24)
         self.minecraft_version = minecraft_version
@@ -177,14 +276,24 @@ class ModrinthSearchWorker(QThread):
             if self.minecraft_version:
                 facets.append([f"versions:{self.minecraft_version}"])
 
-            if self.loader and self.loader.lower() not in {"vanilla", "any", "любой"}:
+            if self.category:
+                facets.append([f"categories:{self.category}"])
+
+            if self.loader and self.loader.lower() not in {"vanilla", "any", "любой"} and self.project_type in {"mod", "modpack"}:
                 facets.append([f"categories:{self.loader.lower()}"])
+
+            if self.side == "client_side":
+                facets.append(["client_side:required", "client_side:optional"])
+            elif self.side == "server_side":
+                facets.append(["server_side:required", "server_side:optional"])
+            elif self.side == "both":
+                facets.append(["client_side:required", "server_side:required"])
 
             params = {
                 "query": self.query,
                 "limit": self.limit,
                 "offset": self.offset,
-                "index": "downloads",
+                "index": self.sort_index,
                 "facets": json.dumps(facets),
             }
 
@@ -204,14 +313,15 @@ class ModrinthSearchWorker(QThread):
 
             for hit in hits:
                 item = dict(hit)
-                icon_url = item.get("icon_url")
-                item["_icon_bytes"] = download_image_bytes(icon_url)
+                # ВАЖНО: не скачиваем иконки на этапе поиска.
+                # Раньше Nexus ждал до 24 HTTP-запросов к картинкам перед показом карточек,
+                # из-за чего страница «Моды» выглядела зависшей при медленном интернете/Modrinth.
+                item["_icon_bytes"] = None
                 prepared.append(item)
 
             self.success.emit(prepared, total_hits, self.offset)
 
         except Exception as error:
-            self.download_manager.fail_task(self.download_task_id, str(error), status="Ошибка установки мода")
             self.failed.emit(str(error), traceback.format_exc())
 
 
@@ -272,180 +382,7 @@ class ProjectDetailsWorker(QThread):
             self.failed.emit(str(error), traceback.format_exc())
 
 
-class ModInstallWorker(QThread):
-    status = Signal(str)
-    progress = Signal(int)
-    success = Signal(str)
-    failed = Signal(str, str)
 
-    def __init__(self, project, instance):
-        super().__init__()
-        self.project = project or {}
-        self.instance = instance or {}
-        self.download_manager = DownloadManager()
-        self.download_task_id = None
-
-    def run(self):
-        try:
-            title = self.project.get("title") or self.project.get("slug") or "mod"
-
-            self.download_task_id = self.download_manager.start_task(
-                kind="mod",
-                title=f"Установка мода: {title}",
-                subtitle=f'Сборка: {self.instance.get("name", "Minecraft")}',
-                total=100,
-                metadata={
-                    "project_id": self.project.get("project_id"),
-                    "slug": self.project.get("slug"),
-                    "instance_id": self.instance.get("id"),
-                },
-            )
-            project_id = self.project.get("project_id") or self.project.get("slug")
-
-            if not project_id:
-                raise RuntimeError("У мода нет project_id.")
-
-            minecraft_version = self.instance.get("minecraft_version")
-            loader = (self.instance.get("loader") or "vanilla").lower()
-
-            self.download_manager.update_task(self.download_task_id, status=f"Поиск версии для {title}...")
-            self.status.emit(f"Поиск версии для {title}...")
-
-            params = {}
-
-            if minecraft_version:
-                params["game_versions"] = json.dumps([minecraft_version])
-
-            if loader and loader != "vanilla":
-                params["loaders"] = json.dumps([loader])
-
-            versions = self.fetch_versions(project_id, params)
-
-            if not versions and minecraft_version:
-                self.status.emit("Совместимая версия не найдена, пробую только версию Minecraft...")
-                versions = self.fetch_versions(project_id, {
-                    "game_versions": json.dumps([minecraft_version])
-                })
-
-            if not versions:
-                self.status.emit("Точная совместимость не найдена, пробую последнюю доступную версию...")
-                versions = self.fetch_versions(project_id, {})
-
-            if not versions:
-                raise RuntimeError(
-                    f"Не найден файл для установки.\n"
-                    f"Мод: {title}\n"
-                    f"Minecraft: {minecraft_version}\n"
-                    f"Loader: {loader}"
-                )
-
-            file_info = self.pick_file(versions)
-
-            if not file_info:
-                raise RuntimeError("В найденных версиях нет .jar файла.")
-
-            url = file_info.get("url")
-
-            if not url:
-                raise RuntimeError("У файла нет ссылки на скачивание.")
-
-            filename = safe_filename(file_info.get("filename") or f"{self.project.get('slug', 'mod')}.jar")
-
-            mods_dir = self.get_mods_dir()
-            mods_dir.mkdir(parents=True, exist_ok=True)
-
-            target = mods_dir / filename
-
-            self.download_manager.update_task(self.download_task_id, status=f"Скачивание {filename}...")
-            self.status.emit(f"Скачивание {filename}...")
-
-            with requests.get(
-                url,
-                stream=True,
-                headers={"User-Agent": USER_AGENT},
-                timeout=60,
-            ) as response:
-                response.raise_for_status()
-
-                total = int(response.headers.get("content-length") or 0)
-                downloaded = 0
-
-                with open(target, "wb") as file:
-                    for chunk in response.iter_content(chunk_size=1024 * 256):
-                        if not chunk:
-                            continue
-
-                        file.write(chunk)
-                        downloaded += len(chunk)
-
-                        if total > 0:
-                            percent = int(downloaded * 100 / total)
-                            self.download_manager.update_task(
-                                self.download_task_id,
-                                progress=percent,
-                                downloaded_bytes=downloaded,
-                                total_bytes=total,
-                                status=f"Скачивание {filename}",
-                            )
-                            self.progress.emit(percent)
-
-            self.download_manager.finish_task(self.download_task_id, status="Мод установлен")
-            self.progress.emit(100)
-            self.success.emit(str(target))
-
-        except Exception as error:
-            self.failed.emit(str(error), traceback.format_exc())
-
-    def fetch_versions(self, project_id, params):
-        response = requests.get(
-            f"{MODRINTH_API}/project/{project_id}/version",
-            params=params,
-            headers={"User-Agent": USER_AGENT},
-            timeout=25,
-        )
-        response.raise_for_status()
-        return response.json()
-
-    def pick_file(self, versions):
-        for version in versions:
-            files = version.get("files", [])
-
-            primary = None
-            fallback = None
-
-            for file in files:
-                filename = file.get("filename", "").lower()
-
-                if not filename.endswith(".jar"):
-                    continue
-
-                if file.get("primary"):
-                    primary = file
-                    break
-
-                if fallback is None:
-                    fallback = file
-
-            if primary:
-                return primary
-
-            if fallback:
-                return fallback
-
-        return None
-
-    def get_mods_dir(self):
-        minecraft_dir = self.instance.get("minecraft_dir")
-
-        if minecraft_dir:
-            return Path(minecraft_dir) / "mods"
-
-        instance_path = self.instance.get("path") or self.instance.get("instance_dir")
-
-        if instance_path:
-            return Path(instance_path) / ".minecraft" / "mods"
-
-        return Path.cwd() / "mods"
 
 
 class ModDetailsDialog(QDialog):
@@ -508,7 +445,7 @@ class ModDetailsDialog(QDialog):
         self.screenshots_row.setSpacing(12)
 
         self.screenshots_empty = QLabel("Скриншоты загружаются...")
-        self.screenshots_empty.setObjectName("PanelText")
+        self.screenshots_empty.setObjectName("EmptyText")
         self.screenshots_row.addWidget(self.screenshots_empty)
 
         buttons = QHBoxLayout()
@@ -591,7 +528,43 @@ class ModDetailsDialog(QDialog):
         slug = self.project.get("slug") or self.project.get("project_id")
 
         if slug:
-            webbrowser.open(f"https://modrinth.com/mod/{slug}")
+            project_type = self.project.get("project_type") or "mod"
+            path_by_type = {
+                "mod": "mod",
+                "modpack": "modpack",
+                "resourcepack": "resourcepack",
+                "shader": "shader",
+            }
+            web_path = path_by_type.get(project_type, "mod")
+            webbrowser.open(f"https://modrinth.com/{web_path}/{slug}")
+
+
+
+
+class ModpackImportWorker(QThread):
+    status = Signal(str)
+    progress = Signal(int)
+    success = Signal(object)
+    failed = Signal(str, str)
+
+    def __init__(self, archive_path, ram_mb=4096):
+        super().__init__()
+        self.archive_path = archive_path
+        self.ram_mb = ram_mb
+
+    def run(self):
+        try:
+            from mods.modpack_importer import ModpackImporter
+
+            importer = ModpackImporter(
+                progress_callback=lambda value: self.progress.emit(int(value or 0)),
+                status_callback=lambda text: self.status.emit(str(text)),
+                detail_callback=lambda text: self.status.emit(str(text)),
+            )
+            instance = importer.import_mrpack(self.archive_path, ram_mb=self.ram_mb)
+            self.success.emit(instance)
+        except Exception as error:
+            self.failed.emit(str(error), traceback.format_exc())
 
 
 class ModsPage(QWidget):
@@ -603,14 +576,16 @@ class ModsPage(QWidget):
         self.results = []
         self.total_hits = 0
         self.offset = 0
-        self.limit = 24
+        self.limit = 12
 
         self.search_worker = None
         self.install_worker = None
+        self.modpack_worker = None
         self.progress_dialog = None
         self.did_autoload = False
         self.search_busy = False
         self.current_results = []
+        self._last_columns = 0
 
         self.build_ui()
         self.load_instances()
@@ -630,7 +605,7 @@ class ModsPage(QWidget):
         title = QLabel("Моды")
         title.setObjectName("PageTitle")
 
-        description = QLabel("Каталог Modrinth, поиск, иконки, описание, скриншоты и установка модов.")
+        description = QLabel("Каталог Modrinth, поиск, описание и установка модов. Иконки загружаются в фоне и не тормозят поиск.")
         description.setObjectName("PageDescription")
         description.setWordWrap(True)
 
@@ -639,10 +614,30 @@ class ModsPage(QWidget):
 
         self.instance_combo = QComboBox()
         self.instance_combo.setMinimumWidth(230)
+        self.instance_combo.currentIndexChanged.connect(self.on_instance_changed)
 
         self.type_combo = QComboBox()
-        self.type_combo.addItem("mod")
-        self.type_combo.setMinimumWidth(130)
+        self.type_combo.setMinimumWidth(160)
+        for item in PROJECT_TYPES:
+            self.type_combo.addItem(item["label"], item["value"])
+        self.type_combo.currentIndexChanged.connect(self.on_type_changed)
+        self.type_combo.setToolTip("Выбери раздел каталога: моды, модпаки, ресурспаки или шейдеры.")
+
+        self.category_combo = QComboBox()
+        self.category_combo.setMinimumWidth(180)
+        self.category_combo.currentIndexChanged.connect(self.search_clicked)
+
+        self.side_combo = QComboBox()
+        self.side_combo.setMinimumWidth(150)
+        for label, value in SIDE_FILTERS:
+            self.side_combo.addItem(label, value)
+        self.side_combo.currentIndexChanged.connect(self.search_clicked)
+
+        self.sort_combo = QComboBox()
+        self.sort_combo.setMinimumWidth(170)
+        for label, value in SORT_OPTIONS:
+            self.sort_combo.addItem(label, value)
+        self.sort_combo.currentIndexChanged.connect(self.search_clicked)
 
         self.query_input = QLineEdit()
         self.query_input.setPlaceholderText("sodium, iris, jei...")
@@ -652,16 +647,30 @@ class ModsPage(QWidget):
         search_button.setObjectName("PrimaryButton")
         search_button.clicked.connect(self.search_clicked)
 
+        smart_button = QPushButton("Smart Builder")
+        smart_button.setObjectName("SecondaryButton")
+        smart_button.clicked.connect(self.open_smart_builder)
+
+        import_pack_button = QPushButton("Импорт .mrpack")
+        import_pack_button.setObjectName("SecondaryButton")
+        import_pack_button.clicked.connect(self.import_mrpack)
+
         controls.addWidget(self.instance_combo)
         controls.addWidget(self.type_combo)
+        controls.addWidget(self.category_combo)
+        controls.addWidget(self.side_combo)
+        controls.addWidget(self.sort_combo)
         controls.addWidget(self.query_input, 1)
         controls.addWidget(search_button)
+        controls.addWidget(smart_button)
+        controls.addWidget(import_pack_button)
 
         self.status_label = QLabel("Популярные моды загрузятся автоматически.")
         self.status_label.setObjectName("PanelText")
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll.setObjectName("ScrollArea")
 
         self.container = QWidget()
@@ -686,12 +695,124 @@ class ModsPage(QWidget):
         bottom.addStretch()
         bottom.addWidget(self.load_more_button)
 
+        self.on_type_changed(search=False)
+
+        self.stats_row = QHBoxLayout()
+        self.stats_row.setSpacing(14)
+        self.results_stat = self.create_stat_card("Найдено", "0", "по фильтру")
+        self.visible_stat = self.create_stat_card("Показано", "0", "на странице")
+        self.compat_stat = self.create_stat_card("Совместимость", "AUTO", "версия + loader")
+        self.source_stat = self.create_stat_card("Источник", "Modrinth", "каталог")
+        self.type_stat = self.create_stat_card("Раздел", "Моды", "тип контента")
+        for card in [self.results_stat, self.visible_stat, self.compat_stat, self.source_stat, self.type_stat]:
+            self.stats_row.addWidget(card)
+
         root.addWidget(title)
         root.addWidget(description)
+        root.addLayout(self.stats_row)
         root.addLayout(controls)
         root.addWidget(self.status_label)
         root.addWidget(self.scroll, 1)
         root.addLayout(bottom)
+
+
+    def create_stat_card(self, title, value, desc):
+        card = QFrame()
+        card.setObjectName("DownloadSummaryCard")
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(18, 16, 18, 16)
+        layout.setSpacing(6)
+
+        title_label = QLabel(title)
+        title_label.setObjectName("HeroStatTitle")
+
+        value_label = QLabel(value)
+        value_label.setObjectName("DownloadBigNumber")
+
+        desc_label = QLabel(desc)
+        desc_label.setObjectName("InstanceMeta")
+
+        card.value_label = value_label
+        card.desc_label = desc_label
+
+        layout.addWidget(title_label)
+        layout.addWidget(value_label)
+        layout.addWidget(desc_label)
+        return card
+
+
+
+    def project_type_install_word(self, project_type=None):
+        project_type = project_type or self.selected_project_type()
+        return {
+            "mod": "мод",
+            "resourcepack": "ресурспак",
+            "shader": "шейдер",
+            "modpack": "модпак",
+        }.get(project_type, "проект")
+
+    def project_type_install_action(self, project_type=None):
+        project_type = project_type or self.selected_project_type()
+        return {
+            "mod": "Установить мод",
+            "resourcepack": "Установить ресурспак",
+            "shader": "Установить шейдер",
+            "modpack": "Импортировать модпак",
+        }.get(project_type, "Установить")
+
+    def selected_project_type(self):
+        value = self.type_combo.currentData() if hasattr(self, "type_combo") else None
+        return str(value or "mod")
+
+    def selected_project_type_info(self):
+        current = self.selected_project_type()
+        for item in PROJECT_TYPES:
+            if item["value"] == current:
+                return item
+        return PROJECT_TYPES[0]
+
+    def selected_category(self):
+        value = self.category_combo.currentData() if hasattr(self, "category_combo") else None
+        return str(value or "")
+
+    def selected_side(self):
+        value = self.side_combo.currentData() if hasattr(self, "side_combo") else None
+        return str(value or "")
+
+    def selected_sort(self):
+        value = self.sort_combo.currentData() if hasattr(self, "sort_combo") else None
+        return str(value or "downloads")
+
+    def on_type_changed(self, *args, search=True):
+        project_type = self.selected_project_type()
+        info = self.selected_project_type_info()
+
+        if hasattr(self, "category_combo"):
+            self.category_combo.blockSignals(True)
+            self.category_combo.clear()
+            for label, value in TYPE_CATEGORY_PRESETS.get(project_type, TYPE_CATEGORY_PRESETS["mod"]):
+                self.category_combo.addItem(label, value)
+            self.category_combo.blockSignals(False)
+
+        if hasattr(self, "query_input"):
+            self.query_input.setPlaceholderText(info.get("placeholder", "поиск..."))
+
+        if hasattr(self, "type_stat"):
+            self.type_stat.value_label.setText(info.get("label", project_type))
+            self.type_stat.desc_label.setText("можно установить" if info.get("installable") else "только просмотр")
+
+        if hasattr(self, "status_label"):
+            status = info.get("description", "")
+            if project_type == "shader" and self.selected_instance():
+                status += "  •  " + shader_status_text(self.selected_instance())
+            self.status_label.setText(status)
+
+        if hasattr(self, "side_combo"):
+            self.side_combo.setEnabled(project_type in {"mod", "modpack"})
+
+        if search:
+            self.search_clicked()
 
     def load_instances(self):
         self.instance_combo.clear()
@@ -706,13 +827,46 @@ class ModsPage(QWidget):
 
         if not self.instances:
             self.instance_combo.addItem("Нет сборок", None)
+            if hasattr(self, "compat_stat"):
+                self.compat_stat.value_label.setText("Нет")
+                self.compat_stat.desc_label.setText("сначала создай сборку")
             return
 
         for instance in self.instances:
             name = instance.get("name", "Без названия")
             version = instance.get("minecraft_version", "unknown")
             loader = instance.get("loader", "vanilla")
-            self.instance_combo.addItem(f"{name} | {version} | {loader}", instance)
+            warning = " ⚠ без модов" if str(loader).lower() == "vanilla" else ""
+            self.instance_combo.addItem(f"{name} | {version} | {loader}{warning}", instance)
+
+        if hasattr(self, "compat_stat"):
+            selected = self.selected_instance()
+            if selected:
+                self.compat_stat.value_label.setText(str(selected.get("loader", "vanilla")).upper())
+                self.compat_stat.desc_label.setText(str(selected.get("minecraft_version", "unknown")))
+            if hasattr(self, "type_stat"):
+                info = self.selected_project_type_info()
+                self.type_stat.value_label.setText(info.get("label", self.selected_project_type()))
+                self.type_stat.desc_label.setText(self.category_combo.currentText() if hasattr(self, "category_combo") else "тип контента")
+
+
+    def on_instance_changed(self, *args):
+        self.update_compatibility_stat()
+        if self.selected_project_type() == "shader" and hasattr(self, "status_label") and self.selected_instance():
+            self.status_label.setText(self.selected_project_type_info().get("description", "") + "  •  " + shader_status_text(self.selected_instance()))
+        if self.results:
+            self.render_results()
+
+    def update_compatibility_stat(self):
+        selected = self.selected_instance()
+        if not hasattr(self, "compat_stat"):
+            return
+        if selected:
+            self.compat_stat.value_label.setText(str(selected.get("loader", "vanilla")).upper())
+            self.compat_stat.desc_label.setText(str(selected.get("minecraft_version", "unknown")))
+        else:
+            self.compat_stat.value_label.setText("Нет")
+            self.compat_stat.desc_label.setText("сначала создай сборку")
 
     def selected_instance(self):
         data = self.instance_combo.currentData()
@@ -722,7 +876,7 @@ class ModsPage(QWidget):
 
         return None
 
-    def search_clicked(self):
+    def search_clicked(self, *args):
         self.start_search(reset=True)
 
     def load_all_mods_first_page(self):
@@ -731,7 +885,7 @@ class ModsPage(QWidget):
 
         self.start_search(reset=True, force_query="")
 
-    def load_more(self):
+    def load_more(self, *args):
         if self.search_busy:
             return
 
@@ -745,6 +899,7 @@ class ModsPage(QWidget):
             self.offset = 0
             self.results = []
             self.current_results = []
+            self._last_columns = 0
             self.render_results()
 
         query = self.query_input.text().strip()
@@ -762,12 +917,15 @@ class ModsPage(QWidget):
             loader = instance.get("loader")
 
         self.search_busy = True
-        self.status_label.setText("Загрузка модов и иконок с Modrinth...")
+        self.status_label.setText("Загрузка списка модов с Modrinth...")
         self.load_more_button.setEnabled(False)
 
         self.search_worker = ModrinthSearchWorker(
             query=query,
-            project_type=self.type_combo.currentText(),
+            project_type=self.selected_project_type(),
+            category=self.selected_category(),
+            side=self.selected_side(),
+            sort_index=self.selected_sort(),
             offset=self.offset,
             limit=self.limit,
             minecraft_version=minecraft_version,
@@ -794,6 +952,18 @@ class ModsPage(QWidget):
         self.status_label.setText(f"Показано {len(self.results)} из {self.total_hits}")
         self.count_label.setText(f"Показано {len(self.results)} из {self.total_hits}")
 
+        if hasattr(self, "results_stat"):
+            self.results_stat.value_label.setText(fmt_num(self.total_hits))
+            self.visible_stat.value_label.setText(fmt_num(len(self.results)))
+            selected = self.selected_instance()
+            if selected:
+                self.compat_stat.value_label.setText(str(selected.get("loader", "vanilla")).upper())
+                self.compat_stat.desc_label.setText(str(selected.get("minecraft_version", "unknown")))
+            if hasattr(self, "type_stat"):
+                info = self.selected_project_type_info()
+                self.type_stat.value_label.setText(info.get("label", self.selected_project_type()))
+                self.type_stat.desc_label.setText(self.category_combo.currentText() if hasattr(self, "category_combo") else "тип контента")
+
         self.load_more_button.setEnabled(len(self.results) < self.total_hits)
 
     def on_search_failed(self, error_text, details):
@@ -809,6 +979,24 @@ class ModsPage(QWidget):
         box.setDetailedText(str(details))
         box.exec()
 
+
+    def responsive_columns(self):
+        try:
+            width = self.scroll.viewport().width()
+        except Exception:
+            width = self.width()
+
+        if width < 780:
+            return 1
+        return 2
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, "grid") and self.results:
+            columns = self.responsive_columns()
+            if columns != getattr(self, "_last_columns", 0):
+                self.render_results()
+
     def render_results(self):
         clear_layout(self.grid)
 
@@ -820,7 +1008,8 @@ class ModsPage(QWidget):
             self.grid.addWidget(empty, 0, 0, 1, 2)
             return
 
-        columns = 2
+        columns = self.responsive_columns()
+        self._last_columns = columns
 
         for index, project in enumerate(self.results):
             row = index // columns
@@ -832,20 +1021,27 @@ class ModsPage(QWidget):
     def create_mod_card(self, project):
         card = QFrame()
         card.setObjectName("ModResultCard")
-        card.setMinimumHeight(245)
+        card.setMinimumHeight(238)
 
         layout = QVBoxLayout(card)
         layout.setContentsMargins(18, 16, 18, 16)
         layout.setSpacing(12)
 
+        selected_instance = self.selected_instance()
+        project_type = self.selected_project_type()
+        state = installed_state(selected_instance, project, project_type) if selected_instance else {
+            "state": "no_instance",
+            "label": "Нет сборки",
+            "record": None,
+        }
+
         top = QHBoxLayout()
         top.setSpacing(12)
 
-        icon_box = QLabel("◆")
+        icon_box = RemoteImageLabel(64, 64, "◆")
         icon_box.setObjectName("ModIconImage")
         icon_box.setAlignment(Qt.AlignCenter)
-        icon_box.setFixedSize(64, 64)
-        set_label_image(icon_box, project.get("_icon_bytes"), 58)
+        icon_box.set_remote_image(project.get("icon_url"))
 
         title_block = QVBoxLayout()
         title_block.setSpacing(3)
@@ -857,8 +1053,12 @@ class ModsPage(QWidget):
         author = QLabel(f'by {project.get("author", "unknown")}')
         author.setObjectName("InstanceMeta")
 
+        install_status = QLabel(self.install_state_text(state))
+        install_status.setObjectName("StatusBadge" if state.get("state") == "installed" else "SmallBadge")
+
         title_block.addWidget(title)
         title_block.addWidget(author)
+        title_block.addWidget(install_status, 0, Qt.AlignLeft)
 
         top.addWidget(icon_box)
         top.addLayout(title_block, 1)
@@ -866,7 +1066,7 @@ class ModsPage(QWidget):
         description = QLabel(project.get("description", "Без описания"))
         description.setObjectName("PanelText")
         description.setWordWrap(True)
-        description.setMinimumHeight(54)
+        description.setMinimumHeight(50)
 
         tags = QHBoxLayout()
         tags.setSpacing(8)
@@ -882,9 +1082,30 @@ class ModsPage(QWidget):
         actions = QHBoxLayout()
         actions.setSpacing(10)
 
-        install = QPushButton("Установить")
-        install.setObjectName("PrimaryButton")
+        type_info = self.selected_project_type_info()
+        can_install = bool(type_info.get("installable"))
+
+        if can_install and state.get("state") == "not_installed":
+            button_text = self.project_type_install_action(project_type)
+        elif can_install:
+            button_text = state.get("label", self.project_type_install_action(project_type))
+        else:
+            button_text = "Скоро импорт"
+
+        install = QPushButton(button_text)
+        install.setObjectName("PrimaryButton" if state.get("state") != "installed" and can_install else "SecondaryButton")
         install.clicked.connect(lambda checked=False, p=project: self.install_project(p))
+
+        if not can_install:
+            install.setEnabled(False)
+            install.setToolTip("Для этого раздела пока доступен просмотр и открытие на Modrinth. Импорт .mrpack будет отдельным модулем.")
+        elif state.get("state") == "installed":
+            install.setEnabled(False)
+            install.setToolTip("Этот проект уже установлен в выбранную сборку. Повторная установка не нужна.")
+        elif state.get("state") == "missing_files":
+            install.setToolTip("Запись есть, но файл потерян. Nexus переустановит совместимую версию.")
+        elif state.get("state") == "no_instance":
+            install.setEnabled(False)
 
         details = QPushButton("Подробнее")
         details.setObjectName("SecondaryButton")
@@ -907,13 +1128,31 @@ class ModsPage(QWidget):
 
         return card
 
+    def install_state_text(self, state):
+        code = state.get("state")
+        record = state.get("record") or {}
+
+        if code == "installed":
+            version = record.get("version_number") or record.get("version_name") or "версия известна"
+            return f"✓ Установлено • {version}"
+
+        if code == "missing_files":
+            return "⚠ Запись есть, файл потерян"
+
+        if code == "no_instance":
+            return "Сначала выбери сборку"
+
+        return "Не установлен"
+
     def tag(self, text):
         label = QLabel(str(text))
         label.setObjectName("ModTag")
         return label
 
     def show_details(self, project):
-        dialog = ModDetailsDialog(project, self)
+        payload = dict(project or {})
+        payload["project_type"] = payload.get("project_type") or self.selected_project_type()
+        dialog = ModDetailsDialog(payload, self)
         dialog.exec()
 
     def install_project(self, project):
@@ -927,6 +1166,45 @@ class ModsPage(QWidget):
             )
             return
 
+        loader = str(instance.get("loader") or "vanilla").lower()
+        project_type = self.selected_project_type()
+        type_info = self.selected_project_type_info()
+
+        if not type_info.get("installable"):
+            QMessageBox.information(
+                self,
+                "Раздел пока только для просмотра",
+                f'{type_info.get("label", project_type)} можно искать и открывать на Modrinth.\n\n'
+                "Импорт модпаков .mrpack лучше делать отдельным мастером, чтобы он создавал новую сборку, "
+                "ставил loader, переносил overrides и зависимости без поломки текущих сборок."
+            )
+            return
+
+        if project_type == "mod" and loader == "vanilla":
+            QMessageBox.warning(
+                self,
+                "Нужна Fabric/Forge сборка",
+                "Эта сборка Vanilla. В неё можно скачать .jar файл, но Minecraft не загрузит мод.\n\n"
+                "Создай новую сборку с Loader = fabric, например Minecraft 1.20.1 + fabric, "
+                "и выбери её сверху перед установкой мода."
+            )
+            return
+
+        state = installed_state(instance, project, project_type)
+        if state.get("state") == "installed":
+            record = state.get("record") or {}
+            QMessageBox.information(
+                self,
+                "Проект уже установлен",
+                f'{project.get("title") or project.get("slug") or "Проект"} уже установлен в сборку "{instance.get("name", "Minecraft")}".\n\n'
+                f'Версия: {record.get("version_number") or record.get("version_name") or "неизвестно"}\n'
+                f'Minecraft: {record.get("minecraft_version") or instance.get("minecraft_version")}\n'
+                f'Loader: {record.get("loader") or instance.get("loader")}\n\n'
+                "Кнопка теперь будет показывать «Установлено», чтобы не скачивать один и тот же проект бесконечно."
+            )
+            self.render_results()
+            return
+
         if self.install_worker and self.install_worker.isRunning():
             QMessageBox.information(self, "Установка уже идёт", "Дождись завершения текущей установки.")
             return
@@ -938,7 +1216,7 @@ class ModsPage(QWidget):
             100,
             self,
         )
-        self.progress_dialog.setWindowTitle("Установка мода")
+        self.progress_dialog.setWindowTitle(f"Установка: {self.project_type_install_word(project_type)}")
         self.progress_dialog.setMinimumWidth(520)
         self.progress_dialog.setAutoClose(False)
         self.progress_dialog.setAutoReset(False)
@@ -946,7 +1224,10 @@ class ModsPage(QWidget):
         self.progress_dialog.setValue(0)
         self.progress_dialog.show()
 
-        self.install_worker = ModInstallWorker(project, instance)
+        project = dict(project)
+        project["project_type"] = project_type
+
+        self.install_worker = ModInstallerWorker(project, instance)
         self.install_worker.status.connect(self.on_install_status)
         self.install_worker.progress.connect(self.on_install_progress)
         self.install_worker.success.connect(self.on_install_success)
@@ -962,17 +1243,79 @@ class ModsPage(QWidget):
             self.progress_dialog.setValue(int(value or 0))
 
     def on_install_success(self, path):
+        message = str(path or "")
+        already = message.startswith("Мод уже установлен") or message.startswith("Проект уже установлен")
+        project_type = self.selected_project_type()
+        word = self.project_type_install_word(project_type)
+
         if self.progress_dialog:
             self.progress_dialog.setValue(100)
-            self.progress_dialog.setLabelText("Мод установлен.")
+            self.progress_dialog.setLabelText(f"{word.capitalize()} уже установлен." if already else f"{word.capitalize()} установлен.")
             self.progress_dialog.close()
             self.progress_dialog = None
 
+        if self.results:
+            self.render_results()
+
+        if project_type == "shader" and not already:
+            self.handle_shader_post_install(message)
+            return
+
         QMessageBox.information(
             self,
-            "Мод установлен",
-            f"Файл установлен:\n{path}"
+            "Проект уже установлен" if already else f"{word.capitalize()} установлен",
+            message
         )
+
+    def handle_shader_post_install(self, install_message):
+        instance = self.selected_instance()
+        if not instance:
+            QMessageBox.information(self, "Шейдер установлен", install_message)
+            return
+
+        folder = shaderpacks_dir(instance)
+        if has_shader_loader(instance):
+            QMessageBox.information(
+                self,
+                "Шейдер установлен",
+                f"{install_message}\n\n"
+                f"Папка: {folder}\n\n"
+                "В игре открой настройки шейдеров Iris/Oculus/OptiFine и выбери установленный shader pack."
+            )
+            return
+
+        recommendation = recommended_shader_loader(instance)
+        result = QMessageBox.question(
+            self,
+            "Шейдер установлен, но нужен загрузчик шейдеров",
+            f"{install_message}\n\n"
+            f"Шейдер-пак скачан в:\n{folder}\n\n"
+            "Но Minecraft не покажет шейдеры без Iris/Oculus/OptiFine.\n\n"
+            f"{recommendation.get('reason')}\n\n"
+            f"Установить сейчас: {recommendation.get('title')}?"
+        )
+
+        if result == QMessageBox.Yes:
+            old_type_index = self.type_combo.currentIndex()
+            try:
+                self.type_combo.blockSignals(True)
+                index = self.type_combo.findData("mod")
+                if index >= 0:
+                    self.type_combo.setCurrentIndex(index)
+                self.type_combo.blockSignals(False)
+
+                self.install_project(recommendation)
+            finally:
+                self.type_combo.blockSignals(True)
+                self.type_combo.setCurrentIndex(old_type_index)
+                self.type_combo.blockSignals(False)
+                self.on_type_changed(search=False)
+        else:
+            QMessageBox.information(
+                self,
+                "Шейдер скачан",
+                "Шейдер установлен в папку shaderpacks, но в игре он появится только после установки Iris/Oculus/OptiFine."
+            )
 
     def on_install_failed(self, error_text, details):
         if self.progress_dialog:
@@ -982,10 +1325,100 @@ class ModsPage(QWidget):
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Critical)
         box.setWindowTitle("Ошибка установки")
-        box.setText("Не удалось установить мод.")
+        box.setText("Не удалось установить проект.")
         box.setInformativeText(str(error_text))
         box.setDetailedText(str(details))
         box.exec()
+
+    def import_mrpack(self):
+        if self.modpack_worker and self.modpack_worker.isRunning():
+            QMessageBox.information(self, "Импорт уже идёт", "Дождись завершения текущего импорта модпака.")
+            return
+
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Выбрать Modrinth modpack",
+            "",
+            "Modrinth Pack (*.mrpack);;All files (*.*)",
+        )
+        if not path:
+            return
+
+        ram_mb, ok = QInputDialog.getInt(
+            self,
+            "RAM для модпака",
+            "Сколько RAM выделить новой сборке?",
+            4096,
+            2048,
+            32768,
+            512,
+        )
+        if not ok:
+            return
+
+        self.progress_dialog = QProgressDialog(
+            "Подготовка импорта .mrpack...",
+            "Скрыть",
+            0,
+            100,
+            self,
+        )
+        self.progress_dialog.setWindowTitle("Импорт модпака")
+        self.progress_dialog.setMinimumWidth(560)
+        self.progress_dialog.setAutoClose(False)
+        self.progress_dialog.setAutoReset(False)
+        self.progress_dialog.setWindowModality(Qt.NonModal)
+        self.progress_dialog.setValue(0)
+        self.progress_dialog.show()
+
+        self.modpack_worker = ModpackImportWorker(path, ram_mb=ram_mb)
+        self.modpack_worker.status.connect(self.on_modpack_import_status)
+        self.modpack_worker.progress.connect(self.on_modpack_import_progress)
+        self.modpack_worker.success.connect(self.on_modpack_import_success)
+        self.modpack_worker.failed.connect(self.on_modpack_import_failed)
+        self.modpack_worker.start()
+
+    def on_modpack_import_status(self, text):
+        if self.progress_dialog:
+            self.progress_dialog.setLabelText(str(text))
+
+    def on_modpack_import_progress(self, value):
+        if self.progress_dialog:
+            self.progress_dialog.setValue(int(value or 0))
+
+    def on_modpack_import_success(self, instance):
+        if self.progress_dialog:
+            self.progress_dialog.setValue(100)
+            self.progress_dialog.setLabelText("Модпак импортирован.")
+            self.progress_dialog.close()
+            self.progress_dialog = None
+
+        self.load_instances()
+
+        QMessageBox.information(
+            self,
+            "Модпак импортирован",
+            f'Создана сборка: {instance.get("name", "Modpack")}\n'
+            f'Minecraft: {instance.get("minecraft_version", "unknown")}\n'
+            f'Loader: {instance.get("loader", "vanilla")}'
+        )
+
+    def on_modpack_import_failed(self, error_text, details):
+        if self.progress_dialog:
+            self.progress_dialog.close()
+            self.progress_dialog = None
+
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Critical)
+        box.setWindowTitle("Ошибка импорта .mrpack")
+        box.setText("Не удалось импортировать модпак.")
+        box.setInformativeText(str(error_text))
+        box.setDetailedText(str(details))
+        box.exec()
+
+    def open_smart_builder(self):
+        dialog = SmartBuilderDialog(self)
+        dialog.exec()
 
     def open_modrinth(self, project):
         slug = project.get("slug") or project.get("project_id")
@@ -993,4 +1426,12 @@ class ModsPage(QWidget):
         if not slug:
             return
 
-        webbrowser.open(f"https://modrinth.com/mod/{slug}")
+        project_type = project.get("project_type") or self.selected_project_type()
+        path_by_type = {
+            "mod": "mod",
+            "modpack": "modpack",
+            "resourcepack": "resourcepack",
+            "shader": "shader",
+        }
+        web_path = path_by_type.get(project_type, "mod")
+        webbrowser.open(f"https://modrinth.com/{web_path}/{slug}")

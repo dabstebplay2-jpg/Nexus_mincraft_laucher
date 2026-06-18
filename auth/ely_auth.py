@@ -5,12 +5,7 @@ import webbrowser
 
 import requests
 
-from auth.oauth_config import (
-    ELY_CLIENT_ID,
-    ELY_CLIENT_SECRET,
-    ELY_REDIRECT_URI,
-    ely_is_configured,
-)
+from auth import oauth_config
 from auth.account_manager import get_account_manager
 
 
@@ -29,13 +24,13 @@ class ElyAuthService:
         self.state = None
 
     def ensure_configured(self):
-        if not ely_is_configured():
+        if not oauth_config.ely_is_configured():
             raise RuntimeError(
                 "Ely.by OAuth не настроен.\n\n"
                 "Нужно задать переменные окружения:\n"
-                "NEXUS_ELY_CLIENT_ID\n"
-                "NEXUS_ELY_CLIENT_SECRET\n"
-                "NEXUS_ELY_REDIRECT_URI\n\n"
+                "NEXUS_oauth_config.get_ely_client_id()\n"
+                "NEXUS_oauth_config.get_ely_client_secret()\n"
+                "NEXUS_oauth_config.get_ely_redirect_uri()\n\n"
                 "Приложение создаётся в аккаунте Ely.by."
             )
 
@@ -45,8 +40,8 @@ class ElyAuthService:
         self.state = secrets.token_urlsafe(24)
 
         params = {
-            "client_id": ELY_CLIENT_ID,
-            "redirect_uri": ELY_REDIRECT_URI,
+            "client_id": oauth_config.get_ely_client_id(),
+            "redirect_uri": oauth_config.get_ely_redirect_uri(),
             "response_type": "code",
             "scope": "account_info account_email offline_access minecraft_server_session",
             "state": self.state,
@@ -100,12 +95,15 @@ class ElyAuthService:
             "username": username,
             "display_name": username,
             "uuid": uuid,
-            "provider": "Ely.by",
+            "provider": "ely",
+            "access_token": token_data.get("access_token", ""),
+            "refresh_token_saved": bool(token_data.get("refresh_token")),
             "profile_link": user_info.get("profileLink"),
             "email": user_info.get("email"),
         }
 
         saved = manager.upsert_account(account)
+        manager.set_active_account(saved["id"])
 
         manager.save_tokens(
             saved["id"],
@@ -123,9 +121,9 @@ class ElyAuthService:
         response = requests.post(
             self.TOKEN_URL,
             data={
-                "client_id": ELY_CLIENT_ID,
-                "client_secret": ELY_CLIENT_SECRET,
-                "redirect_uri": ELY_REDIRECT_URI,
+                "client_id": oauth_config.get_ely_client_id(),
+                "client_secret": oauth_config.get_ely_client_secret(),
+                "redirect_uri": oauth_config.get_ely_redirect_uri(),
                 "grant_type": "authorization_code",
                 "code": code,
             },

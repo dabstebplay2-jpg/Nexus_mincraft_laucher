@@ -1,24 +1,92 @@
+import json
 import os
+from pathlib import Path
+
+try:
+    from storage.paths import DATA_DIR
+except Exception:
+    DATA_DIR = Path("data")
 
 
-MICROSOFT_CLIENT_ID = os.environ.get("NEXUS_MICROSOFT_CLIENT_ID", "").strip()
-MICROSOFT_REDIRECT_URI = os.environ.get(
-    "NEXUS_MICROSOFT_REDIRECT_URI",
-    "http://localhost:8089/auth/microsoft/callback",
-).strip()
+DEFAULT_MICROSOFT_REDIRECT_URI = "http://localhost:8089/auth/microsoft/callback"
+DEFAULT_ELY_REDIRECT_URI = "http://localhost:8089/auth/ely/callback"
+OAUTH_SETTINGS_FILE = DATA_DIR / "oauth_settings.json"
 
 
-ELY_CLIENT_ID = os.environ.get("NEXUS_ELY_CLIENT_ID", "").strip()
-ELY_CLIENT_SECRET = os.environ.get("NEXUS_ELY_CLIENT_SECRET", "").strip()
-ELY_REDIRECT_URI = os.environ.get(
-    "NEXUS_ELY_REDIRECT_URI",
-    "http://localhost:8089/auth/ely/callback",
-).strip()
+def load_oauth_settings():
+    try:
+        if OAUTH_SETTINGS_FILE.exists():
+            data = json.loads(OAUTH_SETTINGS_FILE.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {}
+    except Exception:
+        pass
+    return {}
+
+
+def save_oauth_settings(data):
+    if not isinstance(data, dict):
+        data = {}
+    OAUTH_SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    OAUTH_SETTINGS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def update_oauth_settings(**kwargs):
+    data = load_oauth_settings()
+    for key, value in kwargs.items():
+        if value is None:
+            continue
+        data[key] = str(value).strip()
+    save_oauth_settings(data)
+    return data
+
+
+def _setting_or_env(setting_key, env_key, default=""):
+    data = load_oauth_settings()
+    value = os.environ.get(env_key, "").strip()
+    if value:
+        return value
+    return str(data.get(setting_key, default) or "").strip()
+
+
+def get_microsoft_client_id():
+    return _setting_or_env("microsoft_client_id", "NEXUS_MICROSOFT_CLIENT_ID", "")
+
+
+def get_microsoft_redirect_uri():
+    return _setting_or_env(
+        "microsoft_redirect_uri",
+        "NEXUS_MICROSOFT_REDIRECT_URI",
+        DEFAULT_MICROSOFT_REDIRECT_URI,
+    )
+
+
+def get_ely_client_id():
+    return _setting_or_env("ely_client_id", "NEXUS_ELY_CLIENT_ID", "")
+
+
+def get_ely_client_secret():
+    return _setting_or_env("ely_client_secret", "NEXUS_ELY_CLIENT_SECRET", "")
+
+
+def get_ely_redirect_uri():
+    return _setting_or_env(
+        "ely_redirect_uri",
+        "NEXUS_ELY_REDIRECT_URI",
+        DEFAULT_ELY_REDIRECT_URI,
+    )
 
 
 def microsoft_is_configured():
-    return bool(MICROSOFT_CLIENT_ID and MICROSOFT_REDIRECT_URI)
+    return bool(get_microsoft_client_id() and get_microsoft_redirect_uri())
 
 
 def ely_is_configured():
-    return bool(ELY_CLIENT_ID and ELY_CLIENT_SECRET and ELY_REDIRECT_URI)
+    return bool(get_ely_client_id() and get_ely_client_secret() and get_ely_redirect_uri())
+
+
+# Backward-compatible names for older code paths. New code should use getters above.
+MICROSOFT_CLIENT_ID = get_microsoft_client_id()
+MICROSOFT_REDIRECT_URI = get_microsoft_redirect_uri()
+ELY_CLIENT_ID = get_ely_client_id()
+ELY_CLIENT_SECRET = get_ely_client_secret()
+ELY_REDIRECT_URI = get_ely_redirect_uri()

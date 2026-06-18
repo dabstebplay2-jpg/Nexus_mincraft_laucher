@@ -1,4 +1,5 @@
 import logging
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -19,12 +20,55 @@ from core.launcher_settings import get_launcher_settings
 
 logger = logging.getLogger(__name__)
 
+_MIN_DISK_SPACE_MB = 500
+
 
 class Launcher:
     def __init__(self, set_status=None, set_progress=None, set_max=None):
         self.set_status = set_status or (lambda text: None)
         self.set_progress = set_progress or (lambda value: None)
         self.set_max = set_max or (lambda value: None)
+
+    def _check_disk_space(self, minecraft_dir: Path):
+        try:
+            usage = shutil.disk_usage(minecraft_dir.anchor if minecraft_dir.is_absolute() else minecraft_dir)
+            free_mb = usage.free // (1024 * 1024)
+            if free_mb < _MIN_DISK_SPACE_MB:
+                raise RuntimeError(
+                    f"Недостаточно места на диске. Свободно: {free_mb} МБ, "
+                    f"требуется минимум: {_MIN_DISK_SPACE_MB} МБ."
+                )
+        except OSError:
+            pass
+
+    def _check_loader_compatibility(self, loader: str, minecraft_version: str):
+        incompatible = {
+            "fabric": (1, 14),
+            "quilt": (1, 14),
+            "neoforge": (1, 20, 1),
+        }
+        min_ver = incompatible.get(loader)
+        if min_ver:
+            try:
+                parts = tuple(int(x) for x in minecraft_version.split(".")[:3])
+                if parts < min_ver:
+                    min_str = ".".join(str(x) for x in min_ver)
+                    raise RuntimeError(
+                        f"Загрузчик {loader} не поддерживает Minecraft {minecraft_version}. "
+                        f"Минимальная версия: {min_str}+."
+                    )
+            except (ValueError, IndexError):
+                pass
+
+    def _check_writable(self, minecraft_dir: Path):
+        try:
+            test_file = minecraft_dir / ".nexus_write_test"
+            test_file.write_text("ok")
+            test_file.unlink(missing_ok=True)
+        except (OSError, PermissionError) as e:
+            raise RuntimeError(
+                f"Нет прав на запись в папку сборки: {minecraft_dir}\n\n{e}"
+            )
 
     def launch_instance(self, instance: dict):
         logger.info("Launch requested")
@@ -36,6 +80,10 @@ class Launcher:
         ram_mb = int(instance.get("ram_mb", 4096))
 
         minecraft_dir.mkdir(parents=True, exist_ok=True)
+
+        self._check_disk_space(minecraft_dir)
+        self._check_writable(minecraft_dir)
+        self._check_loader_compatibility(loader, minecraft_version)
 
         callback = {
             "setStatus": self.set_status,
@@ -109,9 +157,17 @@ class Launcher:
 
         self.set_status("Подготовка команды запуска...")
 
+        account_manager = AccountManager()
+        profile = account_manager.get_launch_profile()
+        username = profile.get("username", "NexusPlayer")
+        uuid_str = profile.get("uuid", "")
+        token = profile.get("token", "0")
+
         options = minecraft_launcher_lib.utils.generate_test_options()
 
-        options["username"] = "NexusPlayer"
+        options["username"] = username
+        options["uuid"] = uuid_str
+        options["token"] = token
         options["launcherName"] = "NexusLauncher"
         options["launcherVersion"] = APP_VERSION
         options["gameDirectory"] = str(minecraft_dir)

@@ -1,4 +1,1 @@
-﻿APP_NAME = "Nexus Launcher"
-APP_VERSION = "0.6.0"
-USER_AGENT = f"NexusLauncher/{APP_VERSION}"
-
+from core.app_info import APP_NAME, APP_VERSION, USER_AGENT

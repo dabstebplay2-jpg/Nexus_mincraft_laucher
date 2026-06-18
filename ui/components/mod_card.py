@@ -18,6 +18,6 @@ class ModCard(QWidget):
         stats=QHBoxLayout(); stats.addWidget(self.badge(f"{fmt(project.get('downloads',0))} скачиваний"));
         for c in (project.get('categories') or [])[:2]: stats.addWidget(self.badge(c))
         stats.addStretch()
-        buttons=QHBoxLayout(); install=QPushButton('Установить'); install.setObjectName('PrimaryButton'); install.clicked.connect(lambda:self.install_clicked.emit(self.project)); details=QPushButton('Подробнее'); details.setObjectName('SecondaryButton'); details.clicked.connect(lambda:self.details_clicked.emit(self.project)); buttons.addWidget(install); buttons.addWidget(details); buttons.addStretch()
+        buttons=QHBoxLayout(); install=QPushButton('Установить'); install.setObjectName('PrimaryButton'); install.clicked.connect(lambda checked=False: self.install_clicked.emit(self.project)); details=QPushButton('Подробнее'); details.setObjectName('SecondaryButton'); details.clicked.connect(lambda checked=False: self.details_clicked.emit(self.project)); buttons.addWidget(install); buttons.addWidget(details); buttons.addStretch()
         root.addLayout(head); root.addWidget(desc); root.addLayout(stats); root.addStretch(); root.addLayout(buttons)
     def badge(self,text): l=QLabel(str(text)); l.setObjectName('InstanceBadge'); return l
