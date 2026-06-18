@@ -157,7 +157,7 @@ class MainWindow(QMainWindow):
             f"Источник: {source}\n"
             f"Repo: {release.repo}\n"
             f"Asset: {asset}\n\n"
-            "Скачать обновление и запустить установщик?"
+            "Скачать, проверить SHA256 и установить обновление?"
         )
 
         if result == QMessageBox.Yes:

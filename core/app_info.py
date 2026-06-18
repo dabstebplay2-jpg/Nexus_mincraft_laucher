@@ -1,8 +1,8 @@
 import os
 
 APP_NAME = "Nexus Launcher"
-APP_VERSION = "0.7.6"
-APP_CODENAME = "Auto Deploy Website Update"
+APP_VERSION = "0.7.7"
+APP_CODENAME = "Verified Auto Update"
 
 APP_FULL_NAME = f"{APP_NAME} {APP_VERSION}"
 USER_AGENT = f"NexusLauncher/{APP_VERSION}"

@@ -446,10 +446,15 @@ class SettingsPage(QWidget):
         release_btn.setObjectName("SecondaryButton")
         release_btn.clicked.connect(self.open_github_releases)
 
+        website_btn = QPushButton("Сайт")
+        website_btn.setObjectName("SecondaryButton")
+        website_btn.clicked.connect(self.open_nexus_website)
+
         actions.addWidget(check_btn)
         actions.addWidget(self.download_update_btn)
         actions.addWidget(self.install_update_btn)
         actions.addWidget(release_btn)
+        actions.addWidget(website_btn)
         actions.addStretch()
 
         self.update_progress = QProgressBar()
@@ -470,7 +475,7 @@ class SettingsPage(QWidget):
         if self.update_check_worker and self.update_check_worker.isRunning():
             return
 
-        self.update_status_label.setText("Проверяю GitHub Releases и сайт release.json...")
+        self.update_status_label.setText("Проверяю GitHub Releases. Если GitHub недоступен — использую сайт release.json...")
         self.update_progress.setValue(0)
         self.download_update_btn.setEnabled(False)
         self.install_update_btn.setEnabled(False)
@@ -633,6 +638,10 @@ class SettingsPage(QWidget):
     def open_github_releases(self):
         from core.updater import open_release_page
         open_release_page()
+
+    def open_nexus_website(self):
+        from core.updater import open_website
+        open_website()
 
     def create_diagnostics_panel(self):
         panel = QFrame()

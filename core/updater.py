@@ -58,6 +58,7 @@ class ReleaseInfo:
 
 def normalize_version(value: str) -> tuple[int, ...]:
     value = (value or "").strip().lower()
+    value = value.removeprefix("refs/tags/")
     value = value.removeprefix("v")
     parts = re.findall(r"\d+", value)
     return tuple(int(part) for part in parts) if parts else (0,)
@@ -71,7 +72,7 @@ def repo_is_configured() -> bool:
     return bool(GITHUB_OWNER and GITHUB_REPO and "YOUR_GITHUB_USERNAME" not in GITHUB_OWNER)
 
 
-def _request_json(url: str, timeout: int = 10, accept: str = "application/json") -> dict:
+def _request(url: str, timeout: int = 10, accept: str = "application/json"):
     request = urllib.request.Request(
         url,
         headers={
@@ -79,9 +80,17 @@ def _request_json(url: str, timeout: int = 10, accept: str = "application/json")
             "User-Agent": USER_AGENT,
         },
     )
+    return urllib.request.urlopen(request, timeout=timeout)
 
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+
+def _request_json(url: str, timeout: int = 10, accept: str = "application/json") -> dict:
+    with _request(url, timeout=timeout, accept=accept) as response:
         return json.loads(response.read().decode("utf-8"))
+
+
+def _request_text(url: str, timeout: int = 10) -> str:
+    with _request(url, timeout=timeout, accept="text/plain,*/*") as response:
+        return response.read().decode("utf-8", errors="replace")
 
 
 def fetch_github_latest_release(timeout: int = 10) -> Optional[ReleaseInfo]:
@@ -101,7 +110,7 @@ def fetch_github_latest_release(timeout: int = 10) -> Optional[ReleaseInfo]:
 
             tag = data.get("tag_name") or ""
             version = tag.removeprefix("v")
-            assets = []
+            assets: list[ReleaseAsset] = []
 
             for asset in data.get("assets") or []:
                 url = asset.get("browser_download_url")
@@ -111,8 +120,8 @@ def fetch_github_latest_release(timeout: int = 10) -> Optional[ReleaseInfo]:
 
                 assets.append(
                     ReleaseAsset(
-                        name=name,
-                        download_url=url,
+                        name=str(name),
+                        download_url=str(url),
                         size=asset.get("size"),
                         content_type=asset.get("content_type"),
                     )
@@ -195,22 +204,21 @@ def fetch_website_release(timeout: int = 10) -> Optional[ReleaseInfo]:
             source="website",
         )
     except Exception as error:
-        # Website fallback can legitimately be unavailable until GitHub Pages is enabled.
-        # Keep this quiet because GitHub Releases is the primary update source.
+        # Website can be unavailable until GitHub Pages finishes deployment.
+        # GitHub Releases is the primary update source, so keep this quiet.
         logger.debug("Website release check unavailable: %s", error)
         return None
 
 
 def fetch_latest_release(timeout: int = 10) -> Optional[ReleaseInfo]:
-    """Check for updates without noisy fallback errors.
+    """Check update metadata.
 
-    GitHub Releases is the source of truth for installable updates.
-    The website release.json is used only when GitHub is unavailable.
-    This prevents harmless GitHub Pages 404s from appearing as warnings.
+    GitHub Releases is the source of truth because release assets contain
+    the actual Setup EXE and sha256 files. The website release.json is only
+    a fallback when GitHub API is unavailable.
     """
 
     github_release = fetch_github_latest_release(timeout=timeout)
-
     if github_release:
         return github_release
 
@@ -231,7 +239,7 @@ def choose_preferred_asset(assets: list[ReleaseAsset]) -> ReleaseAsset | None:
         if name.endswith(".exe"):
             value += 100
 
-        # User-guided auto-update should prefer installer because it can replace the installed app safely.
+        # Prefer Setup EXE because it can replace the installed app safely.
         if "setup" in name or "installer" in name:
             value += 140
 
@@ -262,7 +270,7 @@ def download_asset(asset: ReleaseAsset, progress_callback=None) -> Path:
     progress_callback = progress_callback or (lambda downloaded, total, speed: None)
     UPDATES_DIR.mkdir(parents=True, exist_ok=True)
 
-    safe_name = re.sub(r"[^a-zA-Z0-9_.()\\- ]+", "_", asset.name)
+    safe_name = re.sub(r"[^a-zA-Z0-9_.()\- ]+", "_", asset.name)
     target = UPDATES_DIR / safe_name
     tmp = target.with_suffix(target.suffix + ".tmp")
 
@@ -310,8 +318,76 @@ def sha256_file(path: Path) -> str:
     return hasher.hexdigest()
 
 
+def find_sha256_asset(release: ReleaseInfo, downloaded_path: Path) -> ReleaseAsset | None:
+    target_names = {
+        f"{downloaded_path.name}.sha256".lower(),
+        f"{downloaded_path.name}.sha256.txt".lower(),
+    }
+
+    for asset in release.assets:
+        if asset.name.lower() in target_names:
+            return asset
+
+    # Some release builders use a shared checksum file.
+    for asset in release.assets:
+        name = asset.name.lower()
+        if name.endswith(".sha256") and "checksums" in name:
+            return asset
+
+    return None
+
+
+def parse_sha256(text: str, filename: str) -> str | None:
+    filename = filename.lower()
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        parts = stripped.split()
+        candidates = [part for part in parts if re.fullmatch(r"[a-fA-F0-9]{64}", part)]
+        if not candidates:
+            continue
+
+        if len(parts) == 1:
+            return candidates[0].lower()
+
+        if filename in stripped.lower() or len(parts) <= 2:
+            return candidates[0].lower()
+
+    return None
+
+
+def verify_download_checksum(release: ReleaseInfo, downloaded_path: Path) -> str:
+    actual = sha256_file(downloaded_path)
+    sha_asset = find_sha256_asset(release, downloaded_path)
+
+    if not sha_asset:
+        return f"SHA256: {actual}\nChecksum asset: not found, local hash only"
+
+    expected_text = _request_text(sha_asset.download_url, timeout=15)
+    expected = parse_sha256(expected_text, downloaded_path.name)
+
+    if not expected:
+        raise RuntimeError(f"Не удалось прочитать SHA256 из {sha_asset.name}")
+
+    if expected.lower() != actual.lower():
+        raise RuntimeError(
+            "SHA256 не совпал. Обновление не будет запущено.\n\n"
+            f"Expected: {expected}\n"
+            f"Actual:   {actual}"
+        )
+
+    return f"SHA256 verified: {actual}\nChecksum asset: {sha_asset.name}"
+
+
 def open_release_page():
     webbrowser.open(GITHUB_LATEST_RELEASE_PAGE)
+
+
+def open_website():
+    webbrowser.open(f"https://{GITHUB_OWNER}.github.io/{GITHUB_REPO}/")
 
 
 def open_downloaded_update(path: str | Path):
@@ -332,6 +408,8 @@ def open_downloaded_update(path: str | Path):
 
 
 def create_update_notes(release: ReleaseInfo, downloaded_path: Path) -> Path:
+    checksum_result = verify_download_checksum(release, downloaded_path)
+
     notes = UPDATES_DIR / "latest_update.txt"
     notes.write_text(
         f"Nexus Launcher update downloaded\n\n"
@@ -340,7 +418,7 @@ def create_update_notes(release: ReleaseInfo, downloaded_path: Path) -> Path:
         f"Current version: {APP_VERSION}\n"
         f"Latest version: {release.version}\n"
         f"Asset: {downloaded_path.name}\n"
-        f"SHA256: {sha256_file(downloaded_path)}\n\n"
+        f"{checksum_result}\n\n"
         f"File path:\n{downloaded_path}\n\n"
         "If this is an installer .exe, Nexus can close itself and launch it.\n"
         "If this is portable .zip, extract it over the old portable folder.\n",
@@ -349,8 +427,8 @@ def create_update_notes(release: ReleaseInfo, downloaded_path: Path) -> Path:
     return notes
 
 
-def create_update_launcher_script(downloaded_path: str | Path) -> Path:
-    """Create a small Windows .cmd helper that starts installer after Nexus exits."""
+def create_update_launcher_script(downloaded_path: str | Path, silent: bool = True) -> Path:
+    """Create a helper script that starts installer after Nexus exits."""
 
     downloaded_path = Path(downloaded_path).resolve()
     UPDATES_DIR.mkdir(parents=True, exist_ok=True)
@@ -358,12 +436,16 @@ def create_update_launcher_script(downloaded_path: str | Path) -> Path:
     script = UPDATES_DIR / "run_nexus_update.cmd"
 
     if os.name == "nt":
+        installer_args = ""
+        if silent:
+            installer_args = " /SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS"
+
         script.write_text(
             "@echo off\r\n"
             "title Nexus Launcher Update\r\n"
             "echo Waiting for Nexus Launcher to close...\r\n"
             "timeout /t 2 /nobreak >nul\r\n"
-            f'start "" "{downloaded_path}"\r\n',
+            f'start "" "{downloaded_path}"{installer_args}\r\n',
             encoding="utf-8",
         )
     else:
@@ -381,7 +463,7 @@ def create_update_launcher_script(downloaded_path: str | Path) -> Path:
     return script
 
 
-def start_installer_after_exit(downloaded_path: str | Path) -> Path:
+def start_installer_after_exit(downloaded_path: str | Path, silent: bool = True) -> Path:
     """Start downloaded setup installer through helper script.
 
     The caller should close the Qt application after this function returns.
@@ -395,7 +477,7 @@ def start_installer_after_exit(downloaded_path: str | Path) -> Path:
     if not is_installer_path(downloaded_path):
         raise RuntimeError("Автообновление доступно только для Setup .exe. Portable ZIP нужно распаковывать вручную.")
 
-    script = create_update_launcher_script(downloaded_path)
+    script = create_update_launcher_script(downloaded_path, silent=silent)
 
     if os.name == "nt":
         flags = 0
