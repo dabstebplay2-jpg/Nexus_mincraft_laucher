@@ -1,20 +1,16 @@
-Nexus Launcher Website — Direct Download
+Nexus Launcher Website — Stable Simple Fix
 
-Что изменено:
-1. Главная кнопка сайта теперь скачивает установщик напрямую:
-   https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.2-win-x64.exe
+Это упрощённая стабильная версия сайта:
+- без налезающих floating-карточек;
+- без тяжёлого canvas-фона;
+- без абсолютных блоков поверх контента;
+- без огромных пустых секций;
+- нормальная адаптация под экран;
+- прямое скачивание установщика из GitHub Releases.
 
-2. Пользователь не переходит на страницу GitHub — браузер сразу начинает загрузку.
+Локальный запуск:
+cd C:\Nexus_minecraft_launcher\website
+..\.venv\Scripts\python.exe -m http.server 8080
 
-3. Вторая кнопка скачивает portable ZIP:
-   https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncher-0.7.2-win-x64-portable.zip
-
-Важно:
-- Прямая ссылка начнёт работать после того, как в GitHub Releases появится asset с точным именем:
-  NexusLauncherSetup-0.7.2-win-x64.exe
-
-- Для этого нужно собрать и опубликовать релиз v0.7.2 через GitHub Actions.
-
-Как залить сайт:
-- Если используешь GitHub Pages из папки /website, просто закоммить изменения website/
-- Если сайт деплоится на Vercel/Netlify, запушь изменения в main
+Открыть:
+http://localhost:8080

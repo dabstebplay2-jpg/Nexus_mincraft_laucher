@@ -1,436 +1,228 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Nexus Launcher — умная сборка Minecraft</title>
-  <meta name="description" content="Nexus Launcher — красивый Minecraft-лаунчер для сборок, модов, Modrinth, Java, RAM Sync и стабильного запуска." />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nexus Launcher — Minecraft лаунчер</title>
+  <meta name="description" content="Nexus Launcher — простой Windows-лаунчер для Minecraft-сборок, модов, шейдеров и обновлений." />
+  <meta name="theme-color" content="#2fd566" />
+  <meta property="og:title" content="Nexus Launcher" />
+  <meta property="og:description" content="Minecraft-сборки, моды, шейдеры и установщик для Windows." />
+  <meta property="og:image" content="assets/og-cover.svg" />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="site-bg"></div>
-  <div class="grid-layer"></div>
-  <div class="particles" id="particles"></div>
-  <div class="toast" id="toast">Готово</div>
-
-  <header class="topbar">
-    <a class="brand magnetic" href="#top">
-      <span class="brand-mark">N</span>
-      <span class="brand-text">
+  <header class="header">
+    <a class="brand" href="#top" aria-label="Nexus Launcher">
+      <img src="assets/logo.svg" alt="" />
+      <span>
         <strong>NEXUS</strong>
         <small>Launcher</small>
       </span>
     </a>
 
-    <nav class="nav">
-      <a href="#features">Возможности</a>
-      <a href="#builder">Smart Builder</a>
-      <a href="#modrinth">Modrinth</a>
-      <a href="#download">Скачать</a>
-      <a href="#roadmap">Roadmap</a>
-    </nav>
+    <button class="menu-btn" id="menuBtn" aria-label="Открыть меню">☰</button>
 
-    <div class="top-actions">
-      <button class="round-btn magnetic" id="themeToggle" title="Сменить тему">◐</button>
-      <a class="download-nav magnetic" href="#download">Скачать ↓</a>
-    </div>
+    <nav class="nav" id="nav">
+      <a href="#features">Возможности</a>
+      <a href="#download">Скачать</a>
+      <a href="#screens">Интерфейс</a>
+      <a href="#faq">FAQ</a>
+    </nav>
   </header>
 
   <main id="top">
-    <section class="hero section">
-      <div class="hero-left">
-        <div class="status-pill reveal">
-          <span></span>
-          Windows 10/11 • Fabric • Modrinth • Java/RAM Sync
-        </div>
-
-        <h1 class="reveal">
-          Собирай Minecraft
-          <em>без хаоса.</em>
-        </h1>
-
-        <p class="hero-text reveal">
-          Nexus Launcher помогает создавать модпаки, ставить моды через Modrinth,
-          проверять Java, настраивать RAM и запускать Minecraft без лишней боли.
+    <section class="hero container">
+      <div class="hero-text">
+        <p class="label">Windows • Minecraft Launcher • <span id="versionText">0.7.3</span></p>
+        <h1>Нормальный лаунчер для Minecraft-сборок.</h1>
+        <p class="lead">
+          Nexus Launcher помогает запускать Minecraft, создавать сборки,
+          искать моды, ставить шейдеры и обновляться через GitHub Releases.
         </p>
 
-        <div class="hero-buttons reveal">
-          <a class="btn primary magnetic" href="#download">
-            <span>▣</span>
-            Скачать для Windows
-          </a>
-          <a class="btn ghost magnetic" href="#features">
-            Посмотреть возможности →
-          </a>
+        <div class="actions">
+          <a class="button primary" id="downloadBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.3-win-x64.exe" download>Скачать для Windows</a>
+          <a class="button secondary" href="#features">Что умеет?</a>
         </div>
 
-        <div class="release-line reveal">
-          <span>Текущая версия</span>
-          <b id="versionPill">0.6.0</b>
-        </div>
-
-        <div class="metric-row reveal">
-          <div class="metric-card">
-            <i>⬢</i>
-            <b id="metricVersion">0.6.0</b>
-            <span>текущая версия</span>
-          </div>
-          <div class="metric-card">
-            <i>✥</i>
-            <b>16K+</b>
-            <span>модов в каталоге</span>
-          </div>
-          <div class="metric-card">
-            <i>☕</i>
-            <b>Java</b>
-            <span>17 / 21 / 25+</span>
-          </div>
-          <div class="metric-card">
-            <i>▤</i>
-            <b>RAM Sync</b>
-            <span>умная настройка</span>
-          </div>
+        <div class="badges">
+          <span>Setup installer</span>
+          <span>Desktop shortcut</span>
+          <span>Portable ZIP</span>
+          <span>Windows 10/11</span>
         </div>
       </div>
 
-      <div class="hero-right reveal">
-        <div class="nexus-core" id="nexusCore">
-          <div class="core-rings">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-
-          <div class="core-cube">
-            <div class="cube-face cube-front">N</div>
-            <div class="cube-face cube-back">N</div>
-            <div class="cube-face cube-right"></div>
-            <div class="cube-face cube-left"></div>
-            <div class="cube-face cube-top"></div>
-            <div class="cube-face cube-bottom"></div>
-          </div>
-
-          <div class="floating-label label-a">
-            <b>RAM Sync</b>
-            <span>23.9 GB detected</span>
-          </div>
-
-          <div class="floating-label label-b">
-            <b>Modrinth</b>
-            <span>16K+ модов</span>
-          </div>
-
-          <div class="floating-label label-c">
-            <b>Java Check</b>
-            <span>17 / 21 / 25+</span>
-          </div>
-
-          <div class="floating-label label-d">
-            <b>Instances</b>
-            <span>отдельные сборки</span>
-          </div>
-
-          <div class="voxel v1"></div>
-          <div class="voxel v2"></div>
-          <div class="voxel v3"></div>
-          <div class="voxel v4"></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="quick-cards">
-      <article class="reveal">
-        <span>01</span>
-        <h3>Создай сборку</h3>
-        <p>Выбери версию Minecraft, loader и RAM.</p>
-      </article>
-      <article class="reveal">
-        <span>02</span>
-        <h3>Поставь моды</h3>
-        <p>Ищи проекты Modrinth прямо внутри Nexus.</p>
-      </article>
-      <article class="reveal">
-        <span>03</span>
-        <h3>Проверь запуск</h3>
-        <p>Лаунчер покажет Java, RAM и логи ошибок.</p>
-      </article>
-    </section>
-
-    <section class="section center" id="features">
-      <div class="section-label reveal">Возможности</div>
-      <h2 class="reveal">Не просто кнопка “Играть”, а система для сборок.</h2>
-      <p class="section-sub reveal">
-        Nexus закрывает базовые проблемы модового Minecraft: версии, loader, Java, RAM,
-        зависимости, логи и понятный интерфейс.
-      </p>
-
-      <div class="features-grid">
-        <article class="feature-card reveal">
-          <div class="feature-icon">▣</div>
-          <h3>Отдельные сборки</h3>
-          <p>Каждая сборка хранится в своей папке, со своими модами, настройками и версией Minecraft.</p>
-          <button data-demo="instances">Подробнее</button>
-        </article>
-
-        <article class="feature-card reveal">
-          <div class="feature-icon">✥</div>
-          <h3>Каталог Modrinth</h3>
-          <p>Популярные моды, поиск, иконки, скачивания, авторы, описание и установка в выбранную сборку.</p>
-          <button data-demo="modrinth">Открыть каталог</button>
-        </article>
-
-        <article class="feature-card reveal">
-          <div class="feature-icon">☕</div>
-          <h3>Java Detection</h3>
-          <p>Nexus определяет установленную Java и помогает понять, почему версия Minecraft не запускается.</p>
-          <button data-demo="java">Проверить Java</button>
-        </article>
-
-        <article class="feature-card reveal">
-          <div class="feature-icon">▤</div>
-          <h3>RAM Sync</h3>
-          <p>Лаунчер видит реальную память ПК и позволяет выбрать RAM для Minecraft безопасно.</p>
-          <button data-demo="ram">Синхронизация</button>
-        </article>
-
-        <article class="feature-card reveal">
-          <div class="feature-icon">≡</div>
-          <h3>Логи и диагностика</h3>
-          <p>Ошибки запуска, последние логи и диагностика доступны прямо в интерфейсе.</p>
-          <button data-demo="logs">Посмотреть логи</button>
-        </article>
-
-        <article class="feature-card reveal">
-          <div class="feature-icon">⬢</div>
-          <h3>Готов к EXE</h3>
-          <p>Проект можно упаковать в Windows-приложение и распространять через сайт.</p>
-          <button data-demo="exe">Релиз</button>
-        </article>
-      </div>
-    </section>
-
-    <section class="section builder" id="builder">
-      <div class="builder-copy reveal">
-        <div class="section-label">Smart Builder</div>
-        <h2>Умные пресеты и гибкая сборка.</h2>
-        <p>
-          Выбирай готовые пресеты или собирай свой модпак с нуля.
-          Nexus оптимизирует конфигурацию и помогает избегать конфликтов.
-        </p>
-
-        <div class="check-list">
-          <button class="check-item active">✓ рекомендации модов под цель</button>
-          <button class="check-item">✓ объяснение каждого мода</button>
-          <button class="check-item">✓ оценка стабильности сборки</button>
-          <button class="check-item">✓ подготовка к автоустановке</button>
-        </div>
-      </div>
-
-      <div class="builder-showcase reveal">
-        <div class="preset-tabs">
-          <button class="preset-tab active" data-preset="fps">⚡ FPS</button>
-          <button class="preset-tab" data-preset="beauty">🌸 Beauty</button>
-          <button class="preset-tab" data-preset="vanilla">🏰 Vanilla+</button>
-          <button class="preset-tab" data-preset="survival">🔥 Survival</button>
+      <div class="launcher-card" aria-label="Превью лаунчера">
+        <div class="window-bar">
+          <span></span><span></span><span></span>
+          <b>Nexus Launcher</b>
         </div>
 
-        <div class="preset-view">
-          <div class="preset-visual" id="presetVisual"></div>
-          <div class="preset-info">
-            <h3 id="presetTitle">FPS Boost</h3>
-            <p id="presetDesc">Для слабых и средних ПК: повышает FPS, снижает микрофризы и расход памяти.</p>
+        <div class="preview-layout">
+          <aside>
+            <div class="logo-block">N</div>
+            <i class="active"></i>
+            <i></i>
+            <i></i>
+            <i></i>
+          </aside>
 
-            <div class="score-grid">
-              <div>
-                <b id="presetScore">92%</b>
-                <span>стабильность</span>
-              </div>
-              <div>
-                <b id="presetRam">4096 MB</b>
-                <span>RAM</span>
-              </div>
-              <div>
-                <b id="presetMods">5</b>
-                <span>модов</span>
-              </div>
+          <div class="preview-content">
+            <div class="preview-title">
+              <small>Главная</small>
+              <strong>Nexus Player</strong>
             </div>
 
-            <div class="mod-tags" id="presetTags"></div>
+            <div class="minecraft-strip">
+              <div></div><div></div><div></div><div></div><div></div>
+              <div></div><div></div><div></div><div></div><div></div>
+            </div>
 
-            <button class="btn primary magnetic" id="createBuildBtn">Создать сборку</button>
+            <div class="preview-grid">
+              <div><b>Fabric</b><span>1.20.1</span></div>
+              <div><b>RAM</b><span>4096 MB</span></div>
+              <div><b>Mods</b><span>Modrinth</span></div>
+              <div><b>Java</b><span>Auto</span></div>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="section modrinth" id="modrinth">
-      <div class="modrinth-left reveal">
-        <div class="section-label">Modrinth</div>
-        <h2>Лучшие моды выглядят понятно ещё до установки.</h2>
-        <p>
-          Встроенный браузер Modrinth с поиском, описаниями, авторами и безопасной установкой в один клик.
+    <section class="stats container">
+      <div><b id="versionStat">0.7.3</b><span>версия</span></div>
+      <div><b>1 click</b><span>скачивание</span></div>
+      <div><b>Modrinth</b><span>моды и шейдеры</span></div>
+      <div><b>Setup</b><span>установщик</span></div>
+    </section>
+
+    <section class="section container" id="features">
+      <div class="section-head">
+        <p class="label">Возможности</p>
+        <h2>Без перегруза: только то, что нужно для запуска.</h2>
+      </div>
+
+      <div class="cards">
+        <article>
+          <span class="icon">🧱</span>
+          <h3>Сборки</h3>
+          <p>Отдельные профили Minecraft с версией, loader, RAM и Java.</p>
+        </article>
+
+        <article>
+          <span class="icon">⚙️</span>
+          <h3>Моды</h3>
+          <p>Поиск по Modrinth, установка в выбранную сборку и проверка статуса.</p>
+        </article>
+
+        <article>
+          <span class="icon">🌄</span>
+          <h3>Шейдеры</h3>
+          <p>Скачивание shader packs и подсказки по Iris, Oculus или OptiFine.</p>
+        </article>
+
+        <article>
+          <span class="icon">🔄</span>
+          <h3>Обновления</h3>
+          <p>Подготовка к автообновлениям через GitHub Releases.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section container split" id="download">
+      <div>
+        <p class="label">Скачать</p>
+        <h2>Одна кнопка — прямой download установщика.</h2>
+        <p class="text">
+          Кнопка скачивает Setup EXE из последнего GitHub Release без перехода на страницу GitHub.
+          После установки Nexus запускается как обычное Windows-приложение.
         </p>
-        <button class="text-link" id="openCatalog">Открыть каталог →</button>
       </div>
 
-      <div class="mod-carousel reveal">
-        <button class="carousel-btn" id="prevMod">←</button>
-        <div class="mod-cards" id="modCards"></div>
-        <button class="carousel-btn" id="nextMod">→</button>
-      </div>
-    </section>
+      <div class="download-panel">
+        <a class="button primary wide" id="mainDownloadBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.3-win-x64.exe" download>Скачать Nexus Launcher</a>
+        <a class="button secondary wide" id="portableBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncher-0.7.3-win-x64-portable.zip" download>Скачать portable ZIP</a>
+        <button class="button ghost wide" id="copyBtn">Скопировать ссылку</button>
 
-    <section class="section download-section" id="download">
-      <div class="download-copy reveal">
-        <div class="section-label">Скачать Nexus Launcher</div>
-        <h2>Готов к запуску на Windows.</h2>
-        <p>
-          Нажми одну кнопку — начнётся прямая загрузка установщика <b>Nexus Launcher</b>.
-          Переходить на GitHub не нужно: сайт берёт файл из последнего релиза автоматически.
-        </p>
-
-        <div class="download-badges">
-          <span>Windows 10/11</span>
-          <span>Setup Installer</span>
-          <span>Ярлык на рабочем столе</span>
-          <span id="downloadVersion">Версия 0.7.2</span>
-        </div>
-      </div>
-
-      <div class="download-panel reveal">
-        <a class="btn primary big magnetic" id="downloadBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.2-win-x64.exe" download>
-          ⬇ Скачать Nexus Launcher
-        </a>
-
-        <a class="btn ghost big magnetic" id="portableBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncher-0.7.2-win-x64-portable.zip" download>
-          Скачать portable ZIP
-        </a>
-
-        <button class="btn ghost big magnetic" id="copyCommand">
-          Скопировать ссылку скачивания
-        </button>
-
-        <div class="download-file-info">
-          <b id="downloadAssetName">NexusLauncherSetup-0.7.2-win-x64.exe</b>
-          <span>Прямая ссылка на asset из последнего GitHub Release</span>
-        </div>
-
-        <div class="security-note">
-          <span>🛡</span>
-          <p>Windows SmartScreen может показать предупреждение, потому что приложение пока не подписано сертификатом.</p>
-        </div>
-
-        <div class="chest-3d">
-          <div class="chest-lid"></div>
-          <div class="chest-body"></div>
-          <div class="chest-lock">N</div>
+        <div class="file-box">
+          <b id="assetName">NexusLauncherSetup-0.7.3-win-x64.exe</b>
+          <span>Если Windows SmartScreen покажет предупреждение — это из-за отсутствия платной цифровой подписи.</span>
         </div>
       </div>
     </section>
 
-    <section class="section roadmap-section center" id="roadmap">
-      <div class="section-label reveal">Roadmap</div>
-      <h2 class="reveal">Путь к версии 1.0</h2>
+    <section class="section container" id="screens">
+      <div class="section-head">
+        <p class="label">Интерфейс</p>
+        <h2>Лаунчер уже выглядит как приложение, а не папка с Python.</h2>
+      </div>
 
-      <div class="roadmap">
-        <article class="road-card done reveal">
-          <span></span>
-          <h3>0.5</h3>
-          <p>Fabric, Modrinth, сборки, логи, EXE.</p>
-          <button>Готово</button>
-        </article>
-
-        <article class="road-card current reveal">
-          <span></span>
-          <h3 id="roadCurrent">0.6</h3>
-          <p>Иконки модов, скриншоты, RAM Sync, красивый UI.</p>
-          <button>Текущая версия</button>
-        </article>
-
-        <article class="road-card reveal">
-          <span></span>
-          <h3>0.7</h3>
-          <p>Smart Builder, пресеты, проверка совместимости.</p>
-          <button>В разработке</button>
-        </article>
-
-        <article class="road-card reveal">
-          <span></span>
-          <h3>1.0</h3>
-          <p>OAuth, Download Manager, автообновления.</p>
-          <button>Цель</button>
-        </article>
+      <div class="ui-showcase">
+        <div class="mini-panel">
+          <b>Главная</b>
+          <span>сборки, быстрые действия, активность</span>
+        </div>
+        <div class="mini-panel">
+          <b>Моды</b>
+          <span>FPS, шейдеры, Vanilla+, ресурспаки</span>
+        </div>
+        <div class="mini-panel">
+          <b>Профиль</b>
+          <span>аккаунты открываются по клику на игрока</span>
+        </div>
       </div>
     </section>
 
-    <section class="section faq">
-      <div class="faq-left reveal">
-        <div class="section-label">FAQ</div>
+    <section class="section container roadmap">
+      <p class="label">Roadmap</p>
+      <h2>Путь к версии 1.0</h2>
+
+      <div class="roadmap-grid">
+        <div><b>0.7.1</b><span>EXE</span></div>
+        <div><b>0.7.2</b><span>Installer</span></div>
+        <div class="current"><b>0.7.3</b><span>Comfort UI</span></div>
+        <div><b>1.0</b><span>Auto updater</span></div>
+      </div>
+    </section>
+
+    <section class="section container faq" id="faq">
+      <div>
+        <p class="label">FAQ</p>
         <h2>Частые вопросы</h2>
       </div>
 
-      <div class="faq-list reveal">
+      <div class="faq-list">
         <details open>
           <summary>Это официальный лаунчер Mojang/Microsoft?</summary>
-          <p>Нет. Nexus Launcher — неофициальный проект и не связан с Mojang или Microsoft.</p>
+          <p>Нет. Nexus Launcher — отдельный неофициальный проект.</p>
         </details>
-
         <details>
-          <summary>Почему сайт не копирует интерфейс приложения?</summary>
-          <p>Потому что сайт — это промо-страница продукта. Он объясняет ценность Nexus, а не просто показывает окно лаунчера.</p>
+          <summary>Скачивание идёт без перехода на GitHub?</summary>
+          <p>Да. Кнопка ведёт прямо на asset из последнего GitHub Release.</p>
         </details>
-
         <details>
-          <summary>Можно ли скачать без перехода на GitHub?</summary>
-          <p>Да. Кнопка «Скачать Nexus Launcher» ведёт напрямую на установщик из последнего GitHub Release. Браузер сразу начнёт загрузку файла.</p>
-        </details>
-
-        <details>
-          <summary>Безопасно ли пользоваться Nexus Launcher?</summary>
-          <p>Проект локальный и неофициальный. Перед публичным релизом нужно подписать EXE, проверить зависимости и оформить README.</p>
+          <summary>Куда ставится программа?</summary>
+          <p>В папку пользователя Windows, с ярлыком на рабочем столе после установки.</p>
         </details>
       </div>
     </section>
   </main>
 
-  <footer class="footer">
-    <div>
-      <a class="brand footer-brand" href="#top">
-        <span class="brand-mark">N</span>
-        <span class="brand-text">
-          <strong>NEXUS</strong>
-          <small>Launcher</small>
-        </span>
-      </a>
-      <p>Умный лаунчер для сборки и запуска Minecraft. Никакого хаоса. Только стабильность и свобода.</p>
+  <footer class="footer container">
+    <div class="footer-brand">
+      <img src="assets/logo.svg" alt="" />
+      <span>Nexus Launcher</span>
     </div>
-
-    <div>
-      <h4>Продукт</h4>
-      <a href="#features">Возможности</a>
-      <a href="#builder">Smart Builder</a>
-      <a href="#modrinth">Modrinth</a>
-      <a href="#roadmap">Roadmap</a>
-    </div>
-
-    <div>
-      <h4>Ресурсы</h4>
-      <a href="#faq">FAQ</a>
-      <a href="#download">Скачать</a>
-      <button id="copyFooter">Команда запуска</button>
-    </div>
-
-    <div>
-      <h4>Версия</h4>
-      <b class="footer-version" id="footerVersion">0.7.2</b>
-      <span>актуальный релиз</span>
-    </div>
+    <p>Простой Minecraft launcher для Windows. Версия <b id="footerVersion">0.7.3</b>.</p>
   </footer>
 
   <script>
-    window.NEXUS_LATEST_VERSION = "0.7.2";
+    window.NEXUS_VERSION = "0.7.3";
   </script>
   <script src="app.js"></script>
 </body>
 </html>
-

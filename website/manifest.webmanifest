@@ -1,14 +1,19 @@
 {
   "name": "Nexus Launcher",
   "short_name": "Nexus",
-  "description": "Smart Minecraft Launcher",
+  "description": "Minecraft launcher for Windows",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#060b0a",
-  "theme_color": "#22c55e",
+  "background_color": "#07130d",
+  "theme_color": "#35d66b",
   "icons": [
     {
       "src": "assets/favicon.svg",
+      "sizes": "128x128",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "assets/logo.svg",
       "sizes": "128x128",
       "type": "image/svg+xml"
     }
