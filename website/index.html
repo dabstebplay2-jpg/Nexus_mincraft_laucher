@@ -285,25 +285,35 @@
         <div class="section-label">Скачать Nexus Launcher</div>
         <h2>Готов к запуску на Windows.</h2>
         <p>
-          Скачай последний релиз с GitHub Releases, распакуй и запусти <b>NexusLauncher.exe</b>.
-          Не запускай EXE прямо из архива.
+          Нажми одну кнопку — начнётся прямая загрузка установщика <b>Nexus Launcher</b>.
+          Переходить на GitHub не нужно: сайт берёт файл из последнего релиза автоматически.
         </p>
 
         <div class="download-badges">
           <span>Windows 10/11</span>
-          <span>ZIP package</span>
-          <span id="downloadVersion">Версия 0.6.0</span>
+          <span>Setup Installer</span>
+          <span>Ярлык на рабочем столе</span>
+          <span id="downloadVersion">Версия 0.7.2</span>
         </div>
       </div>
 
       <div class="download-panel reveal">
-        <a class="btn primary big magnetic" id="downloadBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest" download>
-          ▣ Скачать последнюю версию
+        <a class="btn primary big magnetic" id="downloadBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.2-win-x64.exe" download>
+          ⬇ Скачать Nexus Launcher
+        </a>
+
+        <a class="btn ghost big magnetic" id="portableBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncher-0.7.2-win-x64-portable.zip" download>
+          Скачать portable ZIP
         </a>
 
         <button class="btn ghost big magnetic" id="copyCommand">
-          Скопировать команду запуска сайта
+          Скопировать ссылку скачивания
         </button>
+
+        <div class="download-file-info">
+          <b id="downloadAssetName">NexusLauncherSetup-0.7.2-win-x64.exe</b>
+          <span>Прямая ссылка на asset из последнего GitHub Release</span>
+        </div>
 
         <div class="security-note">
           <span>🛡</span>
@@ -371,8 +381,8 @@
         </details>
 
         <details>
-          <summary>Можно ли скачать одним EXE?</summary>
-          <p>Лучше распространять ZIP, потому что PySide-приложение использует дополнительные файлы, assets и зависимости.</p>
+          <summary>Можно ли скачать без перехода на GitHub?</summary>
+          <p>Да. Кнопка «Скачать Nexus Launcher» ведёт напрямую на установщик из последнего GitHub Release. Браузер сразу начнёт загрузку файла.</p>
         </details>
 
         <details>
@@ -412,13 +422,13 @@
 
     <div>
       <h4>Версия</h4>
-      <b class="footer-version" id="footerVersion">0.6.0</b>
+      <b class="footer-version" id="footerVersion">0.7.2</b>
       <span>актуальный релиз</span>
     </div>
   </footer>
 
   <script>
-    window.NEXUS_LATEST_VERSION = "0.5.0";
+    window.NEXUS_LATEST_VERSION = "0.7.2";
   </script>
   <script src="app.js"></script>
 </body>

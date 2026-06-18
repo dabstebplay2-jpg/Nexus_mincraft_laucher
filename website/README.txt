@@ -1,13 +1,20 @@
-Nexus Launcher Website Ultra
+Nexus Launcher Website — Direct Download
 
-Как установить:
-1. Скопируй все файлы из этой папки в C:\Nexus_minecraft_launcher\website
-2. Положи рядом с index.html архив NexusLauncher_Windows.zip
-3. Запусти локально:
-   cd C:\Nexus_minecraft_launcher\website
-   ..\.venv\Scripts\python.exe -m http.server 8080
-4. Открой http://localhost:8080
+Что изменено:
+1. Главная кнопка сайта теперь скачивает установщик напрямую:
+   https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.2-win-x64.exe
+
+2. Пользователь не переходит на страницу GitHub — браузер сразу начинает загрузку.
+
+3. Вторая кнопка скачивает portable ZIP:
+   https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncher-0.7.2-win-x64-portable.zip
 
 Важно:
-- Файл NexusLauncher_Windows.zip должен лежать рядом с index.html
-- Для GitHub Pages достаточно залить содержимое папки website
+- Прямая ссылка начнёт работать после того, как в GitHub Releases появится asset с точным именем:
+  NexusLauncherSetup-0.7.2-win-x64.exe
+
+- Для этого нужно собрать и опубликовать релиз v0.7.2 через GitHub Actions.
+
+Как залить сайт:
+- Если используешь GitHub Pages из папки /website, просто закоммить изменения website/
+- Если сайт деплоится на Vercel/Netlify, запушь изменения в main

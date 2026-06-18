@@ -1,4 +1,4 @@
-﻿const latestVersion = window.NEXUS_LATEST_VERSION || "0.6.0";
+﻿const latestVersion = window.NEXUS_LATEST_VERSION || "0.7.2";
 
 const presets = {
   fps: {
@@ -202,12 +202,13 @@ function setupNavActive() {
 }
 
 function copySiteCommand() {
-  const command = "cd C:\\Nexus_minecraft_launcher\\website && ..\\.venv\\Scripts\\python.exe -m http.server 8080";
+  const btn = document.querySelector("#downloadBtn");
+  const link = btn?.href || "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.2-win-x64.exe";
 
-  navigator.clipboard?.writeText(command)
-    .then(() => showToast("Команда скопирована"))
+  navigator.clipboard?.writeText(link)
+    .then(() => showToast("Ссылка скачивания скопирована"))
     .catch(() => {
-      alert(command);
+      alert(link);
     });
 }
 
@@ -315,18 +316,59 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-async function setupLatestGitHubRelease() {
-  const api = "https://api.github.com/repos/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest";
-  const fallback = "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest";
+const NEXUS_RELEASE_API = "https://api.github.com/repos/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest";
+const NEXUS_RELEASE_PAGE = "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest";
+const NEXUS_DIRECT_SETUP_FALLBACK = "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.2-win-x64.exe";
+const NEXUS_DIRECT_PORTABLE_FALLBACK = "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncher-0.7.2-win-x64-portable.zip";
 
+function chooseReleaseAsset(assets) {
+  if (!Array.isArray(assets)) return null;
+
+  const priority = [
+    (name) => name.includes("setup") && name.endsWith(".exe"),
+    (name) => name.includes("installer") && name.endsWith(".exe"),
+    (name) => name.endsWith(".exe"),
+    (name) => name.includes("portable") && name.endsWith(".zip"),
+    (name) => name.endsWith(".zip"),
+  ];
+
+  for (const rule of priority) {
+    const match = assets.find((item) => rule(String(item.name || "").toLowerCase()));
+    if (match) return match;
+  }
+
+  return null;
+}
+
+function findPortableAsset(assets) {
+  if (!Array.isArray(assets)) return null;
+  return assets.find((item) => {
+    const name = String(item.name || "").toLowerCase();
+    return name.includes("portable") && name.endsWith(".zip");
+  });
+}
+
+async function setupLatestGitHubRelease() {
   const btn = document.querySelector("#downloadBtn");
+  const portableBtn = document.querySelector("#portableBtn");
   const versionPill = document.querySelector("#versionPill");
   const metricVersion = document.querySelector("#metricVersion");
   const footerVersion = document.querySelector("#footerVersion");
   const downloadVersion = document.querySelector("#downloadVersion");
+  const assetNameLabel = document.querySelector("#downloadAssetName");
+
+  const applyVersion = (version) => {
+    [versionPill, metricVersion, footerVersion].forEach((el) => {
+      if (el) el.textContent = version;
+    });
+
+    if (downloadVersion) {
+      downloadVersion.textContent = "Версия " + version;
+    }
+  };
 
   try {
-    const response = await fetch(api, {
+    const response = await fetch(NEXUS_RELEASE_API, {
       headers: {
         "Accept": "application/vnd.github+json"
       }
@@ -339,36 +381,49 @@ async function setupLatestGitHubRelease() {
     const release = await response.json();
     const tag = release.tag_name || "latest";
     const version = tag.replace(/^v/i, "");
-
     const assets = Array.isArray(release.assets) ? release.assets : [];
-    const asset = assets.find((item) => {
-      const name = String(item.name || "").toLowerCase();
-      return name.endsWith(".exe") || name.endsWith(".zip");
-    });
 
-    const downloadUrl = asset?.browser_download_url || release.html_url || fallback;
-    const assetName = asset?.name || "последний релиз";
+    const asset = chooseReleaseAsset(assets);
+    const portableAsset = findPortableAsset(assets);
+
+    const downloadUrl = asset?.browser_download_url || NEXUS_DIRECT_SETUP_FALLBACK;
+    const assetName = asset?.name || "NexusLauncherSetup-0.7.2-win-x64.exe";
 
     if (btn) {
       btn.href = downloadUrl;
-      btn.textContent = "▣ Скачать " + assetName;
+      btn.textContent = "⬇ Скачать Nexus Launcher";
       btn.setAttribute("download", "");
+      btn.setAttribute("aria-label", "Скачать " + assetName);
     }
 
-    [versionPill, metricVersion, footerVersion].forEach((el) => {
-      if (el) el.textContent = version;
-    });
-
-    if (downloadVersion) {
-      downloadVersion.textContent = "Версия " + version;
+    if (portableBtn) {
+      portableBtn.href = portableAsset?.browser_download_url || NEXUS_DIRECT_PORTABLE_FALLBACK;
+      portableBtn.setAttribute("download", "");
     }
+
+    if (assetNameLabel) {
+      assetNameLabel.textContent = assetName;
+    }
+
+    applyVersion(version);
   }
   catch (error) {
     if (btn) {
-      btn.href = fallback;
-      btn.textContent = "▣ Открыть последнюю версию на GitHub";
-      btn.removeAttribute("download");
+      btn.href = NEXUS_DIRECT_SETUP_FALLBACK;
+      btn.textContent = "⬇ Скачать Nexus Launcher";
+      btn.setAttribute("download", "");
     }
+
+    if (portableBtn) {
+      portableBtn.href = NEXUS_DIRECT_PORTABLE_FALLBACK;
+      portableBtn.setAttribute("download", "");
+    }
+
+    if (assetNameLabel) {
+      assetNameLabel.textContent = "NexusLauncherSetup-0.7.2-win-x64.exe";
+    }
+
+    applyVersion(latestVersion);
   }
 }
 
