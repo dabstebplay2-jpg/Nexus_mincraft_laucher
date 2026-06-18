@@ -1,4 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
 from PyInstaller.utils.hooks import collect_all
 
 datas = []
@@ -8,6 +9,14 @@ tmp_ret = collect_all('PySide6')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('minecraft_launcher_lib')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('storage')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+
+_icon_dir = Path(__file__).resolve().parent / "assets" / "icons"
+if _icon_dir.exists():
+    for f in _icon_dir.iterdir():
+        if f.is_file():
+            datas.append((str(f), "assets/icons"))
 
 
 a = Analysis(
