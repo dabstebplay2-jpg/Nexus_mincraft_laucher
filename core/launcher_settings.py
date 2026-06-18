@@ -29,6 +29,7 @@ class LauncherSettings:
             "sync_ram_to_instances": True,
             "theme": "dark",
             "language": "ru",
+            "mods_filters_collapsed": True,
         }
 
     def load(self):
@@ -98,6 +99,15 @@ class LauncherSettings:
             self.data["theme"] = str(theme or "dark")
             self.save()
             return self.data["theme"]
+
+    def get_mods_filters_collapsed(self):
+        with self._lock:
+            return bool(self.data.get("mods_filters_collapsed", True))
+
+    def set_mods_filters_collapsed(self, collapsed):
+        with self._lock:
+            self.data["mods_filters_collapsed"] = bool(collapsed)
+            self.save()
 
 
 _launcher_settings = LauncherSettings()

@@ -1,14 +1,17 @@
 import json
-from PySide6.QtCore import QTimer, QThread, Signal
+from pathlib import Path
 
+from PySide6.QtCore import QTimer, QThread, Signal
 from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
     QHBoxLayout,
     QVBoxLayout,
     QLabel,
+    QPushButton,
     QStackedWidget,
     QMessageBox,
+    QProgressBar,
 )
 
 from core.constants import APP_VERSION
@@ -40,15 +43,44 @@ from ui.pages.settings_page import SettingsPage
 
 
 
-class StartupUpdateCheckWorker(QThread):
-    success = Signal(object)
+class WindowUpdateWorker(QThread):
+    check_done = Signal(object)
+    download_progress = Signal(int, object)
+    download_done = Signal(object, object)
+    download_failed = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._downloading = False
+        self._release = None
+        self._path = None
 
     def run(self):
         try:
             from core.updater import fetch_latest_release
-            self.success.emit(fetch_latest_release(timeout=6))
-        except Exception:
-            self.success.emit(None)
+            release = fetch_latest_release(timeout=6)
+            self._release = release
+            if release and release.is_newer and release.preferred_asset:
+                self._downloading = True
+                from core.updater import download_asset, create_update_notes
+
+                asset = release.preferred_asset
+
+                def on_progress(downloaded, total, speed):
+                    percent = int(downloaded / total * 100) if total else 0
+                    self.download_progress.emit(percent, None)
+
+                path = download_asset(asset, progress_callback=on_progress)
+                notes = create_update_notes(release, path)
+                self._path = path
+                self.download_done.emit(path, notes)
+            else:
+                self.check_done.emit(release)
+        except Exception as error:
+            if self._downloading:
+                self.download_failed.emit(str(error))
+            else:
+                self.check_done.emit(None)
 
 
 class MainWindow(QMainWindow):
@@ -138,6 +170,13 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self.content)
 
         self.startup_update_worker = None
+        self._pending_update_path = None
+        self._update_release = None
+        self._update_pending_restart = False
+
+        self.update_bar = self.create_update_bar()
+        self.update_bar.setVisible(False)
+
         self.change_page(0)
         self.topbar.set_theme(self.current_theme())
         QTimer.singleShot(3000, self.check_updates_on_startup)
@@ -149,40 +188,110 @@ class MainWindow(QMainWindow):
         if self.startup_update_worker and self.startup_update_worker.isRunning():
             self.startup_update_worker.quit()
             self.startup_update_worker.wait(3000)
+
+        if self._pending_update_path:
+            try:
+                from core.updater import start_installer_after_exit
+                start_installer_after_exit(self._pending_update_path, silent=True)
+            except Exception:
+                pass
+
         super().closeEvent(event)
 
     def check_updates_on_startup(self):
         if self.startup_update_worker and self.startup_update_worker.isRunning():
             return
 
-        self.startup_update_worker = StartupUpdateCheckWorker()
-        self.startup_update_worker.success.connect(self.on_startup_update_checked)
+        self.status_label.setText("Проверка обновлений...")
+        self.startup_update_worker = WindowUpdateWorker()
+        self.startup_update_worker.check_done.connect(self._on_update_check_done)
+        self.startup_update_worker.download_progress.connect(self._on_update_download_progress)
+        self.startup_update_worker.download_done.connect(self._on_update_downloaded)
+        self.startup_update_worker.download_failed.connect(self._on_update_download_failed)
         self.startup_update_worker.start()
 
-    def on_startup_update_checked(self, release):
-        if not release or not getattr(release, "is_newer", False):
-            return
+    def create_update_bar(self):
+        bar = QWidget()
+        bar.setObjectName("UpdateBar")
+        bar.setFixedHeight(42)
 
-        asset = release.preferred_asset.name if release.preferred_asset else "asset не найден"
-        source = "GitHub Releases" if getattr(release, "source", "github") == "github" else "сайт release.json"
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(16, 0, 16, 0)
+        layout.setSpacing(10)
 
-        result = QMessageBox.question(
-            self,
-            "Доступно обновление Nexus",
-            f"Найдена новая версия: {release.tag}\n"
-            f"Текущая версия: {APP_VERSION}\n"
-            f"Источник: {source}\n"
-            f"Repo: {release.repo}\n"
-            f"Asset: {asset}\n\n"
-            "Скачать, проверить SHA256 и установить обновление?"
-        )
+        self.update_status = QLabel()
+        self.update_status.setObjectName("UpdateStatusText")
 
-        if result == QMessageBox.Yes:
-            self.change_page(PageIndex.SETTINGS)
-            if hasattr(self.settings_page, "start_update_from_release"):
-                self.settings_page.start_update_from_release(release)
-            elif hasattr(self.settings_page, "check_updates_from_settings"):
-                self.settings_page.check_updates_from_settings()
+        self.update_progress = QProgressBar()
+        self.update_progress.setObjectName("MiniProgress")
+        self.update_progress.setFixedWidth(140)
+        self.update_progress.setFixedHeight(6)
+        self.update_progress.setVisible(False)
+        self.update_progress.setValue(0)
+
+        self.update_install_btn = QPushButton()
+        self.update_install_btn.setObjectName("SmallGhostButton")
+        self.update_install_btn.clicked.connect(self._do_update_install)
+        self.update_install_btn.setFixedHeight(28)
+
+        dismiss_btn = QPushButton("✕")
+        dismiss_btn.setObjectName("SmallGhostButton")
+        dismiss_btn.setFixedSize(28, 28)
+        dismiss_btn.clicked.connect(self._dismiss_update)
+
+        layout.addWidget(self.update_status, 1)
+        layout.addWidget(self.update_progress)
+        layout.addWidget(self.update_install_btn)
+        layout.addWidget(dismiss_btn)
+
+        content_layout = self.content.layout()
+        content_layout.insertWidget(1, bar)
+        return bar
+
+    def _on_update_check_done(self, release):
+        if release and getattr(release, "is_newer", False):
+            self.status_label.setText(f"Готово • Доступно обновление {release.version}")
+            self.update_progress.setVisible(True)
+            self.update_status.setText(f"Nexus Launcher {release.version} — скачиваем...")
+            self.update_install_btn.setEnabled(False)
+            self.update_install_btn.setText("Скачивается...")
+            self.update_bar.setVisible(True)
+            self._update_release = release
+        else:
+            self.status_label.setText("Готово")
+
+    def _on_update_download_progress(self, percent, _msg):
+        self.update_progress.setValue(percent)
+        self.update_status.setText(f"Скачивание обновления... {percent}%")
+
+    def _on_update_downloaded(self, path, _notes):
+        self.update_status.setText("Обновление готово к установке!")
+        self.update_progress.setValue(100)
+        self._pending_update_path = path
+        self._update_pending_restart = True
+
+        self.update_install_btn.setText("Перезапустить и установить")
+        self.update_install_btn.setEnabled(True)
+        self.update_bar.setObjectName("UpdateBarReady")
+        self.update_bar.style().unpolish(self.update_bar)
+        self.update_bar.style().polish(self.update_bar)
+        self.status_label.setText("Готово • Обновление скачано")
+
+    def _on_update_download_failed(self, error_text):
+        self.update_bar.setVisible(False)
+        self.status_label.setText("Готово")
+
+    def _do_update_install(self):
+        if self._pending_update_path:
+            self.close()
+        elif self._update_release:
+            self._on_update_check_done(self._update_release)
+
+    def _dismiss_update(self):
+        self.update_bar.setVisible(False)
+        self._update_release = None
+        self._pending_update_path = None
+        self._update_pending_restart = False
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

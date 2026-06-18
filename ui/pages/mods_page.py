@@ -36,6 +36,7 @@ except Exception:
     def get_instance_manager():
         return InstanceManager()
 
+from core.launcher_settings import get_launcher_settings
 from mods.mod_installer import ModInstallerWorker
 from mods.mod_status import installed_state, cleanup_missing_records
 from mods.shader_support import has_shader_loader, recommended_shader_loader, shader_status_text, shaderpacks_dir
@@ -61,8 +62,8 @@ PROJECT_TYPES = [
         "label": "Модпаки",
         "value": "modpack",
         "placeholder": "fabulously optimized, better mc...",
-        "description": "Готовые .mrpack-сборки. В Nexus пока доступен просмотр и открытие на Modrinth.",
-        "installable": False,
+        "description": "Готовые .mrpack-сборки. Nexus скачивает .mrpack, создаёт новую сборку и устанавливает моды.",
+        "installable": True,
     },
     {
         "label": "Ресурспаки",
@@ -568,6 +569,83 @@ class ModpackImportWorker(QThread):
             self.failed.emit(str(error), traceback.format_exc())
 
 
+class ModpackDirectInstallWorker(QThread):
+    status = Signal(str)
+    progress = Signal(int)
+    success = Signal(object)
+    failed = Signal(str, str)
+
+    def __init__(self, project, ram_mb=4096):
+        super().__init__()
+        self.project = project or {}
+        self.ram_mb = ram_mb
+
+    def run(self):
+        try:
+            project_id = self.project.get("project_id") or self.project.get("slug")
+            if not project_id:
+                raise RuntimeError("У модпака нет project_id.")
+
+            self.status.emit("Получаем версию модпака...")
+            resp = requests.get(
+                f"https://api.modrinth.com/v2/project/{project_id}/version",
+                headers={"User-Agent": USER_AGENT},
+                params={"loaders": '["fabric","forge","neoforge","quilt"]'},
+                timeout=25,
+            )
+            resp.raise_for_status()
+            versions = resp.json()
+            if not versions:
+                raise RuntimeError("У модпака нет доступных версий.")
+
+            version = versions[0]
+            files = version.get("files") or []
+            mrpack_file = None
+            for f in files:
+                if f.get("filename", "").endswith(".mrpack"):
+                    mrpack_file = f
+                    break
+            if not mrpack_file:
+                raise RuntimeError("Не найден .mrpack файл в версии модпака.")
+
+            download_url = mrpack_file.get("url")
+            if not download_url:
+                raise RuntimeError("У .mrpack файла нет URL для скачивания.")
+
+            from core.updater import UPDATES_DIR
+            UPDATES_DIR.mkdir(parents=True, exist_ok=True)
+
+            safe_name = re.sub(r"[^a-zA-Z0-9_.()\- ]+", "_", mrpack_file["filename"])
+            target = UPDATES_DIR / safe_name
+            tmp = target.with_suffix(".tmp")
+
+            self.status.emit(f"Скачиваем {mrpack_file['filename']}...")
+            resp = requests.get(download_url, headers={"User-Agent": USER_AGENT}, stream=True, timeout=60)
+            resp.raise_for_status()
+            total = int(resp.headers.get("content-length", 0))
+            downloaded = 0
+            with open(tmp, "wb") as f:
+                for chunk in resp.iter_content(1024 * 256):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total:
+                            self.progress.emit(int(downloaded / total * 100))
+
+            tmp.replace(target)
+
+            from mods.modpack_importer import ModpackImporter
+            importer = ModpackImporter(
+                progress_callback=lambda value: self.progress.emit(int(value or 0)),
+                status_callback=lambda text: self.status.emit(str(text)),
+                detail_callback=lambda text: self.status.emit(str(text)),
+            )
+            instance = importer.import_mrpack(str(target), ram_mb=self.ram_mb)
+            self.success.emit(instance)
+        except Exception as error:
+            self.failed.emit(str(error), traceback.format_exc())
+
+
 class ModsPage(QWidget):
     def __init__(self):
         super().__init__()
@@ -582,6 +660,7 @@ class ModsPage(QWidget):
         self.search_worker = None
         self.install_worker = None
         self.modpack_worker = None
+        self.modpack_direct_worker = None
         self.progress_dialog = None
         self.did_autoload = False
         self.search_busy = False
@@ -590,6 +669,15 @@ class ModsPage(QWidget):
 
         self.build_ui()
         self.load_instances()
+
+    def toggle_advanced_filters(self):
+        collapsed = not self.advanced_filters_widget.isVisible()
+        self.set_advanced_filters_collapsed(collapsed)
+        get_launcher_settings().set_mods_filters_collapsed(collapsed)
+
+    def set_advanced_filters_collapsed(self, collapsed):
+        self.advanced_filters_widget.setVisible(not collapsed)
+        self.toggle_filters_btn.setText("Показать фильтры" if collapsed else "Скрыть фильтры")
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -600,8 +688,51 @@ class ModsPage(QWidget):
 
     def build_ui(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(26, 22, 26, 22)
-        root.setSpacing(14)
+        root.setContentsMargins(20, 14, 20, 14)
+        root.setSpacing(8)
+
+        # ── Compact top bar (always visible) ──
+        compact_bar = QHBoxLayout()
+        compact_bar.setSpacing(6)
+
+        self.query_input = QLineEdit()
+        self.query_input.setPlaceholderText("sodium, iris, jei...")
+        self.query_input.returnPressed.connect(self.search_clicked)
+        self.query_input.setMinimumWidth(140)
+
+        self.search_btn = QPushButton("Найти")
+        self.search_btn.setObjectName("PrimaryButton")
+        self.search_btn.clicked.connect(self.search_clicked)
+        self.search_btn.setFixedHeight(34)
+
+        settings = get_launcher_settings()
+        default_collapsed = settings.get_mods_filters_collapsed()
+        self.toggle_filters_btn = QPushButton("Показать фильтры" if default_collapsed else "Скрыть фильтры")
+        self.toggle_filters_btn.setObjectName("ToggleFiltersButton")
+        self.toggle_filters_btn.setCursor(Qt.PointingHandCursor)
+        self.toggle_filters_btn.clicked.connect(self.toggle_advanced_filters)
+        self.toggle_filters_btn.setFixedHeight(34)
+
+        self.instance_combo = QComboBox()
+        self.instance_combo.setMinimumWidth(120)
+        self.instance_combo.currentIndexChanged.connect(self.on_instance_changed)
+
+        self.compact_count_label = QLabel("")
+        self.compact_count_label.setObjectName("CompactStatus")
+        self.compact_count_label.setFixedHeight(34)
+
+        compact_bar.addWidget(self.query_input, 1)
+        compact_bar.addWidget(self.search_btn)
+        compact_bar.addWidget(self.toggle_filters_btn)
+        compact_bar.addWidget(self.instance_combo)
+        compact_bar.addWidget(self.compact_count_label)
+
+        # ── Advanced filters widget (collapsible) ──
+        self.advanced_filters_widget = QFrame()
+        self.advanced_filters_widget.setObjectName("ModsAdvancedFilters")
+        adv = QVBoxLayout(self.advanced_filters_widget)
+        adv.setContentsMargins(0, 0, 0, 0)
+        adv.setSpacing(8)
 
         title = QLabel("Моды")
         title.setObjectName("PageTitle")
@@ -610,100 +741,10 @@ class ModsPage(QWidget):
         description.setObjectName("PageDescription")
         description.setWordWrap(True)
 
-        controls = QGridLayout()
-        controls.setHorizontalSpacing(10)
-        controls.setVerticalSpacing(10)
-
-        self.instance_combo = QComboBox()
-        self.instance_combo.setMinimumWidth(140)
-        self.instance_combo.currentIndexChanged.connect(self.on_instance_changed)
-
-        self.type_combo = QComboBox()
-        self.type_combo.setMinimumWidth(120)
-        for item in PROJECT_TYPES:
-            self.type_combo.addItem(item["label"], item["value"])
-        self.type_combo.currentIndexChanged.connect(self.on_type_changed)
-        self.type_combo.setToolTip("Выбери раздел каталога: моды, модпаки, ресурспаки или шейдеры.")
-
-        self.category_combo = QComboBox()
-        self.category_combo.setMinimumWidth(130)
-        self.category_combo.currentIndexChanged.connect(self.search_clicked)
-
-        self.side_combo = QComboBox()
-        self.side_combo.setMinimumWidth(120)
-        for label, value in SIDE_FILTERS:
-            self.side_combo.addItem(label, value)
-        self.side_combo.currentIndexChanged.connect(self.search_clicked)
-
-        self.sort_combo = QComboBox()
-        self.sort_combo.setMinimumWidth(130)
-        for label, value in SORT_OPTIONS:
-            self.sort_combo.addItem(label, value)
-        self.sort_combo.currentIndexChanged.connect(self.search_clicked)
-
-        self.query_input = QLineEdit()
-        self.query_input.setPlaceholderText("sodium, iris, jei...")
-        self.query_input.returnPressed.connect(self.search_clicked)
-
-        search_button = QPushButton("Найти")
-        search_button.setObjectName("PrimaryButton")
-        search_button.clicked.connect(self.search_clicked)
-
-        smart_button = QPushButton("Smart Builder")
-        smart_button.setObjectName("SecondaryButton")
-        smart_button.clicked.connect(self.open_smart_builder)
-
-        import_pack_button = QPushButton("Импорт .mrpack")
-        import_pack_button.setObjectName("SecondaryButton")
-        import_pack_button.clicked.connect(self.import_mrpack)
-
-        controls.addWidget(self.instance_combo, 0, 0, 1, 2)
-        controls.addWidget(self.type_combo, 0, 2)
-        controls.addWidget(self.category_combo, 0, 3)
-        controls.addWidget(self.query_input, 0, 4, 1, 2)
-        controls.addWidget(search_button, 0, 6)
-        controls.addWidget(self.side_combo, 1, 0)
-        controls.addWidget(self.sort_combo, 1, 1)
-        controls.addWidget(smart_button, 1, 2)
-        controls.addWidget(import_pack_button, 1, 3)
-        controls.setColumnStretch(4, 1)
-        controls.setColumnStretch(5, 1)
-
-        self.status_label = QLabel("Популярные моды загрузятся автоматически.")
-        self.status_label.setObjectName("PanelText")
-
-        self.scroll = QScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.scroll.setObjectName("ScrollArea")
-
-        self.container = QWidget()
-        self.grid = QGridLayout(self.container)
-        self.grid.setContentsMargins(4, 4, 4, 4)
-        self.grid.setHorizontalSpacing(18)
-        self.grid.setVerticalSpacing(18)
-
-        self.scroll.setWidget(self.container)
-
-        bottom = QHBoxLayout()
-
-        self.count_label = QLabel("")
-        self.count_label.setObjectName("InstanceMeta")
-
-        self.load_more_button = QPushButton("Загрузить ещё")
-        self.load_more_button.setObjectName("SecondaryButton")
-        self.load_more_button.clicked.connect(self.load_more)
-        self.load_more_button.setEnabled(False)
-
-        bottom.addWidget(self.count_label)
-        bottom.addStretch()
-        bottom.addWidget(self.load_more_button)
-
-        self.on_type_changed(search=False)
-
+        # Shortcut cards
         self.shortcut_row = QGridLayout()
-        self.shortcut_row.setHorizontalSpacing(10)
-        self.shortcut_row.setVerticalSpacing(10)
+        self.shortcut_row.setHorizontalSpacing(8)
+        self.shortcut_row.setVerticalSpacing(8)
         shortcuts = [
             ("⚡", "FPS Boost", "Sodium + Lithium", "mod", "optimization", "sodium"),
             ("🌄", "Шейдеры", "Iris / Complementary", "shader", "", "complementary"),
@@ -713,9 +754,10 @@ class ModsPage(QWidget):
         for idx, data in enumerate(shortcuts):
             self.shortcut_row.addWidget(self.create_shortcut_card(*data), idx // 4, idx % 4)
 
+        # Stats row
         self.stats_row = QGridLayout()
-        self.stats_row.setHorizontalSpacing(10)
-        self.stats_row.setVerticalSpacing(10)
+        self.stats_row.setHorizontalSpacing(8)
+        self.stats_row.setVerticalSpacing(8)
         self.results_stat = self.create_stat_card("Найдено", "0", "по фильтру")
         self.visible_stat = self.create_stat_card("Показано", "0", "на странице")
         self.compat_stat = self.create_stat_card("Сборка", "Нет", "выбери профиль")
@@ -724,14 +766,94 @@ class ModsPage(QWidget):
         for idx, card in enumerate([self.results_stat, self.visible_stat, self.compat_stat, self.source_stat, self.type_stat]):
             self.stats_row.addWidget(card, idx // 3, idx % 3)
 
-        root.addWidget(title)
-        root.addWidget(description)
-        root.addLayout(self.shortcut_row)
-        root.addLayout(self.stats_row)
-        root.addLayout(controls)
+        # Filter controls
+        controls = QGridLayout()
+        controls.setHorizontalSpacing(8)
+        controls.setVerticalSpacing(8)
+
+        self.type_combo = QComboBox()
+        self.type_combo.setMinimumWidth(110)
+        for item in PROJECT_TYPES:
+            self.type_combo.addItem(item["label"], item["value"])
+        self.type_combo.currentIndexChanged.connect(self.on_type_changed)
+        self.type_combo.setToolTip("Выбери раздел каталога: моды, модпаки, ресурспаки или шейдеры.")
+
+        self.category_combo = QComboBox()
+        self.category_combo.setMinimumWidth(120)
+        self.category_combo.currentIndexChanged.connect(self.search_clicked)
+
+        self.side_combo = QComboBox()
+        self.side_combo.setMinimumWidth(110)
+        for label, value in SIDE_FILTERS:
+            self.side_combo.addItem(label, value)
+        self.side_combo.currentIndexChanged.connect(self.search_clicked)
+
+        self.sort_combo = QComboBox()
+        self.sort_combo.setMinimumWidth(120)
+        for label, value in SORT_OPTIONS:
+            self.sort_combo.addItem(label, value)
+        self.sort_combo.currentIndexChanged.connect(self.search_clicked)
+
+        smart_button = QPushButton("Smart Builder")
+        smart_button.setObjectName("SecondaryButton")
+        smart_button.clicked.connect(self.open_smart_builder)
+
+        import_pack_button = QPushButton("Импорт .mrpack")
+        import_pack_button.setObjectName("SecondaryButton")
+        import_pack_button.clicked.connect(self.import_mrpack)
+
+        controls.addWidget(self.type_combo, 0, 0)
+        controls.addWidget(self.category_combo, 0, 1)
+        controls.addWidget(self.side_combo, 0, 2)
+        controls.addWidget(self.sort_combo, 0, 3)
+        controls.addWidget(smart_button, 1, 0)
+        controls.addWidget(import_pack_button, 1, 1)
+        controls.setColumnStretch(3, 1)
+
+        adv.addWidget(title)
+        adv.addWidget(description)
+        adv.addLayout(self.shortcut_row)
+        adv.addLayout(self.stats_row)
+        adv.addLayout(controls)
+
+        # Status label
+        self.status_label = QLabel("Популярные моды загрузятся автоматически.")
+        self.status_label.setObjectName("PanelText")
+
+        # ── Scroll area for mod results ──
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll.setObjectName("ScrollArea")
+
+        self.container = QWidget()
+        self.grid = QGridLayout(self.container)
+        self.grid.setContentsMargins(2, 2, 2, 2)
+        self.grid.setHorizontalSpacing(14)
+        self.grid.setVerticalSpacing(14)
+
+        self.scroll.setWidget(self.container)
+
+        # ── Bottom bar ──
+        bottom = QHBoxLayout()
+
+        self.load_more_button = QPushButton("Загрузить ещё")
+        self.load_more_button.setObjectName("SecondaryButton")
+        self.load_more_button.clicked.connect(self.load_more)
+        self.load_more_button.setEnabled(False)
+
+        bottom.addStretch()
+        bottom.addWidget(self.load_more_button)
+
+        # ── Assemble ──
+        root.addLayout(compact_bar)
+        root.addWidget(self.advanced_filters_widget)
         root.addWidget(self.status_label)
         root.addWidget(self.scroll, 1)
         root.addLayout(bottom)
+
+        self.on_type_changed(search=False)
+        self.set_advanced_filters_collapsed(default_collapsed)
 
 
     def create_shortcut_card(self, emoji, title, desc, project_type, category, query):
@@ -754,7 +876,10 @@ class ModsPage(QWidget):
             self.category_combo.setCurrentIndex(category_index)
 
         self.query_input.setText(query)
-        self.search_clicked()
+        if self.advanced_filters_widget.isVisible():
+            self.set_advanced_filters_collapsed(True)
+            get_launcher_settings().set_mods_filters_collapsed(True)
+        self.start_search(reset=True)
 
     def create_stat_card(self, title, value, desc):
         card = QFrame()
@@ -917,6 +1042,9 @@ class ModsPage(QWidget):
         return None
 
     def search_clicked(self, *args):
+        if self.advanced_filters_widget.isVisible():
+            self.set_advanced_filters_collapsed(True)
+            get_launcher_settings().set_mods_filters_collapsed(True)
         self.start_search(reset=True)
 
     def load_all_mods_first_page(self):
@@ -990,7 +1118,7 @@ class ModsPage(QWidget):
         self.render_results()
 
         self.status_label.setText(f"Показано {len(self.results)} из {self.total_hits}")
-        self.count_label.setText(f"Показано {len(self.results)} из {self.total_hits}")
+        self.compact_count_label.setText(f"{len(self.results)} / {self.total_hits}")
 
         if hasattr(self, "results_stat"):
             self.results_stat.value_label.setText(fmt_num(self.total_hits))
@@ -1026,9 +1154,9 @@ class ModsPage(QWidget):
         except Exception:
             width = self.width()
 
-        if width < 960:
-            return 1
-        return 2
+        if width >= 1200:
+            return 2
+        return 1
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -1061,11 +1189,11 @@ class ModsPage(QWidget):
     def create_mod_card(self, project):
         card = QFrame()
         card.setObjectName("ModResultCard")
-        card.setMinimumHeight(205)
+        card.setMinimumHeight(160)
 
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(6)
 
         selected_instance = self.selected_instance()
         project_type = self.selected_project_type()
@@ -1076,15 +1204,15 @@ class ModsPage(QWidget):
         }
 
         top = QHBoxLayout()
-        top.setSpacing(12)
+        top.setSpacing(10)
 
-        icon_box = RemoteImageLabel(52, 52, "◆")
+        icon_box = RemoteImageLabel(44, 44, "◆")
         icon_box.setObjectName("ModIconImage")
         icon_box.setAlignment(Qt.AlignCenter)
         icon_box.set_remote_image(project.get("icon_url"))
 
         title_block = QVBoxLayout()
-        title_block.setSpacing(3)
+        title_block.setSpacing(2)
 
         title = QLabel(project.get("title") or project.get("slug") or "Unknown mod")
         title.setObjectName("InstanceTitle")
@@ -1106,26 +1234,29 @@ class ModsPage(QWidget):
         description = QLabel(project.get("description", "Без описания"))
         description.setObjectName("PanelText")
         description.setWordWrap(True)
-        description.setMinimumHeight(42)
+        description.setMaximumHeight(38)
 
-        tags = QHBoxLayout()
-        tags.setSpacing(8)
+        meta_line = QHBoxLayout()
+        meta_line.setSpacing(6)
 
-        tags.addWidget(self.tag(f'{fmt_num(project.get("downloads", 0))} скачиваний'))
-        tags.addWidget(self.tag(f'{fmt_num(project.get("follows", 0))} подписчиков'))
+        meta_line.addWidget(self.tag(f'{fmt_num(project.get("downloads", 0))} скач.'))
+        meta_line.addWidget(self.tag(f'{fmt_num(project.get("follows", 0))} подп.'))
 
-        for category in (project.get("categories") or [])[:2]:
-            tags.addWidget(self.tag(category))
+        for cat in (project.get("categories") or [])[:2]:
+            meta_line.addWidget(self.tag(cat))
 
-        tags.addStretch()
+        meta_line.addStretch()
 
         actions = QHBoxLayout()
-        actions.setSpacing(8)
+        actions.setSpacing(6)
 
         type_info = self.selected_project_type_info()
         can_install = bool(type_info.get("installable"))
+        is_modpack = project_type == "modpack"
 
-        if can_install and state.get("state") == "not_installed":
+        if is_modpack:
+            button_text = "Импортировать модпак"
+        elif can_install and state.get("state") == "not_installed":
             button_text = self.project_type_install_action(project_type)
         elif can_install:
             button_text = state.get("label", self.project_type_install_action(project_type))
@@ -1133,26 +1264,24 @@ class ModsPage(QWidget):
             button_text = "Скоро импорт"
 
         install = QPushButton(button_text)
-        install.setObjectName("PrimaryButton" if state.get("state") != "installed" and can_install else "SecondaryButton")
+        install.setObjectName("SmallGhostButton" if not is_modpack and state.get("state") == "installed" else "PrimaryButton")
         install.clicked.connect(lambda checked=False, p=project: self.install_project(p))
 
         if not can_install:
             install.setEnabled(False)
-            install.setToolTip("Для этого раздела пока доступен просмотр и открытие на Modrinth. Импорт .mrpack будет отдельным модулем.")
-        elif state.get("state") == "installed":
+            install.setToolTip("Для этого раздела пока доступен просмотр и открытие на Modrinth.")
+        elif not is_modpack and state.get("state") == "installed":
             install.setEnabled(False)
             install.setToolTip("Этот проект уже установлен в выбранную сборку. Повторная установка не нужна.")
-        elif state.get("state") == "missing_files":
+        elif not is_modpack and state.get("state") == "missing_files":
             install.setToolTip("Запись есть, но файл потерян. Nexus переустановит совместимую версию.")
-        elif state.get("state") == "no_instance":
-            install.setEnabled(False)
 
         details = QPushButton("Подробнее")
-        details.setObjectName("SecondaryButton")
+        details.setObjectName("SmallGhostButton")
         details.clicked.connect(lambda checked=False, p=project: self.show_details(p))
 
         open_link = QPushButton("Modrinth")
-        open_link.setObjectName("SecondaryButton")
+        open_link.setObjectName("SmallGhostButton")
         open_link.clicked.connect(lambda checked=False, p=project: self.open_modrinth(p))
 
         actions.addWidget(install)
@@ -1162,8 +1291,7 @@ class ModsPage(QWidget):
 
         layout.addLayout(top)
         layout.addWidget(description)
-        layout.addLayout(tags)
-        layout.addStretch()
+        layout.addLayout(meta_line)
         layout.addLayout(actions)
 
         return card
@@ -1196,6 +1324,16 @@ class ModsPage(QWidget):
         dialog.exec()
 
     def install_project(self, project):
+        project_type = self.selected_project_type()
+        type_info = self.selected_project_type_info()
+
+        if not type_info.get("installable"):
+            return
+
+        if project_type == "modpack":
+            self.install_modpack_direct(project)
+            return
+
         instance = self.selected_instance()
 
         if not instance:
@@ -1207,18 +1345,6 @@ class ModsPage(QWidget):
             return
 
         loader = str(instance.get("loader") or "vanilla").lower()
-        project_type = self.selected_project_type()
-        type_info = self.selected_project_type_info()
-
-        if not type_info.get("installable"):
-            QMessageBox.information(
-                self,
-                "Раздел пока только для просмотра",
-                f'{type_info.get("label", project_type)} можно искать и открывать на Modrinth.\n\n'
-                "Импорт модпаков .mrpack лучше делать отдельным мастером, чтобы он создавал новую сборку, "
-                "ставил loader, переносил overrides и зависимости без поломки текущих сборок."
-            )
-            return
 
         if project_type == "mod" and loader == "vanilla":
             QMessageBox.warning(
@@ -1273,6 +1399,79 @@ class ModsPage(QWidget):
         self.install_worker.success.connect(self.on_install_success)
         self.install_worker.failed.connect(self.on_install_failed)
         self.install_worker.start()
+
+    def install_modpack_direct(self, project):
+        if self.modpack_direct_worker and self.modpack_direct_worker.isRunning():
+            QMessageBox.information(self, "Установка уже идёт", "Дождись завершения текущего импорта модпака.")
+            return
+
+        ram_mb, ok = QInputDialog.getInt(
+            self,
+            "RAM для модпака",
+            "Сколько RAM выделить новой сборке?",
+            4096,
+            2048,
+            32768,
+            512,
+        )
+        if not ok:
+            return
+
+        self.progress_dialog = QProgressDialog(
+            "Подготовка импорта модпака...",
+            "Скрыть",
+            0,
+            100,
+            self,
+        )
+        self.progress_dialog.setWindowTitle(f"Импорт: {project.get('title', 'Modpack')}")
+        self.progress_dialog.setMinimumWidth(560)
+        self.progress_dialog.setAutoClose(False)
+        self.progress_dialog.setAutoReset(False)
+        self.progress_dialog.setWindowModality(Qt.NonModal)
+        self.progress_dialog.setValue(0)
+        self.progress_dialog.show()
+
+        self.modpack_direct_worker = ModpackDirectInstallWorker(project, ram_mb=ram_mb)
+        self.modpack_direct_worker.status.connect(self.on_modpack_import_status)
+        self.modpack_direct_worker.progress.connect(self._on_modpack_direct_progress)
+        self.modpack_direct_worker.success.connect(self._on_modpack_direct_success)
+        self.modpack_direct_worker.failed.connect(self._on_modpack_direct_failed)
+        self.modpack_direct_worker.start()
+
+    def _on_modpack_direct_progress(self, value):
+        if self.progress_dialog:
+            self.progress_dialog.setValue(int(value or 0))
+
+    def _on_modpack_direct_success(self, instance):
+        if self.progress_dialog:
+            self.progress_dialog.setValue(100)
+            self.progress_dialog.setLabelText("Модпак импортирован.")
+            self.progress_dialog.close()
+            self.progress_dialog = None
+
+        self.load_instances()
+
+        QMessageBox.information(
+            self,
+            "Модпак импортирован",
+            f'Создана сборка: {instance.get("name", "Modpack")}\n'
+            f'Minecraft: {instance.get("minecraft_version", "unknown")}\n'
+            f'Loader: {instance.get("loader", "vanilla")}'
+        )
+
+    def _on_modpack_direct_failed(self, error_text, details):
+        if self.progress_dialog:
+            self.progress_dialog.close()
+            self.progress_dialog = None
+
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Critical)
+        box.setWindowTitle("Ошибка импорта модпака")
+        box.setText("Не удалось импортировать модпак.")
+        box.setInformativeText(str(error_text))
+        box.setDetailedText(str(details))
+        box.exec()
 
     def on_install_status(self, text):
         if self.progress_dialog:

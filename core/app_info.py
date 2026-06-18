@@ -1,8 +1,8 @@
 import os
 
 APP_NAME = "Nexus Launcher"
-APP_VERSION = "0.7.12"
-APP_CODENAME = "QThread Import Fix"
+APP_VERSION = "0.7.13"
+APP_CODENAME = "Modpack Direct Install"
 
 APP_FULL_NAME = f"{APP_NAME} {APP_VERSION}"
 USER_AGENT = f"NexusLauncher/{APP_VERSION}"

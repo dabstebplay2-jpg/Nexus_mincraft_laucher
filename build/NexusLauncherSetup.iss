@@ -1,6 +1,6 @@
 ; Inno Setup script for Nexus Launcher
 #define MyAppName "Nexus Launcher"
-#define MyAppVersion "0.7.12"
+#define MyAppVersion "0.7.13"
 #define MyAppPublisher "dabstebplay2-jpg"
 #define MyAppURL "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher"
 #define MyAppExeName "NexusLauncher.exe"
