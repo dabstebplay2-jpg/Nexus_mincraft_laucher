@@ -1,25 +1,55 @@
-const NEXUS_VERSION = window.NEXUS_VERSION || "0.7.5";
-const RELEASE_API = "https://api.github.com/repos/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest";
-const FALLBACK_SETUP = "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.5-win-x64.exe";
-const FALLBACK_PORTABLE = "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncher-0.7.5-win-x64-portable.zip";
+const DEFAULT_VERSION = window.NEXUS_VERSION || "0.7.6";
+const DEFAULT_REPO = window.NEXUS_REPO || "dabstebplay2-jpg/Nexus_mincraft_laucher";
 
 const $ = (selector) => document.querySelector(selector);
+
+function latestDownloadUrl(repo, filename) {
+  return `https://github.com/${repo}/releases/latest/download/${filename}`;
+}
+
+function buildFallbackRelease(version = DEFAULT_VERSION, repo = DEFAULT_REPO) {
+  const installer = `NexusLauncherSetup-${version}-win-x64.exe`;
+  const portable = `NexusLauncher-${version}-win-x64-portable.zip`;
+
+  return {
+    repo,
+    version,
+    latest_release_api: `https://api.github.com/repos/${repo}/releases/latest`,
+    direct_download: latestDownloadUrl(repo, installer),
+    portable_download: latestDownloadUrl(repo, portable),
+    installer_filename: installer,
+    portable_filename: portable,
+  };
+}
+
+async function fetchJson(url) {
+  const response = await fetch(url, {
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error(`${url}: ${response.status}`);
+  }
+
+  return response.json();
+}
 
 function setDownloadLinks(setupUrl, portableUrl, assetName, version) {
   ["#downloadBtn", "#mainDownloadBtn"].forEach((selector) => {
     const item = $(selector);
-    if (item) item.href = setupUrl || FALLBACK_SETUP;
+    if (item) item.href = setupUrl;
   });
 
   const portable = $("#portableBtn");
-  if (portable) portable.href = portableUrl || FALLBACK_PORTABLE;
+  if (portable) portable.href = portableUrl;
 
   const asset = $("#assetName");
-  if (asset) asset.textContent = assetName || "NexusLauncherSetup-0.7.5-win-x64.exe";
+  if (asset) asset.textContent = assetName;
 
   ["#versionText", "#versionStat", "#footerVersion"].forEach((selector) => {
     const item = $(selector);
-    if (item) item.textContent = version || NEXUS_VERSION;
+    if (item) item.textContent = version;
   });
 }
 
@@ -37,23 +67,42 @@ function pickPortableAsset(assets) {
   });
 }
 
-async function loadRelease() {
+async function loadLocalRelease() {
   try {
-    const response = await fetch(RELEASE_API, { headers: { Accept: "application/vnd.github+json" } });
-    if (!response.ok) throw new Error("No release");
-    const release = await response.json();
+    return await fetchJson("./release.json");
+  } catch (error) {
+    return buildFallbackRelease();
+  }
+}
+
+async function loadRelease() {
+  const local = await loadLocalRelease();
+  const repo = local.repo || DEFAULT_REPO;
+  const fallback = buildFallbackRelease(local.version || DEFAULT_VERSION, repo);
+
+  const localSetupUrl = local.direct_download || local.download_url || fallback.direct_download;
+  const localPortableUrl = local.portable_download || local.portable_download_url || fallback.portable_download;
+  const localSetupName = local.installer_filename || local.filename || fallback.installer_filename;
+  const localVersion = local.version || fallback.version;
+
+  setDownloadLinks(localSetupUrl, localPortableUrl, localSetupName, localVersion);
+
+  try {
+    const apiUrl = local.latest_release_api || `https://api.github.com/repos/${repo}/releases/latest`;
+    const release = await fetchJson(apiUrl);
+
     const setup = pickSetupAsset(release.assets);
     const portable = pickPortableAsset(release.assets);
-    const version = String(release.tag_name || NEXUS_VERSION).replace(/^v/i, "");
+    const latestVersion = String(release.tag_name || localVersion).replace(/^v/i, "");
 
     setDownloadLinks(
-      setup?.browser_download_url || FALLBACK_SETUP,
-      portable?.browser_download_url || FALLBACK_PORTABLE,
-      setup?.name || "NexusLauncherSetup-0.7.5-win-x64.exe",
-      version
+      setup?.browser_download_url || localSetupUrl,
+      portable?.browser_download_url || localPortableUrl,
+      setup?.name || localSetupName,
+      latestVersion
     );
   } catch (error) {
-    setDownloadLinks(FALLBACK_SETUP, FALLBACK_PORTABLE, "NexusLauncherSetup-0.7.5-win-x64.exe", NEXUS_VERSION);
+    console.warn("GitHub latest release unavailable, using local release.json", error);
   }
 }
 
@@ -73,7 +122,7 @@ function setupCopy() {
   if (!btn) return;
 
   btn.addEventListener("click", async () => {
-    const link = $("#mainDownloadBtn")?.href || FALLBACK_SETUP;
+    const link = $("#mainDownloadBtn")?.href || buildFallbackRelease().direct_download;
     try {
       await navigator.clipboard.writeText(link);
       btn.textContent = "Ссылка скопирована";
