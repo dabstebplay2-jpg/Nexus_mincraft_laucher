@@ -47,9 +47,10 @@ def patch_index(version: str, repo: str):
 
     text = path.read_text(encoding="utf-8")
 
-    text = re.sub(r'(id="versionText">)[^<]+', rf"\g<1>{version}", text)
-    text = re.sub(r'(id="versionStat">)[^<]+', rf"\g<1>{version}", text)
-    text = re.sub(r'(id="footerVersion">)[^<]+', rf"\g<1>{version}", text)
+    display_version = "latest"
+    text = re.sub(r'(id="versionText">)[^<]+', rf"\g<1>{display_version}", text)
+    text = re.sub(r'(id="versionStat">)[^<]+', rf"\g<1>{display_version}", text)
+    text = re.sub(r'(id="footerVersion">)[^<]+', rf"\g<1>{display_version}", text)
 
     text = re.sub(
         r'NexusLauncherSetup-\d+\.\d+\.\d+-win-x64\.exe',

@@ -2,8 +2,6 @@
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_all
 
-# SPECPATH points to <project>/build when the spec is started as build/NexusLauncher-*.spec.
-# The project root is one level above it.
 project_root = Path(SPECPATH).resolve().parent
 
 datas = [
@@ -12,6 +10,8 @@ datas = [
 ]
 
 binaries = []
+
+LOCAL_PACKAGES = ["app", "auth", "core", "mods", "storage", "ui", "tools"]
 
 def collect_local_modules(package_name: str):
     package_dir = project_root / package_name
@@ -49,20 +49,22 @@ hiddenimports = [
     "PySide6.QtSvgWidgets",
 ]
 
-# Explicitly include all local packages. Without this, optimized PyInstaller builds can miss
-# namespace-like local modules such as storage.paths and crash with:
-# ModuleNotFoundError: No module named 'storage'
-for local_package in ["app", "auth", "core", "mods", "storage", "ui", "tools"]:
+# Double protection:
+# 1) hiddenimports puts local modules into PYZ;
+# 2) datas + runtime hook keeps source packages importable from sys._MEIPASS
+#    if PyInstaller misses a namespace/local package.
+for local_package in LOCAL_PACKAGES:
+    package_dir = project_root / local_package
+    if package_dir.exists():
+        datas.append((str(package_dir), local_package))
     hiddenimports += collect_local_modules(local_package)
 
-# Third-party packages that need their metadata/hooks.
 for package in ["minecraft_launcher_lib", "keyring"]:
     collected = collect_all(package)
     datas += collected[0]
     binaries += collected[1]
     hiddenimports += collected[2]
 
-# Keep the release lighter and avoid false QtWebEngine/QML/SQL DLL warnings.
 qt_heavy_excludes = [
     "PySide6.Qt3DAnimation",
     "PySide6.Qt3DCore",
@@ -121,7 +123,7 @@ a = Analysis(
     hiddenimports=sorted(set(hiddenimports)),
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=[str(project_root / "build" / "pyi_runtime_hook.py")],
     excludes=qt_heavy_excludes,
     noarchive=False,
     optimize=1,

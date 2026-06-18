@@ -44,9 +44,14 @@ Name: "desktopicon"; Description: "Создать ярлык на рабочем
 [Files]
 Source: "{#SourceExe}"; DestDir: "{app}"; DestName: "{#AppExeName}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
+Source: "helpers\*.cmd"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\Nexus Launcher"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
+Name: "{autoprograms}\Nexus Launcher - Проверить обновления"; Filename: "{app}\Nexus Check Updates.cmd"; WorkingDir: "{app}"
+Name: "{autoprograms}\Nexus Launcher - Диагностика"; Filename: "{app}\Nexus Diagnostics.cmd"; WorkingDir: "{app}"
+Name: "{autoprograms}\Nexus Launcher - Очистить кэш обновлений"; Filename: "{app}\Nexus Repair Cache.cmd"; WorkingDir: "{app}"
+Name: "{autoprograms}\Nexus Launcher - Сайт"; Filename: "{app}\Open Nexus Website.cmd"; WorkingDir: "{app}"
 Name: "{autodesktop}\Nexus Launcher"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 Name: "{autoprograms}\Удалить Nexus Launcher"; Filename: "{uninstallexe}"
 

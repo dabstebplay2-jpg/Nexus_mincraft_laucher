@@ -1,4 +1,4 @@
-const DEFAULT_VERSION = window.NEXUS_VERSION || "0.7.8";
+const DEFAULT_VERSION = window.NEXUS_VERSION || "latest";
 const DEFAULT_REPO = window.NEXUS_REPO || "dabstebplay2-jpg/Nexus_mincraft_laucher";
 
 const $ = (selector) => document.querySelector(selector);
@@ -8,12 +8,17 @@ function latestDownloadUrl(repo, filename) {
 }
 
 function buildFallbackRelease(version = DEFAULT_VERSION, repo = DEFAULT_REPO) {
-  const installer = `NexusLauncherSetup-${version}-win-x64.exe`;
-  const portable = `NexusLauncher-${version}-win-x64-portable.zip`;
+  const safeVersion = String(version || "latest").replace(/^v/i, "");
+  const installer = safeVersion === "latest"
+    ? "NexusLauncherSetup-latest-win-x64.exe"
+    : `NexusLauncherSetup-${safeVersion}-win-x64.exe`;
+  const portable = safeVersion === "latest"
+    ? "NexusLauncher-latest-win-x64-portable.zip"
+    : `NexusLauncher-${safeVersion}-win-x64-portable.zip`;
 
   return {
     repo,
-    version,
+    version: safeVersion,
     latest_release_api: `https://api.github.com/repos/${repo}/releases/latest`,
     direct_download: latestDownloadUrl(repo, installer),
     portable_download: latestDownloadUrl(repo, portable),
@@ -53,6 +58,16 @@ function setDownloadLinks(setupUrl, portableUrl, assetName, version) {
   });
 }
 
+function setLoadingState() {
+  ["#versionText", "#versionStat", "#footerVersion"].forEach((selector) => {
+    const item = $(selector);
+    if (item) item.textContent = "latest";
+  });
+
+  const asset = $("#assetName");
+  if (asset) asset.textContent = "Проверяю последний GitHub Release...";
+}
+
 function pickSetupAsset(assets) {
   return (assets || []).find((asset) => {
     const name = String(asset.name || "").toLowerCase();
@@ -76,16 +91,11 @@ async function loadLocalRelease() {
 }
 
 async function loadRelease() {
+  setLoadingState();
+
   const local = await loadLocalRelease();
   const repo = local.repo || DEFAULT_REPO;
   const fallback = buildFallbackRelease(local.version || DEFAULT_VERSION, repo);
-
-  const localSetupUrl = local.direct_download || local.download_url || fallback.direct_download;
-  const localPortableUrl = local.portable_download || local.portable_download_url || fallback.portable_download;
-  const localSetupName = local.installer_filename || local.filename || fallback.installer_filename;
-  const localVersion = local.version || fallback.version;
-
-  setDownloadLinks(localSetupUrl, localPortableUrl, localSetupName, localVersion);
 
   try {
     const apiUrl = local.latest_release_api || `https://api.github.com/repos/${repo}/releases/latest`;
@@ -93,17 +103,31 @@ async function loadRelease() {
 
     const setup = pickSetupAsset(release.assets);
     const portable = pickPortableAsset(release.assets);
-    const latestVersion = String(release.tag_name || localVersion).replace(/^v/i, "");
+    const latestVersion = String(release.tag_name || local.version || "latest").replace(/^v/i, "");
+
+    if (!setup) {
+      throw new Error("Latest GitHub Release has no setup exe asset");
+    }
 
     setDownloadLinks(
-      setup?.browser_download_url || localSetupUrl,
-      portable?.browser_download_url || localPortableUrl,
-      setup?.name || localSetupName,
+      setup.browser_download_url,
+      portable?.browser_download_url || local.portable_download || fallback.portable_download,
+      setup.name,
       latestVersion
     );
+    return;
   } catch (error) {
-    console.warn("GitHub latest release unavailable, using local release.json", error);
+    console.warn("GitHub latest release unavailable, using local release.json fallback", error);
   }
+
+  // Fallback is used only if GitHub API is unavailable.
+  // Normal users should see real GitHub latest, not a future unreleased version.
+  const setupUrl = local.direct_download || local.download_url || fallback.direct_download;
+  const portableUrl = local.portable_download || local.portable_download_url || fallback.portable_download;
+  const setupName = local.installer_filename || local.filename || fallback.installer_filename;
+  const version = local.version || fallback.version;
+
+  setDownloadLinks(setupUrl, portableUrl, setupName, version);
 }
 
 function setupMenu() {

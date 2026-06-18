@@ -92,6 +92,19 @@ def main():
         window = MainWindow()
         window.show()
 
+        if "--open-updates" in sys.argv:
+            from PySide6.QtCore import QTimer
+
+            def open_updates_page():
+                try:
+                    window.change_page(6)
+                    if hasattr(window.settings_page, "check_updates_from_settings"):
+                        window.settings_page.check_updates_from_settings()
+                except Exception:
+                    logger.exception("Failed to open updates page")
+
+            QTimer.singleShot(500, open_updates_page)
+
         logger.info("Application event loop started")
         exit_code = app.exec()
 
