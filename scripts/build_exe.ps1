@@ -28,7 +28,9 @@ Remove-Item -Recurse -Force build\pyinstaller -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue
 
 & $PythonExe -m PyInstaller --noconfirm --clean --workpath build\pyinstaller build\NexusLauncher-OneFile.spec
+if ($LASTEXITCODE -ne 0) { throw "PyInstaller OneFile build failed with code $LASTEXITCODE" }
 & $PythonExe -m PyInstaller --noconfirm --clean --workpath build\pyinstaller build\NexusLauncher-Portable.spec
+if ($LASTEXITCODE -ne 0) { throw "PyInstaller Portable build failed with code $LASTEXITCODE" }
 
 Write-Host ""
 Write-Host "Build done:" -ForegroundColor Green

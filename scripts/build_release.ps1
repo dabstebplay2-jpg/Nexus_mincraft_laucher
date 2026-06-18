@@ -30,11 +30,16 @@ New-Item -ItemType Directory -Force $ReleaseDir | Out-Null
 Write-Host "Building Nexus Launcher v$Version"
 
 & $PythonExe -m PyInstaller --noconfirm --clean --workpath build\pyinstaller build\NexusLauncher-OneFile.spec
+if ($LASTEXITCODE -ne 0) { throw "PyInstaller OneFile build failed with code $LASTEXITCODE" }
 & $PythonExe -m PyInstaller --noconfirm --clean --workpath build\pyinstaller build\NexusLauncher-Portable.spec
+if ($LASTEXITCODE -ne 0) { throw "PyInstaller Portable build failed with code $LASTEXITCODE" }
 
 $OneFileName = "NexusLauncher-$Version-win-x64.exe"
 $PortableName = "NexusLauncher-$Version-win-x64-portable.zip"
 
+if (-not (Test-Path "dist\NexusLauncher.exe")) {
+    throw "dist\NexusLauncher.exe was not created"
+}
 Copy-Item "dist\NexusLauncher.exe" (Join-Path $ReleaseDir $OneFileName)
 
 if (Test-Path (Join-Path $ReleaseDir $PortableName)) {

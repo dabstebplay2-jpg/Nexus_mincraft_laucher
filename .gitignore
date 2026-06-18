@@ -77,3 +77,10 @@ storage/modrinth_cache/
 Thumbs.db
 .vscode/
 .idea/
+# Runtime folders - do not publish
+data/
+data_backup_before_*/
+dist/
+release/
+.venv/
+__pycache__/
