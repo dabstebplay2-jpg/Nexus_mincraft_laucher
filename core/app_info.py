@@ -1,8 +1,8 @@
 import os
 
 APP_NAME = "Nexus Launcher"
-APP_VERSION = "0.7.9"
-APP_CODENAME = "Self Check Installer Fix"
+APP_VERSION = "0.7.10"
+APP_CODENAME = "Tracked Runtime Hook Fix"
 
 APP_FULL_NAME = f"{APP_NAME} {APP_VERSION}"
 USER_AGENT = f"NexusLauncher/{APP_VERSION}"

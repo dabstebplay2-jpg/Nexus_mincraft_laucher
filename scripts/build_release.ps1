@@ -28,6 +28,10 @@ Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force $ReleaseDir -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $ReleaseDir | Out-Null
 
+if (-not (Test-Path ".\tools\pyi_runtime_hook.py")) {
+    throw "Missing .\tools\pyi_runtime_hook.py. Runtime hook must be committed because PyInstaller spec references it."
+}
+
 Write-Host "Building Nexus Launcher v$Version"
 
 & $PythonExe -m PyInstaller --noconfirm --clean --workpath build\pyinstaller build\NexusLauncher-OneFile.spec

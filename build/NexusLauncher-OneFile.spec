@@ -49,10 +49,6 @@ hiddenimports = [
     "PySide6.QtSvgWidgets",
 ]
 
-# Double protection:
-# 1) hiddenimports puts local modules into PYZ;
-# 2) datas + runtime hook keeps source packages importable from sys._MEIPASS
-#    if PyInstaller misses a namespace/local package.
 for local_package in LOCAL_PACKAGES:
     package_dir = project_root / local_package
     if package_dir.exists():
@@ -115,6 +111,11 @@ qt_heavy_excludes = [
     "pytest",
 ]
 
+runtime_hook = project_root / "tools" / "pyi_runtime_hook.py"
+
+if not runtime_hook.exists():
+    raise FileNotFoundError(f"PyInstaller runtime hook missing: {runtime_hook}")
+
 a = Analysis(
     [str(project_root / "main.py")],
     pathex=[str(project_root)],
@@ -123,7 +124,7 @@ a = Analysis(
     hiddenimports=sorted(set(hiddenimports)),
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[str(project_root / "build" / "pyi_runtime_hook.py")],
+    runtime_hooks=[str(runtime_hook)],
     excludes=qt_heavy_excludes,
     noarchive=False,
     optimize=1,
