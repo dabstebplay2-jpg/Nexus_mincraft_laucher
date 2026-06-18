@@ -1,4 +1,4 @@
-name: Build Windows EXE, Release and Website
+﻿name: Build Windows EXE and Release
 
 on:
   workflow_dispatch:
@@ -8,8 +8,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: "release-${{ github.ref }}"
@@ -70,48 +68,3 @@ jobs:
             release/*.zip
             release/*.sha256
           generate_release_notes: true
-
-  deploy-website:
-    name: Deploy website to GitHub Pages
-    needs: build-windows
-    runs-on: ubuntu-latest
-    if: success()
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    concurrency:
-      group: "pages"
-      cancel-in-progress: true
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Resolve release version
-        id: version
-        shell: bash
-        run: |
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-          else
-            VERSION="$(python -c 'from core.app_info import APP_VERSION; print(APP_VERSION)')"
-          fi
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-
-      - name: Generate website release metadata
-        run: |
-          python tools/generate_website_release.py --version "${{ steps.version.outputs.version }}" --repo "${{ github.repository }}"
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload website artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: "website"
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
