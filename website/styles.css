@@ -634,3 +634,59 @@ h3 {
     flex-direction: column;
   }
 }
+
+
+/* Deep QA responsive website patch */
+.header {
+  max-width: var(--max);
+}
+
+.hero-text,
+.section-head,
+.split > div {
+  min-width: 0;
+}
+
+.launcher-card {
+  max-width: 520px;
+  justify-self: end;
+}
+
+.cards article,
+.stats div,
+.roadmap-grid div,
+.mini-panel,
+.download-panel,
+.faq details {
+  min-width: 0;
+}
+
+@media (max-width: 980px) {
+  .launcher-card {
+    justify-self: stretch;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 680px) {
+  h1 {
+    letter-spacing: -0.035em;
+  }
+
+  h1, h2 {
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .label {
+    flex-wrap: wrap;
+  }
+
+  .badges span {
+    font-size: 12px;
+  }
+
+  .section {
+    padding-top: 52px;
+  }
+}

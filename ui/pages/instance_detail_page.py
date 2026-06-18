@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QComboBox,
     QSpinBox,
+    QTextEdit,
 )
 
 from mods.mod_installer import ModInstaller
@@ -87,7 +88,7 @@ class InstanceDetailPage(QWidget):
 
         play_button = QPushButton("▶ Играть")
         play_button.setObjectName("PrimaryButton")
-        play_button.clicked.connect(lambda: self.play_clicked.emit(self.instance))
+        play_button.clicked.connect(lambda checked=False: self.play_clicked.emit(self.instance))
 
         folder_button = QPushButton("Папка")
         folder_button.setObjectName("SecondaryButton")
@@ -152,16 +153,35 @@ class InstanceDetailPage(QWidget):
         tabs = QTabWidget()
         tabs.setObjectName("InstanceDetailTabs")
 
-        tabs.addTab(self.create_overview_tab(), "Обзор")
-        tabs.addTab(self.create_mods_tab(), "Моды")
-        tabs.addTab(self.create_worlds_tab(), "Миры")
-        tabs.addTab(self.create_screenshots_tab(), "Скриншоты")
-        tabs.addTab(self.create_crash_tab(), "Crash-репорты")
-        tabs.addTab(self.create_servers_tab(), "Сервера")
-        tabs.addTab(self.create_logs_tab(), "Логи")
-        tabs.addTab(self.create_settings_tab(), "Настройки")
+        self.add_tab_safe(tabs, self.create_overview_tab, "Обзор")
+        self.add_tab_safe(tabs, self.create_mods_tab, "Моды")
+        self.add_tab_safe(tabs, self.create_worlds_tab, "Миры")
+        self.add_tab_safe(tabs, self.create_screenshots_tab, "Скриншоты")
+        self.add_tab_safe(tabs, self.create_crash_tab, "Crash-репорты")
+        self.add_tab_safe(tabs, self.create_servers_tab, "Сервера")
+        self.add_tab_safe(tabs, self.create_logs_tab, "Логи")
+        self.add_tab_safe(tabs, self.create_settings_tab, "Настройки")
 
         return tabs
+
+    def add_tab_safe(self, tabs, factory, title):
+        try:
+            page = factory()
+            tabs.addTab(page, title)
+        except Exception as error:
+            page, layout = self.make_tab()
+            error_title = QLabel(f"Не удалось открыть вкладку: {title}")
+            error_title.setObjectName("CardTitle")
+
+            error_text = QLabel(str(error))
+            error_text.setObjectName("DownloadError")
+            error_text.setWordWrap(True)
+
+            layout.addWidget(error_title)
+            layout.addWidget(error_text)
+            layout.addStretch()
+
+            tabs.addTab(page, f"{title} ⚠")
 
     def make_tab(self):
         page = QWidget()
@@ -251,11 +271,16 @@ class InstanceDetailPage(QWidget):
 
             check_updates_btn = QPushButton("Проверить обновления")
             check_updates_btn.setObjectName("SecondaryButton")
-            check_updates_btn.clicked.connect(lambda: self._check_mod_updates(indexed_mods))
+            check_updates_btn.clicked.connect(lambda checked=False, mods=indexed_mods: self._check_mod_updates(mods))
+
+            update_all_btn = QPushButton("Обновить всё")
+            update_all_btn.setObjectName("PrimaryButton")
+            update_all_btn.clicked.connect(lambda checked=False, mods=indexed_mods: self._update_all_mods(mods))
 
             header_row.addWidget(header)
             header_row.addStretch()
             header_row.addWidget(check_updates_btn)
+            header_row.addWidget(update_all_btn)
             layout.addLayout(header_row)
 
             for mod in indexed_mods:
@@ -341,7 +366,9 @@ class InstanceDetailPage(QWidget):
         open_button.setObjectName("SecondaryButton")
         slug = mod.get("slug")
         if slug:
-            open_button.clicked.connect(lambda checked, s=slug: webbrowser.open(f"https://modrinth.com/mod/{s}"))
+            open_button.clicked.connect(
+                lambda checked=False, m=mod: webbrowser.open(self.modrinth_url_for_record(m))
+            )
 
         remove_button = QPushButton("Удалить")
         remove_button.setObjectName("DangerButton")
@@ -388,8 +415,13 @@ class InstanceDetailPage(QWidget):
     def _check_mod_updates(self, indexed_mods):
         has_updates = False
         results = []
+        changed = False
 
-        for mod in indexed_mods:
+        index_path = self.get_instance_path() / "mods_index.json"
+        index_data = load_json(index_path, {"mods": []})
+        records = index_data.get("mods", [])
+
+        for mod in records:
             project_id = mod.get("project_id") or mod.get("slug")
             version_id = mod.get("version_id")
             if not project_id:
@@ -400,29 +432,107 @@ class InstanceDetailPage(QWidget):
                 from mods.mod_installer import ModInstaller
 
                 api = ModrinthAPI()
+                project_type = mod.get("project_type", "mod")
+                loader = self.instance.get("loader", "fabric") if project_type in {"mod", "modpack"} else None
+
                 versions = api.get_project_versions(
                     project_id_or_slug=project_id,
                     minecraft_version=self.instance.get("minecraft_version", "1.20.1"),
-                    loader=self.instance.get("loader", "fabric"),
+                    loader=loader,
                 )
 
                 latest = ModInstaller().pick_best_version(versions) if versions else None
                 if latest and latest.get("id") != version_id:
                     mod["has_update"] = True
+                    mod["latest_version_id"] = latest.get("id")
+                    mod["latest_version_number"] = latest.get("version_number")
+                    mod["latest_date_published"] = latest.get("date_published")
                     has_updates = True
-                    results.append(f'{mod.get("title", "?")}: v{mod.get("version_number", "?")} → v{latest.get("version_number", "?")}')
+                    changed = True
+                    results.append(
+                        f'{mod.get("title", "?")}: '
+                        f'v{mod.get("version_number", "?")} → v{latest.get("version_number", "?")}'
+                    )
                 else:
+                    if mod.get("has_update"):
+                        changed = True
                     mod["has_update"] = False
+                    mod.pop("latest_version_id", None)
+                    mod.pop("latest_version_number", None)
+                    mod.pop("latest_date_published", None)
             except Exception:
                 mod["has_update"] = False
+
+        if changed:
+            from storage.json_store import save_json
+            save_json(index_path, index_data)
 
         if has_updates:
             msg = "Доступны обновления:\n\n" + "\n".join(results)
             QMessageBox.information(self, "Обновления найдены", msg)
         else:
-            QMessageBox.information(self, "Всё актуально", "Все моды обновлены до последней версии.")
+            QMessageBox.information(self, "Всё актуально", "Все проекты обновлены до последней совместимой версии.")
 
         self.refresh()
+
+    def _update_all_mods(self, indexed_mods):
+        result = QMessageBox.question(
+            self,
+            "Обновить все проекты?",
+            "Nexus проверит совместимые версии и обновит все установленные моды/ресурспаки/шейдеры.\n\n"
+            "Перед массовым обновлением лучше сделать резервную копию сборки."
+        )
+        if result != QMessageBox.Yes:
+            return
+
+        updated = []
+        skipped = []
+        failed = []
+
+        try:
+            installer = ModInstaller()
+
+            for record in indexed_mods:
+                try:
+                    before = record.get("version_id")
+                    result_data = installer.update_project(record, self.instance)
+                    after = None
+                    if isinstance(result_data, dict):
+                        rec = result_data.get("record") or {}
+                        after = rec.get("version_id")
+                    if after and before and after != before:
+                        updated.append(record.get("title") or record.get("slug") or "project")
+                    else:
+                        skipped.append(record.get("title") or record.get("slug") or "project")
+                except Exception as error:
+                    failed.append(f'{record.get("title") or record.get("slug") or "project"}: {error}')
+
+            message = (
+                f"Обновлено: {len(updated)}\n"
+                f"Уже актуально/пропущено: {len(skipped)}\n"
+                f"Ошибок: {len(failed)}"
+            )
+            if failed:
+                message += "\n\nОшибки:\n" + "\n".join(failed[:8])
+
+            QMessageBox.information(self, "Обновление завершено", message)
+            self.refresh()
+        except Exception as error:
+            QMessageBox.critical(self, "Ошибка обновления", str(error))
+
+    def modrinth_url_for_record(self, record):
+        slug = record.get("slug") or record.get("project_id")
+        if not slug:
+            return "https://modrinth.com"
+
+        project_type = record.get("project_type") or "mod"
+        path_by_type = {
+            "mod": "mod",
+            "modpack": "modpack",
+            "resourcepack": "resourcepack",
+            "shader": "shader",
+        }
+        return f"https://modrinth.com/{path_by_type.get(project_type, 'mod')}/{slug}"
 
     def _delete_mod_file(self, path):
         result = QMessageBox.question(
@@ -649,7 +759,7 @@ class InstanceDetailPage(QWidget):
 
         add_btn = QPushButton("Добавить сервер")
         add_btn.setObjectName("PrimaryButton")
-        add_btn.clicked.connect(lambda: self._add_server(manual_path))
+        add_btn.clicked.connect(lambda checked=False, path=manual_path: self._add_server(path))
 
         layout.addWidget(self.server_name_input)
         layout.addWidget(self.server_ip_input)
@@ -725,6 +835,124 @@ class InstanceDetailPage(QWidget):
 
         layout.addStretch()
         return page
+
+    def create_logs_tab(self):
+        page, layout = self.make_tab()
+
+        logs_dir = self.get_minecraft_dir() / "logs"
+        launcher_logs_dir = Path.cwd() / "data" / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        launcher_logs_dir.mkdir(parents=True, exist_ok=True)
+
+        header = QLabel("Логи сборки")
+        header.setObjectName("PanelTitle")
+
+        desc = QLabel(
+            "Здесь собраны Minecraft latest.log, crash-related логи и последние логи Nexus. "
+            "Если сборка не запускается, эту вкладку удобно копировать для диагностики."
+        )
+        desc.setObjectName("PanelText")
+        desc.setWordWrap(True)
+
+        layout.addWidget(header)
+        layout.addWidget(desc)
+
+        quick_actions = QHBoxLayout()
+        quick_actions.setSpacing(10)
+
+        open_mc_logs = QPushButton("Папка Minecraft logs")
+        open_mc_logs.setObjectName("SecondaryButton")
+        open_mc_logs.clicked.connect(lambda checked=False, p=logs_dir: self.open_path(p))
+
+        open_launcher_logs = QPushButton("Папка Nexus logs")
+        open_launcher_logs.setObjectName("SecondaryButton")
+        open_launcher_logs.clicked.connect(lambda checked=False, p=launcher_logs_dir: self.open_path(p))
+
+        quick_actions.addWidget(open_mc_logs)
+        quick_actions.addWidget(open_launcher_logs)
+        quick_actions.addStretch()
+        layout.addLayout(quick_actions)
+
+        log_files = []
+
+        minecraft_latest = logs_dir / "latest.log"
+        if minecraft_latest.exists():
+            log_files.append(("Minecraft latest.log", minecraft_latest))
+
+        for candidate in sorted(logs_dir.glob("*.log"), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True):
+            if candidate != minecraft_latest:
+                log_files.append((f"Minecraft: {candidate.name}", candidate))
+
+        for candidate in sorted(launcher_logs_dir.glob("*.log"), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)[:5]:
+            log_files.append((f"Nexus: {candidate.name}", candidate))
+
+        if not log_files:
+            layout.addWidget(self.empty_label("Логов пока нет. Запусти сборку — после этого Minecraft создаст latest.log."))
+            layout.addStretch()
+            return page
+
+        for title_text, file_path in log_files[:8]:
+            card = QFrame()
+            card.setObjectName("DetailInfoRow")
+
+            card_layout = QVBoxLayout(card)
+            card_layout.setContentsMargins(14, 12, 14, 12)
+            card_layout.setSpacing(8)
+
+            top = QHBoxLayout()
+            title = QLabel(title_text)
+            title.setObjectName("InstanceTitle")
+
+            meta = QLabel(f"{file_path.name} • {self.file_size_text(file_path)}")
+            meta.setObjectName("InstanceMeta")
+
+            open_btn = QPushButton("Открыть файл")
+            open_btn.setObjectName("SecondaryButton")
+            open_btn.clicked.connect(lambda checked=False, p=file_path: self.open_path(p))
+
+            top.addWidget(title)
+            top.addStretch()
+            top.addWidget(open_btn)
+
+            viewer = QTextEdit()
+            viewer.setObjectName("LogViewer")
+            viewer.setReadOnly(True)
+            viewer.setMinimumHeight(170)
+
+            try:
+                content = file_path.read_text(encoding="utf-8", errors="ignore")
+                lines = content.splitlines()
+                tail = "\n".join(lines[-220:])
+                viewer.setPlainText(tail or "(лог пуст)")
+            except Exception as error:
+                viewer.setPlainText(f"Не удалось прочитать лог:\n{error}")
+
+            card_layout.addLayout(top)
+            card_layout.addWidget(meta)
+            card_layout.addWidget(viewer)
+
+            layout.addWidget(card)
+
+        layout.addStretch()
+        return page
+
+    def file_size_text(self, path):
+        try:
+            size = Path(path).stat().st_size
+        except Exception:
+            return "—"
+
+        units = ["B", "KB", "MB", "GB"]
+        value = float(size)
+
+        for unit in units:
+            if value < 1024 or unit == units[-1]:
+                if unit == "B":
+                    return f"{int(value)} {unit}"
+                return f"{value:.1f} {unit}"
+            value /= 1024
+
+        return "—"
 
     def create_settings_tab(self):
         page, layout = self.make_tab()
@@ -877,7 +1105,7 @@ class InstanceDetailPage(QWidget):
 
         open_button = QPushButton("Открыть")
         open_button.setObjectName("SecondaryButton")
-        open_button.clicked.connect(lambda: self.open_path(path))
+        open_button.clicked.connect(lambda checked=False, p=path: self.open_path(p))
 
         layout.addWidget(name, 1)
         layout.addWidget(meta)
@@ -886,7 +1114,7 @@ class InstanceDetailPage(QWidget):
         if allow_delete:
             delete_button = QPushButton("Удалить")
             delete_button.setObjectName("DangerButton")
-            delete_button.clicked.connect(lambda: self.delete_path(path))
+            delete_button.clicked.connect(lambda checked=False, p=path: self.delete_path(p))
             layout.addWidget(delete_button)
 
         return row

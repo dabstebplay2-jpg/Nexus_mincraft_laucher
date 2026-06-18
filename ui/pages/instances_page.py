@@ -19,6 +19,8 @@ from PySide6.QtWidgets import (
     QComboBox,
     QProgressDialog,
     QDialogButtonBox,
+    QGridLayout,
+    QSizePolicy,
 )
 
 try:
@@ -33,6 +35,7 @@ from core.launcher import Launcher
 from core.download_manager import DownloadManager
 from core.version_manager import VersionManager
 from ui.utils.helpers import clear_layout
+from storage.json_store import load_json
 
 
 class LaunchWorker(QThread):
@@ -48,10 +51,21 @@ class LaunchWorker(QThread):
         self.download_manager = DownloadManager()
         self.download_task_id = None
 
+    def _safe_download_update(self, method_name, *args, **kwargs):
+        """Запись в downloads.json не должна ломать сам запуск Minecraft."""
+        try:
+            method = getattr(self.download_manager, method_name)
+            return method(*args, **kwargs)
+        except Exception:
+            # Подробный traceback всё равно уйдёт в latest.log, но запуск не прервётся.
+            traceback.print_exc()
+            return None
+
     def run(self):
         try:
             instance_name = self.instance.get("name", "Minecraft")
-            self.download_task_id = self.download_manager.start_task(
+            self.download_task_id = self._safe_download_update(
+                "start_task",
                 kind="minecraft",
                 title=f"Запуск Minecraft: {instance_name}",
                 subtitle=f'{self.instance.get("minecraft_version", "unknown")} • {self.instance.get("loader", "vanilla")}',
@@ -63,7 +77,7 @@ class LaunchWorker(QThread):
             )
 
             def emit_status(text):
-                self.download_manager.update_task(self.download_task_id, status=str(text))
+                self._safe_download_update(self.download_manager.update_task.__name__, self.download_task_id, status=str(text))
                 self.status.emit(str(text))
 
             def emit_progress(value):
@@ -72,17 +86,11 @@ class LaunchWorker(QThread):
                 except Exception:
                     progress = 0
 
-                self.download_manager.update_task(self.download_task_id, progress=progress)
+                self._safe_download_update(self.download_manager.update_task.__name__, self.download_task_id, progress=progress)
                 self.progress.emit(progress)
 
             def emit_maximum(value):
                 self.maximum.emit(int(value or 0))
-
-            callback = {
-                "setStatus": emit_status,
-                "setProgress": emit_progress,
-                "setMax": emit_maximum,
-            }
 
             launcher = Launcher(
                 set_status=emit_status,
@@ -91,11 +99,11 @@ class LaunchWorker(QThread):
             )
             launcher.launch_instance(self.instance)
 
-            self.download_manager.finish_task(self.download_task_id, status="Minecraft запущен")
+            self._safe_download_update("finish_task", self.download_task_id, status="Minecraft запущен")
             self.finished_ok.emit()
 
         except Exception as error:
-            self.download_manager.fail_task(self.download_task_id, str(error), status="Ошибка запуска")
+            self._safe_download_update("fail_task", self.download_task_id, str(error), status="Ошибка запуска")
             self.failed.emit(str(error), traceback.format_exc())
 
 
@@ -236,8 +244,9 @@ class InstancesPage(QWidget):
         title = QLabel("Сборки")
         title.setObjectName("PageTitle")
 
-        desc = QLabel("Создание, запуск и настройка Minecraft-сборок")
+        desc = QLabel("Создание, запуск, экспорт и контроль Minecraft-сборок.")
         desc.setObjectName("PageDescription")
+        desc.setWordWrap(True)
 
         title_block.addWidget(title)
         title_block.addWidget(desc)
@@ -255,13 +264,43 @@ class InstancesPage(QWidget):
         top.addWidget(import_button)
         top.addWidget(create_button)
 
+        root.addLayout(top)
+
+        stats = QHBoxLayout()
+        stats.setSpacing(14)
+        self.total_instances_card = self.create_stat_card("Сборки", "0", "всего")
+        self.fabric_instances_card = self.create_stat_card("Модовые", "0", "с loader")
+        self.mods_count_card = self.create_stat_card("Моды", "0", "установлено")
+        self.last_instance_card = self.create_stat_card("Последняя", "—", "активность")
+        for card in [
+            self.total_instances_card,
+            self.fabric_instances_card,
+            self.mods_count_card,
+            self.last_instance_card,
+        ]:
+            stats.addWidget(card)
+        root.addLayout(stats)
+
+        tools = QHBoxLayout()
+        tools.setSpacing(12)
+
         self.search_input = QLineEdit()
         self.search_input.setObjectName("SearchInput")
         self.search_input.setPlaceholderText("Поиск сборки...")
         self.search_input.textChanged.connect(self.refresh_instances)
 
+        self.loader_filter = QComboBox()
+        self.loader_filter.addItems(["Все loader", "vanilla", "fabric", "forge", "neoforge", "quilt"])
+        self.loader_filter.currentIndexChanged.connect(self.refresh_instances)
+
+        tools.addWidget(self.search_input, 1)
+        tools.addWidget(self.loader_filter)
+
+        root.addLayout(tools)
+
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll.setObjectName("ScrollArea")
 
         self.container = QWidget()
@@ -270,12 +309,35 @@ class InstancesPage(QWidget):
         self.cards_layout.setSpacing(14)
 
         self.scroll.setWidget(self.container)
-
-        root.addLayout(top)
-        root.addWidget(self.search_input)
         root.addWidget(self.scroll)
 
         self.refresh_instances()
+
+    def create_stat_card(self, title, value, desc):
+        card = QFrame()
+        card.setObjectName("DownloadSummaryCard")
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(18, 16, 18, 16)
+        layout.setSpacing(6)
+
+        title_label = QLabel(title)
+        title_label.setObjectName("HeroStatTitle")
+
+        value_label = QLabel(value)
+        value_label.setObjectName("DownloadBigNumber")
+
+        desc_label = QLabel(desc)
+        desc_label.setObjectName("InstanceMeta")
+
+        card.value_label = value_label
+        card.desc_label = desc_label
+
+        layout.addWidget(title_label)
+        layout.addWidget(value_label)
+        layout.addWidget(desc_label)
+
+        return card
 
     def get_instances(self):
         try:
@@ -286,21 +348,69 @@ class InstancesPage(QWidget):
         except Exception:
             return []
 
+    def count_instance_mods(self, instance):
+        try:
+            index_path = Path(instance.get("path", "")) / "mods_index.json"
+            return len(load_json(index_path, {"mods": []}).get("mods", []))
+        except Exception:
+            return 0
+
+    def update_stats(self, all_instances, filtered_instances):
+        total = len(all_instances)
+        modded = len([
+            item for item in all_instances
+            if (item.get("loader") or "vanilla").lower() != "vanilla"
+        ])
+        mods_count = sum(self.count_instance_mods(item) for item in all_instances)
+
+        self.total_instances_card.value_label.setText(str(total))
+        self.fabric_instances_card.value_label.setText(str(modded))
+        self.mods_count_card.value_label.setText(str(mods_count))
+
+        latest = None
+        if all_instances:
+            latest = max(
+                all_instances,
+                key=lambda item: item.get("last_played_at") or item.get("created_at") or "",
+            )
+
+        if latest:
+            self.last_instance_card.value_label.setText(latest.get("name", "—"))
+            self.last_instance_card.desc_label.setText(
+                f'{latest.get("minecraft_version", "unknown")} • {latest.get("loader", "vanilla")}'
+            )
+        else:
+            self.last_instance_card.value_label.setText("—")
+            self.last_instance_card.desc_label.setText("активность")
+
     def refresh_instances(self):
         clear_layout(self.cards_layout)
 
         query = self.search_input.text().strip().lower() if hasattr(self, "search_input") else ""
-        instances = self.get_instances()
+        loader_filter = self.loader_filter.currentText() if hasattr(self, "loader_filter") else "Все loader"
+
+        all_instances = self.get_instances()
+        instances = list(all_instances)
 
         if query:
             instances = [
                 item for item in instances
                 if query in item.get("name", "").lower()
+                or query in item.get("minecraft_version", "").lower()
+                or query in item.get("loader", "").lower()
             ]
 
+        if loader_filter != "Все loader":
+            instances = [
+                item for item in instances
+                if (item.get("loader") or "vanilla").lower() == loader_filter.lower()
+            ]
+
+        self.update_stats(all_instances, instances)
+
         if not instances:
-            empty = QLabel("Сборок пока нет. Нажми «Создать сборку».")
-            empty.setObjectName("PanelText")
+            empty = QLabel("Сборки не найдены. Измени фильтр или создай новую сборку.")
+            empty.setObjectName("EmptyText")
             empty.setAlignment(Qt.AlignCenter)
             empty.setMinimumHeight(220)
 
@@ -308,38 +418,60 @@ class InstancesPage(QWidget):
             self.cards_layout.addStretch()
             return
 
+        instances.sort(
+            key=lambda item: item.get("last_played_at") or item.get("created_at") or "",
+            reverse=True,
+        )
+
         for instance in instances:
             self.cards_layout.addWidget(self.create_instance_card(instance))
 
         self.cards_layout.addStretch()
 
+    def create_badge(self, text):
+        badge = QLabel(str(text))
+        badge.setObjectName("SmallBadge")
+        return badge
+
     def create_instance_card(self, instance):
         card = QFrame()
         card.setObjectName("InstanceCard")
-        card.setMinimumHeight(170)
+        card.setMinimumHeight(158)
+        card.setMaximumHeight(190)
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         layout = QVBoxLayout(card)
         layout.setContentsMargins(20, 18, 20, 18)
-        layout.setSpacing(12)
+        layout.setSpacing(14)
 
         top = QHBoxLayout()
+        top.setSpacing(14)
+
+        icon_box = QLabel("▣")
+        icon_box.setObjectName("BlockIcon")
+        icon_box.setFixedSize(58, 58)
+        icon_box.setAlignment(Qt.AlignCenter)
 
         name_block = QVBoxLayout()
-        name_block.setSpacing(5)
+        name_block.setSpacing(6)
 
         title = QLabel(instance.get("name", "Без названия"))
         title.setObjectName("InstanceTitle")
 
         ram = instance.get("ram_mb") or instance.get("ram") or 4096
+        loader = instance.get("loader", "vanilla")
+        version = instance.get("minecraft_version", "unknown")
+        mod_count = self.count_instance_mods(instance)
 
-        meta = QLabel(
-            f'Minecraft {instance.get("minecraft_version", "unknown")} • '
-            f'{instance.get("loader", "vanilla")} • {ram} MB'
-        )
+        meta = QLabel(f"Minecraft {version} • {loader} • {ram} MB • {mod_count} модов")
         meta.setObjectName("InstanceMeta")
 
-        name_block.addWidget(title)
-        name_block.addWidget(meta)
+        badges = QHBoxLayout()
+        badges.setSpacing(8)
+        badges.addWidget(self.create_badge(version))
+        badges.addWidget(self.create_badge(loader))
+        badges.addWidget(self.create_badge(f"{mod_count} модов"))
+        badges.addStretch()
 
         compat_badge = ""
         try:
@@ -348,15 +480,20 @@ class InstancesPage(QWidget):
             score = result.get("score", 100)
             status = result.get("status", "Normal")
             if score < 80:
-                compat_badge = f'  [{score}] {status}'
+                compat_badge = f"[{score}] {status}"
         except Exception:
             pass
 
+        name_block.addWidget(title)
+        name_block.addWidget(meta)
+        name_block.addLayout(badges)
+
         if compat_badge:
             compat_label = QLabel(compat_badge)
-            compat_label.setStyleSheet("color: #f59e0b; font-size: 11px;")
+            compat_label.setStyleSheet("color: #f59e0b; font-size: 12px; font-weight: 800;")
             name_block.addWidget(compat_label)
 
+        top.addWidget(icon_box)
         top.addLayout(name_block)
         top.addStretch()
 
@@ -365,32 +502,32 @@ class InstancesPage(QWidget):
 
         play = QPushButton("▶ Играть")
         play.setObjectName("PrimaryButton")
-        play.clicked.connect(lambda: self.launch_instance(instance))
+        play.clicked.connect(lambda checked=False, item=instance: self.launch_instance(item))
 
         details = QPushButton("Подробнее")
         details.setObjectName("SecondaryButton")
-        details.clicked.connect(lambda: self.instance_details_requested.emit(instance))
+        details.clicked.connect(lambda checked=False, item=instance: self.instance_details_requested.emit(item))
 
         export = QPushButton("Экспорт")
         export.setObjectName("SecondaryButton")
-        export.clicked.connect(lambda: self.export_instance(instance))
+        export.clicked.connect(lambda checked=False, item=instance: self.export_instance(item))
 
         folder = QPushButton("Папка")
         folder.setObjectName("SecondaryButton")
-        folder.clicked.connect(lambda: self.open_instance_folder(instance))
+        folder.clicked.connect(lambda checked=False, item=instance: self.open_instance_folder(item))
 
         delete = QPushButton("Удалить")
         delete.setObjectName("DangerButton")
-        delete.clicked.connect(lambda: self.delete_instance(instance))
+        delete.clicked.connect(lambda checked=False, item=instance: self.delete_instance(item))
 
-        actions.addWidget(play)
-        actions.addWidget(details)
-        actions.addWidget(export)
-        actions.addWidget(folder)
-        actions.addWidget(delete)
+        actions.addWidget(play, 2)
+        actions.addWidget(details, 1)
+        actions.addWidget(export, 1)
+        actions.addWidget(folder, 1)
+        actions.addStretch()
+        actions.addWidget(delete, 1)
 
         layout.addLayout(top)
-        layout.addStretch()
         layout.addLayout(actions)
 
         return card

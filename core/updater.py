@@ -195,27 +195,26 @@ def fetch_website_release(timeout: int = 10) -> Optional[ReleaseInfo]:
             source="website",
         )
     except Exception as error:
-        logger.warning("Website release check failed: %s", error)
+        # Website fallback can legitimately be unavailable until GitHub Pages is enabled.
+        # Keep this quiet because GitHub Releases is the primary update source.
+        logger.debug("Website release check unavailable: %s", error)
         return None
 
 
 def fetch_latest_release(timeout: int = 10) -> Optional[ReleaseInfo]:
-    """Backward-compatible update check.
+    """Check for updates without noisy fallback errors.
 
-    Nexus checks GitHub Releases first, then website release.json as fallback.
-    If both are available, the highest version wins.
+    GitHub Releases is the source of truth for installable updates.
+    The website release.json is used only when GitHub is unavailable.
+    This prevents harmless GitHub Pages 404s from appearing as warnings.
     """
 
-    candidates = [
-        fetch_github_latest_release(timeout=timeout),
-        fetch_website_release(timeout=timeout),
-    ]
+    github_release = fetch_github_latest_release(timeout=timeout)
 
-    candidates = [item for item in candidates if item]
-    if not candidates:
-        return None
+    if github_release:
+        return github_release
 
-    return sorted(candidates, key=lambda item: normalize_version(item.version), reverse=True)[0]
+    return fetch_website_release(timeout=timeout)
 
 
 def choose_preferred_asset(assets: list[ReleaseAsset]) -> ReleaseAsset | None:
@@ -267,9 +266,15 @@ def download_asset(asset: ReleaseAsset, progress_callback=None) -> Path:
     target = UPDATES_DIR / safe_name
     tmp = target.with_suffix(target.suffix + ".tmp")
 
+    if tmp.exists():
+        try:
+            tmp.unlink()
+        except Exception:
+            pass
+
     request = urllib.request.Request(asset.download_url, headers={"User-Agent": USER_AGENT})
 
-    with urllib.request.urlopen(request, timeout=30) as response:
+    with urllib.request.urlopen(request, timeout=45) as response:
         total = int(response.headers.get("content-length") or asset.size or 0)
         downloaded = 0
         started = time.time()
@@ -290,6 +295,10 @@ def download_asset(asset: ReleaseAsset, progress_callback=None) -> Path:
     if target.exists():
         target.unlink()
     tmp.replace(target)
+
+    if target.stat().st_size <= 0:
+        raise RuntimeError(f"Downloaded update is empty: {target}")
+
     return target
 
 

@@ -1,1 +1,0 @@
-Как поставить фикс адаптивности и темы:\n\n1. Закрой Nexus и Minecraft.\n2. Сделай бэкап папки data.\n3. Распакуй архив и скопируй содержимое в C:\\Nexus_minecraft_launcher с заменой файлов.\n4. Очисти __pycache__:\n   Get-ChildItem -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force\n5. Запусти:\n   .\\.venv\\Scripts\\python.exe main.py\n
