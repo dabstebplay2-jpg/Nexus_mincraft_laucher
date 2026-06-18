@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import time
 import zipfile
 from pathlib import Path
@@ -9,6 +10,9 @@ from pathlib import Path
 import requests
 
 from core.constants import USER_AGENT
+
+
+logger = logging.getLogger(__name__)
 from core.instance_manager import get_instance_manager
 from storage.json_store import save_json
 
@@ -167,30 +171,54 @@ class ModpackImporter:
         return client == "unsupported"
 
     def download_one(self, url: str, target: Path, file_entry: dict):
-        with requests.get(url, stream=True, timeout=90, headers={"User-Agent": USER_AGENT}) as response:
-            response.raise_for_status()
-            total = int(response.headers.get("content-length") or file_entry.get("fileSize") or 0)
-            downloaded = 0
-            started = time.time()
+        tmp = target.with_suffix(target.suffix + ".tmp")
+        last_error = None
 
-            with open(target, "wb") as output:
-                for chunk in response.iter_content(chunk_size=1024 * 256):
-                    if not chunk:
-                        continue
-                    output.write(chunk)
-                    downloaded += len(chunk)
+        for attempt in range(3):
+            try:
+                with requests.get(url, stream=True, timeout=90, headers={"User-Agent": USER_AGENT}) as response:
+                    response.raise_for_status()
+                    total = int(response.headers.get("content-length") or file_entry.get("fileSize") or 0)
+                    downloaded = 0
+                    started = time.time()
 
-                    elapsed = max(time.time() - started, 0.001)
-                    speed = downloaded / elapsed
-                    if total:
-                        self.detail_callback(
-                            f"{target.name}: {self.mb(downloaded)} / {self.mb(total)} • {self.mb(speed)}/s"
-                        )
-                    else:
-                        self.detail_callback(f"{target.name}: {self.mb(downloaded)} • {self.mb(speed)}/s")
+                    with open(tmp, "wb") as output:
+                        for chunk in response.iter_content(chunk_size=1024 * 256):
+                            if not chunk:
+                                continue
+                            output.write(chunk)
+                            downloaded += len(chunk)
 
-        if not self.file_matches(target, file_entry):
-            raise ModpackImportError(f"Хеш файла не совпал: {target.name}")
+                            elapsed = max(time.time() - started, 0.001)
+                            speed = downloaded / elapsed
+                            if total:
+                                self.detail_callback(
+                                    f"{target.name}: {self.mb(downloaded)} / {self.mb(total)} • {self.mb(speed)}/s"
+                                )
+                            else:
+                                self.detail_callback(f"{target.name}: {self.mb(downloaded)} • {self.mb(speed)}/s")
+
+                if target.exists():
+                    target.unlink()
+                tmp.replace(target)
+
+                if not self.file_matches(target, file_entry):
+                    raise ModpackImportError(f"Хеш файла не совпал: {target.name}")
+
+                return
+
+            except (requests.ConnectionError, requests.Timeout) as e:
+                last_error = e
+                logger.warning("Modpack download attempt %d/3 failed: %s", attempt + 1, e)
+                if attempt < 2:
+                    time.sleep(1.5 * (attempt + 1))
+                if tmp.exists():
+                    try:
+                        tmp.unlink()
+                    except Exception:
+                        pass
+
+        raise ModpackImportError(f"Не удалось скачать файл после 3 попыток: {last_error}")
 
     def file_matches(self, path: Path, file_entry: dict) -> bool:
         hashes = file_entry.get("hashes") or {}

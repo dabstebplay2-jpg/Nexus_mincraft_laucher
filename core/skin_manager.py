@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -18,6 +19,7 @@ class SkinManager:
     SCHEMA_VERSION = 1
 
     def __init__(self, root: str | Path | None = None):
+        self._lock = threading.RLock()
         self.data_dir = Path(root) / "data" if root else DATA_DIR
         self.skins_dir = self.data_dir / "skins"
         self.skins_file = self.data_dir / "skins.json"
@@ -82,22 +84,23 @@ class SkinManager:
         return name[:48] or "skin"
 
     def list_skins(self) -> list[dict[str, Any]]:
-        data = self._load()
-        result = []
-        changed = False
+        with self._lock:
+            data = self._load()
+            result = []
+            changed = False
 
-        for skin in data["skins"]:
-            path = Path(skin.get("path", ""))
-            if path.exists():
-                result.append(skin)
-            else:
-                changed = True
+            for skin in data["skins"]:
+                path = Path(skin.get("path", ""))
+                if path.exists():
+                    result.append(skin)
+                else:
+                    changed = True
 
-        if changed:
-            data["skins"] = result
-            self._save(data)
+            if changed:
+                data["skins"] = result
+                self._save(data)
 
-        return result
+            return result
 
     def get_skin(self, skin_id: str | None) -> dict[str, Any] | None:
         if not skin_id:
@@ -108,60 +111,62 @@ class SkinManager:
         return None
 
     def import_skin(self, source_path: str | Path, name: str | None = None, model: str = "auto") -> dict[str, Any]:
-        src = Path(source_path)
-        if not src.exists():
-            raise SkinError("Файл скина не найден.")
-        if src.suffix.lower() != ".png":
-            raise SkinError("Скин должен быть PNG-файлом.")
+        with self._lock:
+            src = Path(source_path)
+            if not src.exists():
+                raise SkinError("Файл скина не найден.")
+            if src.suffix.lower() != ".png":
+                raise SkinError("Скин должен быть PNG-файлом.")
 
-        width, height = self.png_size(src)
-        self.validate_skin_size(width, height)
+            width, height = self.png_size(src)
+            self.validate_skin_size(width, height)
 
-        skin_id = str(uuid.uuid4())
-        display_name = self.safe_name(name or src.stem)
-        filename = f"{skin_id}.png"
-        dst = self.skins_dir / filename
-        shutil.copy2(src, dst)
+            skin_id = str(uuid.uuid4())
+            display_name = self.safe_name(name or src.stem)
+            filename = f"{skin_id}.png"
+            dst = self.skins_dir / filename
+            shutil.copy2(src, dst)
 
-        created = int(time.time())
-        skin = {
-            "id": skin_id,
-            "name": display_name,
-            "filename": filename,
-            "path": str(dst),
-            "width": width,
-            "height": height,
-            "model": model if model in {"auto", "classic", "slim"} else "auto",
-            "created_at": created,
-            "updated_at": created,
-        }
+            created = int(time.time())
+            skin = {
+                "id": skin_id,
+                "name": display_name,
+                "filename": filename,
+                "path": str(dst),
+                "width": width,
+                "height": height,
+                "model": model if model in {"auto", "classic", "slim"} else "auto",
+                "created_at": created,
+                "updated_at": created,
+            }
 
-        data = self._load()
-        data["skins"].insert(0, skin)
-        self._save(data)
-        return skin
+            data = self._load()
+            data["skins"].insert(0, skin)
+            self._save(data)
+            return skin
 
     def delete_skin(self, skin_id: str) -> None:
-        data = self._load()
-        target = None
-        kept = []
+        with self._lock:
+            data = self._load()
+            target = None
+            kept = []
 
-        for skin in data["skins"]:
-            if skin.get("id") == skin_id:
-                target = skin
-            else:
-                kept.append(skin)
+            for skin in data["skins"]:
+                if skin.get("id") == skin_id:
+                    target = skin
+                else:
+                    kept.append(skin)
 
-        data["skins"] = kept
-        self._save(data)
+            data["skins"] = kept
+            self._save(data)
 
-        if target:
-            try:
-                Path(target.get("path", "")).unlink(missing_ok=True)
-            except Exception:
-                pass
+            if target:
+                try:
+                    Path(target.get("path", "")).unlink(missing_ok=True)
+                except Exception:
+                    pass
 
-        self.clear_skin_from_all_accounts(skin_id)
+            self.clear_skin_from_all_accounts(skin_id)
 
     def _load_accounts_data(self) -> dict[str, Any]:
         try:

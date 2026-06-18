@@ -206,7 +206,11 @@ class InstanceManager:
             temp_dir = Path(tempfile.mkdtemp(prefix="nexus_import_"))
 
             with zipfile.ZipFile(import_path, "r") as zf:
-                zf.extractall(temp_dir)
+                for member in zf.infolist():
+                    member_path = Path(member.filename)
+                    if member_path.is_absolute() or ".." in member_path.parts:
+                        raise RuntimeError(f"Обнаружен небезопасный путь в архиве: {member.filename}")
+                    zf.extract(member, temp_dir)
 
             for f in temp_dir.rglob("instance.json"):
                 instance_json_path = f

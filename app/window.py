@@ -12,6 +12,17 @@ from PySide6.QtWidgets import (
 )
 
 from core.constants import APP_VERSION
+
+
+class PageIndex:
+    HOME = 0
+    INSTANCES = 1
+    MODS = 2
+    LIBRARY = 3
+    DOWNLOADS = 4
+    ACCOUNTS = 5
+    SETTINGS = 6
+    LOGS = 7
 from storage.paths import DATA_DIR
 from ui.styles import get_app_style
 from ui.components.sidebar import Sidebar
@@ -71,7 +82,7 @@ class MainWindow(QMainWindow):
 
         self.sidebar = Sidebar()
         self.sidebar.page_changed.connect(self.change_page)
-        self.sidebar.profile_clicked.connect(lambda: self.change_page(5))
+        self.sidebar.profile_clicked.connect(lambda: self.change_page(PageIndex.ACCOUNTS))
 
         if hasattr(self.sidebar, "set_disabled_pages"):
             self.sidebar.set_disabled_pages(set())
@@ -96,7 +107,7 @@ class MainWindow(QMainWindow):
         self.instances_page.instance_details_requested.connect(self.open_instance_details)
 
         self.instance_detail_page = InstanceDetailPage()
-        self.instance_detail_page.back_clicked.connect(lambda checked=False: self.change_page(1))
+        self.instance_detail_page.back_clicked.connect(lambda checked=False: self.change_page(PageIndex.INSTANCES))
         self.instance_detail_page.play_clicked.connect(self.instances_page.launch_instance)
 
         self.mods_page = ModsPage()
@@ -134,6 +145,12 @@ class MainWindow(QMainWindow):
 
 
 
+    def closeEvent(self, event):
+        if self.startup_update_worker and self.startup_update_worker.isRunning():
+            self.startup_update_worker.quit()
+            self.startup_update_worker.wait(3000)
+        super().closeEvent(event)
+
     def check_updates_on_startup(self):
         if self.startup_update_worker and self.startup_update_worker.isRunning():
             return
@@ -161,7 +178,7 @@ class MainWindow(QMainWindow):
         )
 
         if result == QMessageBox.Yes:
-            self.change_page(6)
+            self.change_page(PageIndex.SETTINGS)
             if hasattr(self.settings_page, "start_update_from_release"):
                 self.settings_page.start_update_from_release(release)
             elif hasattr(self.settings_page, "check_updates_from_settings"):
@@ -193,7 +210,9 @@ class MainWindow(QMainWindow):
             if settings_file.exists():
                 data = json.loads(settings_file.read_text(encoding="utf-8"))
             data["theme"] = theme
-            settings_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            tmp = settings_file.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            tmp.replace(settings_file)
         except Exception:
             pass
 
@@ -212,25 +231,25 @@ class MainWindow(QMainWindow):
             self.topbar.set_theme(theme)
 
     def change_page(self, index):
-        if index == 0 and hasattr(self.home_page, "refresh"):
+        if index == PageIndex.HOME and hasattr(self.home_page, "refresh"):
             self.home_page.refresh()
 
-        if index == 2 and hasattr(self.mods_page, "load_instances"):
+        if index == PageIndex.MODS and hasattr(self.mods_page, "load_instances"):
             self.mods_page.load_instances()
 
-        if index == 3 and hasattr(self.library_page, "refresh"):
+        if index == PageIndex.LIBRARY and hasattr(self.library_page, "refresh"):
             self.library_page.refresh()
 
-        if index == 4 and hasattr(self.downloads_page, "refresh"):
+        if index == PageIndex.DOWNLOADS and hasattr(self.downloads_page, "refresh"):
             self.downloads_page.refresh()
 
-        if index == 5 and hasattr(self.accounts_page, "refresh"):
+        if index == PageIndex.ACCOUNTS and hasattr(self.accounts_page, "refresh"):
             self.accounts_page.refresh()
 
-        if index == 6 and hasattr(self.settings_page, "refresh"):
+        if index == PageIndex.SETTINGS and hasattr(self.settings_page, "refresh"):
             self.settings_page.refresh()
 
-        if index == 7 and hasattr(self.logs_page, "refresh"):
+        if index == PageIndex.LOGS and hasattr(self.logs_page, "refresh"):
             self.logs_page.refresh()
 
         self.pages.setCurrentIndex(index)
@@ -242,7 +261,7 @@ class MainWindow(QMainWindow):
             self.sidebar.set_active(index)
 
     def open_create_instance(self):
-        self.change_page(1)
+        self.change_page(PageIndex.INSTANCES)
         self.instances_page.open_create_dialog()
 
     def handle_search(self, query):
@@ -258,13 +277,13 @@ class MainWindow(QMainWindow):
         ]
 
         if matches:
-            self.change_page(1)
+            self.change_page(PageIndex.INSTANCES)
             if hasattr(self.instances_page, "search_input"):
                 self.instances_page.search_input.setText(query)
                 self.instances_page.refresh_instances()
             return
 
-        self.change_page(2)
+        self.change_page(PageIndex.MODS)
 
         if hasattr(self.mods_page, "query_input"):
             self.mods_page.query_input.setText(query)
@@ -281,7 +300,7 @@ class MainWindow(QMainWindow):
                 "Нет сборок",
                 "Сначала создай сборку на вкладке «Сборки».",
             )
-            self.change_page(1)
+            self.change_page(PageIndex.INSTANCES)
             return
 
         latest = max(
@@ -308,14 +327,14 @@ class MainWindow(QMainWindow):
             )
 
             self.status_label.setText(f'Открыта сборка • {instance.get("name", "Сборка")}')
-            self.sidebar.set_active(1)
+            self.sidebar.set_active(PageIndex.INSTANCES)
         except Exception as error:
             QMessageBox.critical(
                 self,
                 "Ошибка страницы сборки",
                 f"Не удалось открыть подробности сборки.\n\n{error}",
             )
-            self.change_page(1)
+            self.change_page(PageIndex.INSTANCES)
 
     def show_toast(self, title, text):
         toast = Toast(self, title, text)

@@ -1,4 +1,5 @@
 import json
+import locale
 import logging
 from pathlib import Path
 
@@ -9,6 +10,18 @@ LOCALES_DIR = Path(__file__).resolve().parent.parent / "ui" / "locales"
 _current_language = "ru"
 _translations: dict[str, str] = {}
 _fallback: dict[str, str] = {}
+
+
+def detect_os_language() -> str:
+    try:
+        code, _ = locale.getdefaultlocale()
+        if code:
+            lang = code.split("_")[0].lower()
+            if lang in ("en", "ru"):
+                return lang
+    except Exception:
+        pass
+    return "ru"
 
 
 def _load_locale(lang: str) -> dict[str, str]:

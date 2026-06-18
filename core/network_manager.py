@@ -31,15 +31,15 @@ def log_proxy_environment():
 
 
 def disable_proxy_for_launcher():
-    logger.info("Disabling proxy environment variables for launcher process")
-
-    for key in PROXY_ENV_KEYS:
-        value = os.environ.pop(key, None)
-
-        if value:
-            logger.warning("Removed proxy env: %s=%s", key, redact_secret(value))
+    logger.info("Setting NO_PROXY=* while preserving existing proxy environment variables")
 
     os.environ["NO_PROXY"] = "*"
     os.environ["no_proxy"] = "*"
 
-    logger.info("NO_PROXY set to *")
+    for key in PROXY_ENV_KEYS:
+        value = os.environ.get(key)
+
+        if value:
+            logger.info("Proxy env preserved: %s=%s", key, redact_secret(value))
+
+    logger.info("Proxy variables preserved, NO_PROXY=* ensures they are bypassed")

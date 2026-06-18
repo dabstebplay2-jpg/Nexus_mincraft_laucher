@@ -27,7 +27,9 @@ def save_oauth_settings(data):
     if not isinstance(data, dict):
         data = {}
     OAUTH_SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    OAUTH_SETTINGS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp = OAUTH_SETTINGS_FILE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(OAUTH_SETTINGS_FILE)
 
 
 def update_oauth_settings(**kwargs):

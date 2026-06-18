@@ -12,7 +12,7 @@ dist/
 # Runtime data
 instances/
 logs/
-storage/
+storage/modrinth_cache/
 backups/
 
 # Local user data

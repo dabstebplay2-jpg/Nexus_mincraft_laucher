@@ -184,10 +184,19 @@ class Launcher:
             options,
         )
 
-        safe_command = [
-            "***TOKEN***" if "token" in str(part).lower() else str(part)
-            for part in command
-        ]
+        safe_command = []
+        skip_next = False
+        for part in command:
+            if skip_next:
+                safe_command.append("***TOKEN***")
+                skip_next = False
+            elif isinstance(part, str) and part in ("--accessToken", "--token"):
+                safe_command.append(part)
+                skip_next = True
+            elif isinstance(part, str) and part.startswith("ey") and len(part) > 64:
+                safe_command.append("***TOKEN***")
+            else:
+                safe_command.append(str(part))
 
         logger.debug("Minecraft command: %s", safe_command)
 

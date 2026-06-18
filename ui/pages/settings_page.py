@@ -716,7 +716,9 @@ class SettingsPage(QWidget):
         settings_file, data = self._load_launcher_settings_file()
         data[key] = value
         settings_file.parent.mkdir(parents=True, exist_ok=True)
-        settings_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp = settings_file.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(settings_file)
 
     def _apply_theme_live(self, theme):
         window = self.window()
@@ -904,10 +906,12 @@ class SettingsPage(QWidget):
                     instance["ram"] = int(ram_mb)
                     count += 1
 
-            instances_file.write_text(
+            tmp = instances_file.with_suffix(".json.tmp")
+            tmp.write_text(
                 json.dumps(data, ensure_ascii=False, indent=2),
                 encoding="utf-8"
             )
+            tmp.replace(instances_file)
 
             return count
 

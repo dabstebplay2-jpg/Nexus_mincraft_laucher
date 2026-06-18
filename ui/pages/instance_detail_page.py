@@ -25,6 +25,112 @@ from storage.json_store import load_json
 from ui.utils.helpers import clear_layout
 
 
+class _ModUpdateCheckWorker(QThread):
+    results_ready = Signal(list, bool)
+    failed = Signal(str)
+
+    def __init__(self, instance, records):
+        super().__init__()
+        self.instance = instance
+        self.records = records
+
+    def run(self):
+        try:
+            results = []
+            has_updates = False
+            changed = False
+            index_path = Path(self.instance["path"]) / "mods_index.json"
+            index_data = load_json(index_path, {"mods": []})
+            records = index_data.get("mods", [])
+
+            for mod in records:
+                project_id = mod.get("project_id") or mod.get("slug")
+                version_id = mod.get("version_id")
+                if not project_id:
+                    continue
+
+                try:
+                    from mods.modrinth_api import ModrinthAPI
+                    from mods.mod_installer import ModInstaller
+
+                    api = ModrinthAPI()
+                    project_type = mod.get("project_type", "mod")
+                    loader = self.instance.get("loader", "fabric") if project_type in {"mod", "modpack"} else None
+
+                    versions = api.get_project_versions(
+                        project_id_or_slug=project_id,
+                        minecraft_version=self.instance.get("minecraft_version", "1.20.1"),
+                        loader=loader,
+                    )
+
+                    latest = ModInstaller().pick_best_version(versions) if versions else None
+                    if latest and latest.get("id") != version_id:
+                        mod["has_update"] = True
+                        mod["latest_version_id"] = latest.get("id")
+                        mod["latest_version_number"] = latest.get("version_number")
+                        mod["latest_date_published"] = latest.get("date_published")
+                        has_updates = True
+                        changed = True
+                        results.append(
+                            f'{mod.get("title", "?")}: '
+                            f'v{mod.get("version_number", "?")} → v{latest.get("version_number", "?")}'
+                        )
+                    else:
+                        if mod.get("has_update"):
+                            changed = True
+                        mod["has_update"] = False
+                        mod.pop("latest_version_id", None)
+                        mod.pop("latest_version_number", None)
+                        mod.pop("latest_date_published", None)
+                except Exception:
+                    mod["has_update"] = False
+
+            if changed:
+                from storage.json_store import save_json
+                save_json(index_path, index_data)
+
+            self.results_ready.emit(results, has_updates)
+        except Exception as e:
+            self.failed.emit(str(e))
+
+
+class _ModAllUpdateWorker(QThread):
+    progress = Signal(str)
+    finished = Signal(list, list, list)
+    failed = Signal(str)
+
+    def __init__(self, instance, records):
+        super().__init__()
+        self.instance = instance
+        self.records = records
+
+    def run(self):
+        try:
+            updated = []
+            skipped = []
+            failed = []
+            installer = ModInstaller()
+
+            for record in self.records:
+                try:
+                    before = record.get("version_id")
+                    result_data = installer.update_project(record, self.instance)
+                    after = None
+                    if isinstance(result_data, dict):
+                        rec = result_data.get("record") or {}
+                        after = rec.get("version_id")
+                    if after and before and after != before:
+                        updated.append(record.get("title") or record.get("slug") or "project")
+                    else:
+                        skipped.append(record.get("title") or record.get("slug") or "project")
+                except Exception as error:
+                    failed.append(f'{record.get("title") or record.get("slug") or "project"}: {error}')
+
+            self.finished.emit(updated, skipped, failed)
+        except Exception as e:
+            self.failed.emit(str(e))
+
+
 class InstanceDetailPage(QWidget):
     back_clicked = Signal()
     play_clicked = Signal(dict)
@@ -413,60 +519,16 @@ class InstanceDetailPage(QWidget):
             QMessageBox.critical(self, "Ошибка удаления", str(error))
 
     def _check_mod_updates(self, indexed_mods):
-        has_updates = False
-        results = []
-        changed = False
+        if not indexed_mods:
+            return
 
-        index_path = self.get_instance_path() / "mods_index.json"
-        index_data = load_json(index_path, {"mods": []})
-        records = index_data.get("mods", [])
+        self._mod_update_worker = _ModUpdateCheckWorker(self.instance, indexed_mods)
+        self._mod_update_worker.results_ready.connect(self._on_mod_updates_checked)
+        self._mod_update_worker.failed.connect(lambda e: QMessageBox.critical(self, "Ошибка проверки обновлений", e))
+        self._mod_update_worker.finished.connect(self._mod_update_worker.deleteLater)
+        self._mod_update_worker.start()
 
-        for mod in records:
-            project_id = mod.get("project_id") or mod.get("slug")
-            version_id = mod.get("version_id")
-            if not project_id:
-                continue
-
-            try:
-                from mods.modrinth_api import ModrinthAPI
-                from mods.mod_installer import ModInstaller
-
-                api = ModrinthAPI()
-                project_type = mod.get("project_type", "mod")
-                loader = self.instance.get("loader", "fabric") if project_type in {"mod", "modpack"} else None
-
-                versions = api.get_project_versions(
-                    project_id_or_slug=project_id,
-                    minecraft_version=self.instance.get("minecraft_version", "1.20.1"),
-                    loader=loader,
-                )
-
-                latest = ModInstaller().pick_best_version(versions) if versions else None
-                if latest and latest.get("id") != version_id:
-                    mod["has_update"] = True
-                    mod["latest_version_id"] = latest.get("id")
-                    mod["latest_version_number"] = latest.get("version_number")
-                    mod["latest_date_published"] = latest.get("date_published")
-                    has_updates = True
-                    changed = True
-                    results.append(
-                        f'{mod.get("title", "?")}: '
-                        f'v{mod.get("version_number", "?")} → v{latest.get("version_number", "?")}'
-                    )
-                else:
-                    if mod.get("has_update"):
-                        changed = True
-                    mod["has_update"] = False
-                    mod.pop("latest_version_id", None)
-                    mod.pop("latest_version_number", None)
-                    mod.pop("latest_date_published", None)
-            except Exception:
-                mod["has_update"] = False
-
-        if changed:
-            from storage.json_store import save_json
-            save_json(index_path, index_data)
-
+    def _on_mod_updates_checked(self, results, has_updates):
         if has_updates:
             msg = "Доступны обновления:\n\n" + "\n".join(results)
             QMessageBox.information(self, "Обновления найдены", msg)
@@ -476,6 +538,9 @@ class InstanceDetailPage(QWidget):
         self.refresh()
 
     def _update_all_mods(self, indexed_mods):
+        if not indexed_mods:
+            return
+
         result = QMessageBox.question(
             self,
             "Обновить все проекты?",
@@ -485,40 +550,23 @@ class InstanceDetailPage(QWidget):
         if result != QMessageBox.Yes:
             return
 
-        updated = []
-        skipped = []
-        failed = []
+        self._mod_all_update_worker = _ModAllUpdateWorker(self.instance, indexed_mods)
+        self._mod_all_update_worker.finished.connect(self._on_mod_all_updated)
+        self._mod_all_update_worker.failed.connect(lambda e: QMessageBox.critical(self, "Ошибка обновления", e))
+        self._mod_all_update_worker.finished.connect(self._mod_all_update_worker.deleteLater)
+        self._mod_all_update_worker.start()
 
-        try:
-            installer = ModInstaller()
+    def _on_mod_all_updated(self, updated, skipped, failed):
+        message = (
+            f"Обновлено: {len(updated)}\n"
+            f"Уже актуально/пропущено: {len(skipped)}\n"
+            f"Ошибок: {len(failed)}"
+        )
+        if failed:
+            message += "\n\nОшибки:\n" + "\n".join(failed[:8])
 
-            for record in indexed_mods:
-                try:
-                    before = record.get("version_id")
-                    result_data = installer.update_project(record, self.instance)
-                    after = None
-                    if isinstance(result_data, dict):
-                        rec = result_data.get("record") or {}
-                        after = rec.get("version_id")
-                    if after and before and after != before:
-                        updated.append(record.get("title") or record.get("slug") or "project")
-                    else:
-                        skipped.append(record.get("title") or record.get("slug") or "project")
-                except Exception as error:
-                    failed.append(f'{record.get("title") or record.get("slug") or "project"}: {error}')
-
-            message = (
-                f"Обновлено: {len(updated)}\n"
-                f"Уже актуально/пропущено: {len(skipped)}\n"
-                f"Ошибок: {len(failed)}"
-            )
-            if failed:
-                message += "\n\nОшибки:\n" + "\n".join(failed[:8])
-
-            QMessageBox.information(self, "Обновление завершено", message)
-            self.refresh()
-        except Exception as error:
-            QMessageBox.critical(self, "Ошибка обновления", str(error))
+        QMessageBox.information(self, "Обновление завершено", message)
+        self.refresh()
 
     def modrinth_url_for_record(self, record):
         slug = record.get("slug") or record.get("project_id")
@@ -818,23 +866,6 @@ class InstanceDetailPage(QWidget):
         self.server_ip_input.clear()
         self.refresh()
         QMessageBox.information(self, "Готово", f'Сервер "{name}" добавлен.')
-        page, layout = self.make_tab()
-
-        logs_dir = self.get_minecraft_dir() / "logs"
-        latest = logs_dir / "latest.log"
-
-        if latest.exists():
-            text = latest.read_text(encoding="utf-8", errors="ignore")[-12000:]
-            label = QLabel(text)
-            label.setObjectName("LogViewer")
-            label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-            label.setWordWrap(True)
-            layout.addWidget(label)
-        else:
-            layout.addWidget(self.empty_label("Лог Minecraft пока не найден."))
-
-        layout.addStretch()
-        return page
 
     def create_logs_tab(self):
         page, layout = self.make_tab()

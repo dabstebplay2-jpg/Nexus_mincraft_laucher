@@ -15,6 +15,16 @@ except Exception:
     USER_AGENT='NexusLauncher/0.6.0'
 logger=logging.getLogger(__name__)
 IMAGE_CACHE_DIR=Path(STORAGE_DIR)/'image_cache'
+_MAX_CACHE_FILES=1000
+def _trim_image_cache():
+    try:
+        files=sorted(IMAGE_CACHE_DIR.iterdir(), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
+        if len(files)>_MAX_CACHE_FILES:
+            for old in files[_MAX_CACHE_FILES:]:
+                try: old.unlink()
+                except Exception: pass
+    except Exception:
+        pass
 def get_image_cache_path(url):
     IMAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True); return IMAGE_CACHE_DIR/(hashlib.sha1(str(url).encode()).hexdigest()+'.img')
 class ImageDownloadThread(QThread):
@@ -24,8 +34,19 @@ class ImageDownloadThread(QThread):
         try:
             if not self.url: raise RuntimeError('empty url')
             p=get_image_cache_path(self.url)
-            if p.exists() and p.stat().st_size>0: self.image_ready.emit(p.read_bytes()); return
-            r=requests.get(self.url,timeout=20,headers={'User-Agent':USER_AGENT}); r.raise_for_status(); p.write_bytes(r.content); self.image_ready.emit(r.content)
+            if p.exists() and p.stat().st_size>0:
+                try:
+                    self.image_ready.emit(p.read_bytes()); return
+                except (OSError, PermissionError) as e:
+                    logger.warning("Failed to read cached image: %s", e)
+            r=requests.get(self.url,timeout=20,headers={'User-Agent':USER_AGENT}); r.raise_for_status()
+            try:
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_bytes(r.content)
+                _trim_image_cache()
+            except (OSError, PermissionError) as e:
+                logger.warning("Failed to write image cache: %s", e)
+            self.image_ready.emit(r.content)
         except Exception as e: self.image_failed.emit(str(e))
 class RemoteImageLabel(QLabel):
     def __init__(self,w,h,placeholder='◆'):

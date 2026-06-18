@@ -52,10 +52,12 @@ class LauncherSettings:
         with self._lock:
             DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-            SETTINGS_FILE.write_text(
+            tmp = SETTINGS_FILE.with_suffix(".json.tmp")
+            tmp.write_text(
                 json.dumps(self.data, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
+            tmp.replace(SETTINGS_FILE)
 
     def get_ram_mb(self, default=None):
         with self._lock:

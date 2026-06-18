@@ -56,19 +56,21 @@ def main():
         logger.info("Checking proxy environment after cleanup")
         log_proxy_environment()
 
-        from core.i18n import set_language
+        from core.i18n import set_language, detect_os_language
         from storage.paths import DATA_DIR
         import json
 
         settings_file = DATA_DIR / "launcher_settings.json"
+        settings_data = {}
         if settings_file.exists():
             try:
                 settings_data = json.loads(settings_file.read_text(encoding="utf-8"))
-                lang = settings_data.get("language", "ru")
-                set_language(lang)
-                logger.info("Loaded language: %s", lang)
             except Exception:
                 pass
+
+        lang = settings_data.get("language") or detect_os_language()
+        set_language(lang)
+        logger.info("Loaded language: %s", lang)
 
         from app.window import MainWindow
 
@@ -76,12 +78,8 @@ def main():
         app = QApplication(sys.argv)
 
         from ui.styles import get_app_style
+        theme = settings_data.get("theme", "dark")
         try:
-            settings_data = {}
-            settings_file = DATA_DIR / "launcher_settings.json"
-            if settings_file.exists():
-                settings_data = json.loads(settings_file.read_text(encoding="utf-8"))
-            theme = settings_data.get("theme", "dark")
             app.setStyleSheet(get_app_style(theme))
             logger.info("Applied theme: %s", theme)
         except Exception:
@@ -94,10 +92,11 @@ def main():
 
         if "--open-updates" in sys.argv:
             from PySide6.QtCore import QTimer
+            from app.window import PageIndex
 
             def open_updates_page():
                 try:
-                    window.change_page(6)
+                    window.change_page(PageIndex.SETTINGS)
                     if hasattr(window.settings_page, "check_updates_from_settings"):
                         window.settings_page.check_updates_from_settings()
                 except Exception:

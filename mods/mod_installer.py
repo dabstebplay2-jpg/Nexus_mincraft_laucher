@@ -326,35 +326,58 @@ class ModInstaller:
     def download_file(self, url, target: Path):
         logger.info("Downloading %s -> %s", url, target)
 
-        with requests.get(url, stream=True, timeout=60, headers={"User-Agent": USER_AGENT}) as response:
-            response.raise_for_status()
+        tmp = target.with_suffix(target.suffix + ".tmp")
+        last_error = None
 
-            total = int(response.headers.get("content-length", 0))
-            downloaded = 0
-            start_time = time.time()
+        for attempt in range(3):
+            try:
+                with requests.get(url, stream=True, timeout=60, headers={"User-Agent": USER_AGENT}) as response:
+                    response.raise_for_status()
 
-            with open(target, "wb") as file:
-                for chunk in response.iter_content(chunk_size=1024 * 256):
-                    if not chunk:
-                        continue
+                    total = int(response.headers.get("content-length", 0))
+                    downloaded = 0
+                    start_time = time.time()
 
-                    file.write(chunk)
-                    downloaded += len(chunk)
+                    with open(tmp, "wb") as file:
+                        for chunk in response.iter_content(chunk_size=1024 * 256):
+                            if not chunk:
+                                continue
 
-                    elapsed = max(time.time() - start_time, 0.001)
-                    speed = downloaded / elapsed
+                            file.write(chunk)
+                            downloaded += len(chunk)
 
-                    if total:
-                        progress = int(downloaded / total * 100)
-                        self.progress_callback(progress)
+                            elapsed = max(time.time() - start_time, 0.001)
+                            speed = downloaded / elapsed
 
-                    self.transfer_callback(downloaded, total, speed)
+                            if total:
+                                progress = int(downloaded / total * 100)
+                                self.progress_callback(progress)
 
-                    self.detail_callback(
-                        f"{self.mb(downloaded)} / {self.mb(total)} • {self.mb(speed)}/s"
-                        if total
-                        else f"{self.mb(downloaded)} • {self.mb(speed)}/s"
-                    )
+                            self.transfer_callback(downloaded, total, speed)
+
+                            self.detail_callback(
+                                f"{self.mb(downloaded)} / {self.mb(total)} • {self.mb(speed)}/s"
+                                if total
+                                else f"{self.mb(downloaded)} • {self.mb(speed)}/s"
+                            )
+
+                if target.exists():
+                    target.unlink()
+                tmp.replace(target)
+                return
+
+            except (requests.ConnectionError, requests.Timeout) as e:
+                last_error = e
+                logger.warning("Download attempt %d/3 failed: %s", attempt + 1, e)
+                if attempt < 2:
+                    time.sleep(1.5 * (attempt + 1))
+                if tmp.exists():
+                    try:
+                        tmp.unlink()
+                    except Exception:
+                        pass
+
+        raise RuntimeError(f"Не удалось скачать файл после 3 попыток: {last_error}")
 
     def file_matches_hash(self, path: Path, file_info):
         hashes = file_info.get("hashes", {})
