@@ -1,3 +1,4 @@
+import json
 from PySide6.QtCore import QTimer, QThread, Signal
 
 from PySide6.QtWidgets import (
@@ -11,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.constants import APP_VERSION
+from storage.paths import DATA_DIR
 from ui.styles import get_app_style
 from ui.components.sidebar import Sidebar
 from ui.components.topbar import Topbar
@@ -43,8 +45,8 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("Nexus Launcher")
-        self.setMinimumSize(640, 460)
-        self.resize(1440, 860)
+        self.setMinimumSize(560, 420)
+        self.resize(1320, 800)
         self.setStyleSheet(get_app_style())
 
         self.last_play_instance = None
@@ -69,6 +71,7 @@ class MainWindow(QMainWindow):
 
         self.sidebar = Sidebar()
         self.sidebar.page_changed.connect(self.change_page)
+        self.sidebar.profile_clicked.connect(lambda: self.change_page(5))
 
         if hasattr(self.sidebar, "set_disabled_pages"):
             self.sidebar.set_disabled_pages(set())
@@ -83,6 +86,7 @@ class MainWindow(QMainWindow):
         self.topbar = Topbar()
         self.topbar.search_submitted.connect(self.handle_search)
         self.topbar.play_clicked.connect(self.handle_quick_play)
+        self.topbar.theme_toggle_clicked.connect(self.toggle_theme)
 
         self.home_page = HomePage()
         self.home_page.navigate_requested.connect(self.change_page)
@@ -124,6 +128,7 @@ class MainWindow(QMainWindow):
 
         self.startup_update_worker = None
         self.change_page(0)
+        self.topbar.set_theme(self.current_theme())
         QTimer.singleShot(3000, self.check_updates_on_startup)
 
 
@@ -142,31 +147,69 @@ class MainWindow(QMainWindow):
             return
 
         asset = release.preferred_asset.name if release.preferred_asset else "asset не найден"
+        source = "GitHub Releases" if getattr(release, "source", "github") == "github" else "сайт release.json"
+
         result = QMessageBox.question(
             self,
             "Доступно обновление Nexus",
             f"Найдена новая версия: {release.tag}\n"
             f"Текущая версия: {APP_VERSION}\n"
+            f"Источник: {source}\n"
             f"Repo: {release.repo}\n"
             f"Asset: {asset}\n\n"
-            "Открыть настройки обновления?"
+            "Скачать обновление и запустить установщик?"
         )
 
         if result == QMessageBox.Yes:
             self.change_page(6)
-            if hasattr(self.settings_page, "check_updates_from_settings"):
+            if hasattr(self.settings_page, "start_update_from_release"):
+                self.settings_page.start_update_from_release(release)
+            elif hasattr(self.settings_page, "check_updates_from_settings"):
                 self.settings_page.check_updates_from_settings()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        compact = self.width() < 900
+        compact = self.width() < 1040
         if hasattr(self.sidebar, "set_compact"):
             self.sidebar.set_compact(compact)
         if hasattr(self.topbar, "set_compact"):
             self.topbar.set_compact(compact)
 
+    def current_theme(self):
+        try:
+            settings_file = DATA_DIR / "launcher_settings.json"
+            if settings_file.exists():
+                data = json.loads(settings_file.read_text(encoding="utf-8"))
+                return str(data.get("theme", "dark"))
+        except Exception:
+            pass
+        return "dark"
+
+    def save_theme(self, theme):
+        try:
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            settings_file = DATA_DIR / "launcher_settings.json"
+            data = {}
+            if settings_file.exists():
+                data = json.loads(settings_file.read_text(encoding="utf-8"))
+            data["theme"] = theme
+            settings_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+    def toggle_theme(self):
+        current = self.current_theme().lower()
+        next_theme = "light" if current in {"dark", "amoled"} else "dark"
+        self.save_theme(next_theme)
+        self.apply_theme(next_theme)
+        if hasattr(self.settings_page, "sync_settings_combos"):
+            self.settings_page.sync_settings_combos()
+
     def apply_theme(self, theme=None):
+        theme = theme or self.current_theme()
         self.setStyleSheet(get_app_style(theme))
+        if hasattr(self.topbar, "set_theme"):
+            self.topbar.set_theme(theme)
 
     def change_page(self, index):
         if index == 0 and hasattr(self.home_page, "refresh"):

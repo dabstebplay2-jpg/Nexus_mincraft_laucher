@@ -1,7 +1,7 @@
-const NEXUS_VERSION = window.NEXUS_VERSION || "0.7.3";
+const NEXUS_VERSION = window.NEXUS_VERSION || "0.7.4";
 const RELEASE_API = "https://api.github.com/repos/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest";
-const FALLBACK_SETUP = "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.3-win-x64.exe";
-const FALLBACK_PORTABLE = "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncher-0.7.3-win-x64-portable.zip";
+const FALLBACK_SETUP = "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.4-win-x64.exe";
+const FALLBACK_PORTABLE = "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncher-0.7.4-win-x64-portable.zip";
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -15,7 +15,7 @@ function setDownloadLinks(setupUrl, portableUrl, assetName, version) {
   if (portable) portable.href = portableUrl || FALLBACK_PORTABLE;
 
   const asset = $("#assetName");
-  if (asset) asset.textContent = assetName || "NexusLauncherSetup-0.7.3-win-x64.exe";
+  if (asset) asset.textContent = assetName || "NexusLauncherSetup-0.7.4-win-x64.exe";
 
   ["#versionText", "#versionStat", "#footerVersion"].forEach((selector) => {
     const item = $(selector);
@@ -49,11 +49,11 @@ async function loadRelease() {
     setDownloadLinks(
       setup?.browser_download_url || FALLBACK_SETUP,
       portable?.browser_download_url || FALLBACK_PORTABLE,
-      setup?.name || "NexusLauncherSetup-0.7.3-win-x64.exe",
+      setup?.name || "NexusLauncherSetup-0.7.4-win-x64.exe",
       version
     );
   } catch (error) {
-    setDownloadLinks(FALLBACK_SETUP, FALLBACK_PORTABLE, "NexusLauncherSetup-0.7.3-win-x64.exe", NEXUS_VERSION);
+    setDownloadLinks(FALLBACK_SETUP, FALLBACK_PORTABLE, "NexusLauncherSetup-0.7.4-win-x64.exe", NEXUS_VERSION);
   }
 }
 

@@ -42,14 +42,27 @@ class SidebarButton(QPushButton):
             self.setIconSize(QSize(19, 19))
 
 
+
+class ClickableProfileCard(QFrame):
+    clicked = Signal()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+
 class Sidebar(QWidget):
     page_changed = Signal(int)
+    profile_clicked = Signal()
 
     def __init__(self):
         super().__init__()
 
         self.setObjectName("Sidebar")
-        self.setFixedWidth(260)
+        self.setFixedWidth(236)
         self.compact = False
         self._nav_labels = []
         self._logo_text_widgets = []
@@ -60,8 +73,8 @@ class Sidebar(QWidget):
 
         self.root_layout = QVBoxLayout(self)
         root = self.root_layout
-        root.setContentsMargins(14, 16, 14, 16)
-        root.setSpacing(14)
+        root.setContentsMargins(12, 14, 12, 14)
+        root.setSpacing(10)
 
         root.addWidget(self.create_logo())
         root.addSpacing(8)
@@ -86,7 +99,6 @@ class Sidebar(QWidget):
         root.addWidget(system_title)
 
         for icon_name, text, index in [
-            ("accounts", "Аккаунты", 5),
             ("settings", "Настройки", 6),
             ("logs", "Логи", 7),
         ]:
@@ -146,13 +158,13 @@ class Sidebar(QWidget):
             return
 
         self.compact = compact
-        self.setFixedWidth(74 if compact else 260)
-        self.root_layout.setContentsMargins(8 if compact else 14, 12 if compact else 16, 8 if compact else 14, 12 if compact else 16)
+        self.setFixedWidth(68 if compact else 236)
+        self.root_layout.setContentsMargins(8 if compact else 12, 10 if compact else 14, 8 if compact else 12, 10 if compact else 14)
         self.root_layout.setSpacing(10 if compact else 14)
 
         for button in self.buttons:
             button.setText("" if compact else getattr(button, "full_text", button.text()))
-            button.setMinimumHeight(46 if compact else 48)
+            button.setMinimumHeight(42 if compact else 44)
             button.setIconSize(QSize(22, 22) if compact else QSize(19, 19))
             button.setToolTip(getattr(button, "full_text", ""))
 
@@ -169,6 +181,12 @@ class Sidebar(QWidget):
             button.style().unpolish(button)
             button.style().polish(button)
 
+        if hasattr(self, "profile_card") and self.profile_card:
+            active_profile = index == 5
+            self.profile_card.setProperty("active", active_profile)
+            self.profile_card.style().unpolish(self.profile_card)
+            self.profile_card.style().polish(self.profile_card)
+
     def set_disabled_pages(self, pages):
         self.disabled_pages = set(pages or [])
 
@@ -180,22 +198,25 @@ class Sidebar(QWidget):
             button.style().polish(button)
 
     def create_profile_card(self):
-        card = QFrame()
+        card = ClickableProfileCard()
         card.setObjectName("SidebarProfileCard")
-        card.setMinimumHeight(78)
+        card.setCursor(Qt.PointingHandCursor)
+        card.clicked.connect(self.profile_clicked.emit)
+        self.profile_card = card
+        card.setMinimumHeight(66)
 
         layout = QHBoxLayout(card)
-        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(12)
 
         avatar = QLabel("▣")
         avatar.setObjectName("SidebarAvatar")
         avatar.setAlignment(Qt.AlignCenter)
-        avatar.setFixedSize(46, 46)
+        avatar.setFixedSize(42, 42)
 
         qicon = get_icon("creeper")
         if qicon:
-            avatar.setPixmap(qicon.pixmap(QSize(46, 46)))
+            avatar.setPixmap(qicon.pixmap(QSize(42, 42)))
 
         info = QVBoxLayout()
         info.setSpacing(2)
@@ -219,6 +240,7 @@ class Sidebar(QWidget):
         layout.addStretch()
         layout.addWidget(arrow)
 
+        card.setToolTip("Профиль, аккаунты и скины")
         return card
 
 

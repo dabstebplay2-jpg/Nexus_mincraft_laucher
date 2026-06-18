@@ -112,3 +112,30 @@ https://api.github.com/repos/<owner>/<repo>/releases/latest
 4. пользователь закрывает Nexus и запускает обновление.
 
 Следующий этап — отдельный `NexusUpdater.exe`, который будет закрывать лаунчер, заменять файлы и запускать новую версию автоматически.
+
+
+## Установщик с ярлыком на рабочий стол
+
+Добавлена сборка установщика через Inno Setup:
+
+```text
+NexusLauncherSetup-<version>-win-x64.exe
+```
+
+Установщик:
+- ставит лаунчер в `%LOCALAPPDATA%\Programs\Nexus Launcher`;
+- создаёт ярлык в меню Пуск;
+- предлагает создать ярлык на рабочем столе;
+- предлагает запустить Nexus после установки.
+
+Локальная сборка полного релиза:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build_full_release.ps1
+```
+
+Только установщик:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build_installer.ps1 -SkipReleaseBuild
+```

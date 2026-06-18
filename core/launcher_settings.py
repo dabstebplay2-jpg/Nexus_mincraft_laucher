@@ -27,6 +27,8 @@ class LauncherSettings:
             "ram_mb": get_recommended_ram_mb(),
             "ram_override_enabled": True,
             "sync_ram_to_instances": True,
+            "theme": "dark",
+            "language": "ru",
         }
 
     def load(self):
@@ -83,6 +85,17 @@ class LauncherSettings:
         with self._lock:
             self.data["sync_ram_to_instances"] = bool(enabled)
             self.save()
+
+
+    def get_theme(self):
+        with self._lock:
+            return str(self.data.get("theme", "dark"))
+
+    def set_theme(self, theme):
+        with self._lock:
+            self.data["theme"] = str(theme or "dark")
+            self.save()
+            return self.data["theme"]
 
 
 _launcher_settings = LauncherSettings()

@@ -17,17 +17,18 @@ except Exception:
 class Topbar(QWidget):
     search_submitted = Signal(str)
     play_clicked = Signal()
+    theme_toggle_clicked = Signal()
 
     def __init__(self):
         super().__init__()
 
         self.setObjectName("Topbar")
-        self.setFixedHeight(86)
+        self.setFixedHeight(72)
         self.compact = False
 
         root = QHBoxLayout(self)
-        root.setContentsMargins(26, 14, 28, 14)
-        root.setSpacing(16)
+        root.setContentsMargins(22, 10, 24, 10)
+        root.setSpacing(12)
 
         title_block = QVBoxLayout()
         title_block.setSpacing(2)
@@ -44,8 +45,8 @@ class Topbar(QWidget):
         self.search_input = QLineEdit()
         self.search_input.setObjectName("TopbarSearch")
         self.search_input.setPlaceholderText("Поиск сборок, модов, настроек...")
-        self.search_input.setMinimumWidth(240)
-        self.search_input.setMaximumWidth(420)
+        self.search_input.setMinimumWidth(180)
+        self.search_input.setMaximumWidth(390)
 
         try:
             self.search_input.addAction(icon("search"), QLineEdit.ActionPosition.LeadingPosition)
@@ -69,6 +70,14 @@ class Topbar(QWidget):
             pass
         self.status_button.setIconSize(QSize(16, 16))
 
+
+        self.theme_button = QPushButton("☾")
+        self.theme_button.setObjectName("TopbarThemeButton")
+        self.theme_button.setCursor(Qt.PointingHandCursor)
+        self.theme_button.setToolTip("Сменить тему")
+        self.theme_button.setFixedWidth(48)
+        self.theme_button.clicked.connect(self.theme_toggle_clicked.emit)
+
         self.play_button = QPushButton("Играть")
         self.play_button.setObjectName("TopbarPlayButton")
         self.play_button.setCursor(Qt.PointingHandCursor)
@@ -84,6 +93,7 @@ class Topbar(QWidget):
         root.addStretch()
         root.addWidget(self.search_input, 1)
         root.addWidget(self.status_button)
+        root.addWidget(self.theme_button)
         root.addWidget(self.play_button)
 
     def submit_search(self):
@@ -100,11 +110,25 @@ class Topbar(QWidget):
             return
 
         self.compact = compact
-        self.setFixedHeight(62 if compact else 86)
+        self.setFixedHeight(56 if compact else 72)
         self.title_label.setVisible(not compact)
         self.subtitle_label.setVisible(False if compact else True)
         self.status_button.setVisible(not compact)
-        self.search_input.setMinimumWidth(120 if compact else 240)
-        self.search_input.setMaximumWidth(260 if compact else 420)
+        self.search_input.setMinimumWidth(110 if compact else 180)
+        self.search_input.setMaximumWidth(230 if compact else 390)
+        self.theme_button.setFixedWidth(42 if compact else 48)
         self.play_button.setText("▶" if compact else "Играть")
 
+
+
+    def set_theme(self, theme):
+        theme = str(theme or "dark").lower()
+        if theme == "light":
+            self.theme_button.setText("☀")
+            self.theme_button.setToolTip("Светлая тема активна. Нажми, чтобы включить тёмную.")
+        elif theme == "amoled":
+            self.theme_button.setText("●")
+            self.theme_button.setToolTip("AMOLED активна. Нажми, чтобы включить светлую.")
+        else:
+            self.theme_button.setText("☾")
+            self.theme_button.setToolTip("Тёмная тема активна. Нажми, чтобы включить светлую.")

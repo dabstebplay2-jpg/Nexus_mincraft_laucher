@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QFileDialog,
     QInputDialog,
+    QSizePolicy,
 )
 
 try:
@@ -576,7 +577,7 @@ class ModsPage(QWidget):
         self.results = []
         self.total_hits = 0
         self.offset = 0
-        self.limit = 12
+        self.limit = 10
 
         self.search_worker = None
         self.install_worker = None
@@ -599,42 +600,43 @@ class ModsPage(QWidget):
 
     def build_ui(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(36, 32, 36, 32)
-        root.setSpacing(18)
+        root.setContentsMargins(26, 22, 26, 22)
+        root.setSpacing(14)
 
         title = QLabel("Моды")
         title.setObjectName("PageTitle")
 
-        description = QLabel("Каталог Modrinth, поиск, описание и установка модов. Иконки загружаются в фоне и не тормозят поиск.")
+        description = QLabel("Каталог Modrinth в стиле Minecraft: моды, шейдеры, ресурспаки, популярные пресеты и быстрая установка.")
         description.setObjectName("PageDescription")
         description.setWordWrap(True)
 
-        controls = QHBoxLayout()
-        controls.setSpacing(14)
+        controls = QGridLayout()
+        controls.setHorizontalSpacing(10)
+        controls.setVerticalSpacing(10)
 
         self.instance_combo = QComboBox()
-        self.instance_combo.setMinimumWidth(230)
+        self.instance_combo.setMinimumWidth(140)
         self.instance_combo.currentIndexChanged.connect(self.on_instance_changed)
 
         self.type_combo = QComboBox()
-        self.type_combo.setMinimumWidth(160)
+        self.type_combo.setMinimumWidth(120)
         for item in PROJECT_TYPES:
             self.type_combo.addItem(item["label"], item["value"])
         self.type_combo.currentIndexChanged.connect(self.on_type_changed)
         self.type_combo.setToolTip("Выбери раздел каталога: моды, модпаки, ресурспаки или шейдеры.")
 
         self.category_combo = QComboBox()
-        self.category_combo.setMinimumWidth(180)
+        self.category_combo.setMinimumWidth(130)
         self.category_combo.currentIndexChanged.connect(self.search_clicked)
 
         self.side_combo = QComboBox()
-        self.side_combo.setMinimumWidth(150)
+        self.side_combo.setMinimumWidth(120)
         for label, value in SIDE_FILTERS:
             self.side_combo.addItem(label, value)
         self.side_combo.currentIndexChanged.connect(self.search_clicked)
 
         self.sort_combo = QComboBox()
-        self.sort_combo.setMinimumWidth(170)
+        self.sort_combo.setMinimumWidth(130)
         for label, value in SORT_OPTIONS:
             self.sort_combo.addItem(label, value)
         self.sort_combo.currentIndexChanged.connect(self.search_clicked)
@@ -655,15 +657,17 @@ class ModsPage(QWidget):
         import_pack_button.setObjectName("SecondaryButton")
         import_pack_button.clicked.connect(self.import_mrpack)
 
-        controls.addWidget(self.instance_combo)
-        controls.addWidget(self.type_combo)
-        controls.addWidget(self.category_combo)
-        controls.addWidget(self.side_combo)
-        controls.addWidget(self.sort_combo)
-        controls.addWidget(self.query_input, 1)
-        controls.addWidget(search_button)
-        controls.addWidget(smart_button)
-        controls.addWidget(import_pack_button)
+        controls.addWidget(self.instance_combo, 0, 0, 1, 2)
+        controls.addWidget(self.type_combo, 0, 2)
+        controls.addWidget(self.category_combo, 0, 3)
+        controls.addWidget(self.query_input, 0, 4, 1, 2)
+        controls.addWidget(search_button, 0, 6)
+        controls.addWidget(self.side_combo, 1, 0)
+        controls.addWidget(self.sort_combo, 1, 1)
+        controls.addWidget(smart_button, 1, 2)
+        controls.addWidget(import_pack_button, 1, 3)
+        controls.setColumnStretch(4, 1)
+        controls.setColumnStretch(5, 1)
 
         self.status_label = QLabel("Популярные моды загрузятся автоматически.")
         self.status_label.setObjectName("PanelText")
@@ -697,18 +701,32 @@ class ModsPage(QWidget):
 
         self.on_type_changed(search=False)
 
-        self.stats_row = QHBoxLayout()
-        self.stats_row.setSpacing(14)
+        self.shortcut_row = QGridLayout()
+        self.shortcut_row.setHorizontalSpacing(10)
+        self.shortcut_row.setVerticalSpacing(10)
+        shortcuts = [
+            ("⚡", "FPS Boost", "Sodium + Lithium", "mod", "optimization", "sodium"),
+            ("🌄", "Шейдеры", "Iris / Complementary", "shader", "", "complementary"),
+            ("🧱", "Vanilla+", "карта, подсказки, QoL", "mod", "utility", "jade"),
+            ("🎨", "Ресурспаки", "Fresh Animations / Faithful", "resourcepack", "vanilla-like", "fresh animations"),
+        ]
+        for idx, data in enumerate(shortcuts):
+            self.shortcut_row.addWidget(self.create_shortcut_card(*data), idx // 4, idx % 4)
+
+        self.stats_row = QGridLayout()
+        self.stats_row.setHorizontalSpacing(10)
+        self.stats_row.setVerticalSpacing(10)
         self.results_stat = self.create_stat_card("Найдено", "0", "по фильтру")
         self.visible_stat = self.create_stat_card("Показано", "0", "на странице")
-        self.compat_stat = self.create_stat_card("Совместимость", "AUTO", "версия + loader")
+        self.compat_stat = self.create_stat_card("Сборка", "Нет", "выбери профиль")
         self.source_stat = self.create_stat_card("Источник", "Modrinth", "каталог")
         self.type_stat = self.create_stat_card("Раздел", "Моды", "тип контента")
-        for card in [self.results_stat, self.visible_stat, self.compat_stat, self.source_stat, self.type_stat]:
-            self.stats_row.addWidget(card)
+        for idx, card in enumerate([self.results_stat, self.visible_stat, self.compat_stat, self.source_stat, self.type_stat]):
+            self.stats_row.addWidget(card, idx // 3, idx % 3)
 
         root.addWidget(title)
         root.addWidget(description)
+        root.addLayout(self.shortcut_row)
         root.addLayout(self.stats_row)
         root.addLayout(controls)
         root.addWidget(self.status_label)
@@ -716,12 +734,34 @@ class ModsPage(QWidget):
         root.addLayout(bottom)
 
 
+    def create_shortcut_card(self, emoji, title, desc, project_type, category, query):
+        card = QPushButton(f"{emoji}  {title}\n{desc}")
+        card.setObjectName("MinecraftShortcutCard")
+        card.setCursor(Qt.PointingHandCursor)
+        card.clicked.connect(lambda checked=False: self.apply_shortcut(project_type, category, query))
+        return card
+
+    def apply_shortcut(self, project_type, category, query):
+        type_index = self.type_combo.findData(project_type)
+        if type_index >= 0:
+            self.type_combo.blockSignals(True)
+            self.type_combo.setCurrentIndex(type_index)
+            self.type_combo.blockSignals(False)
+            self.on_type_changed(search=False)
+
+        category_index = self.category_combo.findData(category)
+        if category_index >= 0:
+            self.category_combo.setCurrentIndex(category_index)
+
+        self.query_input.setText(query)
+        self.search_clicked()
+
     def create_stat_card(self, title, value, desc):
         card = QFrame()
         card.setObjectName("DownloadSummaryCard")
 
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(18, 16, 18, 16)
+        layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(6)
 
         title_label = QLabel(title)
@@ -986,7 +1026,7 @@ class ModsPage(QWidget):
         except Exception:
             width = self.width()
 
-        if width < 780:
+        if width < 960:
             return 1
         return 2
 
@@ -1004,7 +1044,7 @@ class ModsPage(QWidget):
             empty = QLabel("Моды пока не загружены. Нажми «Найти» или подожди автозагрузку популярных модов.")
             empty.setObjectName("PanelText")
             empty.setAlignment(Qt.AlignCenter)
-            empty.setMinimumHeight(260)
+            empty.setMinimumHeight(140)
             self.grid.addWidget(empty, 0, 0, 1, 2)
             return
 
@@ -1021,10 +1061,10 @@ class ModsPage(QWidget):
     def create_mod_card(self, project):
         card = QFrame()
         card.setObjectName("ModResultCard")
-        card.setMinimumHeight(238)
+        card.setMinimumHeight(205)
 
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(18, 16, 18, 16)
+        layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(12)
 
         selected_instance = self.selected_instance()
@@ -1038,7 +1078,7 @@ class ModsPage(QWidget):
         top = QHBoxLayout()
         top.setSpacing(12)
 
-        icon_box = RemoteImageLabel(64, 64, "◆")
+        icon_box = RemoteImageLabel(52, 52, "◆")
         icon_box.setObjectName("ModIconImage")
         icon_box.setAlignment(Qt.AlignCenter)
         icon_box.set_remote_image(project.get("icon_url"))
@@ -1066,7 +1106,7 @@ class ModsPage(QWidget):
         description = QLabel(project.get("description", "Без описания"))
         description.setObjectName("PanelText")
         description.setWordWrap(True)
-        description.setMinimumHeight(50)
+        description.setMinimumHeight(42)
 
         tags = QHBoxLayout()
         tags.setSpacing(8)
@@ -1080,7 +1120,7 @@ class ModsPage(QWidget):
         tags.addStretch()
 
         actions = QHBoxLayout()
-        actions.setSpacing(10)
+        actions.setSpacing(8)
 
         type_info = self.selected_project_type_info()
         can_install = bool(type_info.get("installable"))

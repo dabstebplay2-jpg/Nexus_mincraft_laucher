@@ -31,6 +31,19 @@ jobs:
           NEXUS_GITHUB_OWNER: ${{ github.repository_owner }}
           NEXUS_GITHUB_REPO: ${{ github.event.repository.name }}
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          .\scripts\build_installer.ps1 -Python python -SkipReleaseBuild
+        env:
+          NEXUS_GITHUB_OWNER: ${{ github.repository_owner }}
+          NEXUS_GITHUB_REPO: ${{ github.event.repository.name }}
+
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:

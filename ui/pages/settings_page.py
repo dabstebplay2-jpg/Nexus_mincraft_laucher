@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QGridLayout,
     QComboBox,
+    QApplication,
 )
 
 from core.system_info import (
@@ -113,6 +114,7 @@ class SettingsPage(QWidget):
         self.update_check_worker = None
         self.update_download_worker = None
         self.latest_release = None
+        self.install_after_update = False
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -126,13 +128,14 @@ class SettingsPage(QWidget):
         self.content.setObjectName("SettingsContent")
 
         self.root = QVBoxLayout(self.content)
-        self.root.setContentsMargins(36, 32, 36, 32)
+        self.root.setContentsMargins(26, 22, 26, 22)
         self.root.setSpacing(18)
 
         self.scroll.setWidget(self.content)
         outer.addWidget(self.scroll)
 
         self.build_ui()
+        self.sync_settings_combos()
         self.refresh()
 
         self.timer = QTimer(self)
@@ -192,11 +195,14 @@ class SettingsPage(QWidget):
         self.safe_ram_card = self.create_stat_card("Можно выделить", "—")
         self.recommended_ram_card = self.create_stat_card("Рекомендация", "—")
 
-        self.cards_grid.addWidget(self.total_ram_card, 0, 0)
-        self.cards_grid.addWidget(self.used_ram_card, 0, 1)
-        self.cards_grid.addWidget(self.available_ram_card, 0, 2)
-        self.cards_grid.addWidget(self.safe_ram_card, 0, 3)
-        self.cards_grid.addWidget(self.recommended_ram_card, 0, 4)
+        for idx, card in enumerate([
+            self.total_ram_card,
+            self.used_ram_card,
+            self.available_ram_card,
+            self.safe_ram_card,
+            self.recommended_ram_card,
+        ]):
+            self.cards_grid.addWidget(card, idx // 3, idx % 3)
 
         self.memory_load_bar = QProgressBar()
         self.memory_load_bar.setObjectName("BigProgress")
@@ -384,9 +390,9 @@ class SettingsPage(QWidget):
         theme_label = QLabel("Тема:")
         theme_label.setMinimumWidth(140)
         self.theme_combo = QComboBox()
-        self.theme_combo.addItem("Тёмная", "dark")
-        self.theme_combo.addItem("Светлая", "light")
-        self.theme_combo.addItem("AMOLED", "amoled")
+        self.theme_combo.addItem("Тёмная Minecraft", "dark")
+        self.theme_combo.addItem("Светлая чистая", "light")
+        self.theme_combo.addItem("AMOLED / чёрная", "amoled")
         self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
         theme_row.addWidget(theme_label)
         theme_row.addWidget(self.theme_combo, 1)
@@ -409,7 +415,10 @@ class SettingsPage(QWidget):
         title = QLabel("Обновления Nexus")
         title.setObjectName("PanelTitle")
 
-        self.update_status_label = QLabel("Проверь наличие новой версии на GitHub Releases.")
+        self.update_status_label = QLabel(
+            "Nexus сам проверяет GitHub Releases и сайт release.json. "
+            "Если доступна новая Setup-версия, можно скачать её и запустить обновление по твоему подтверждению."
+        )
         self.update_status_label.setObjectName("PanelText")
         self.update_status_label.setWordWrap(True)
 
@@ -419,21 +428,27 @@ class SettingsPage(QWidget):
         actions = QHBoxLayout()
         actions.setSpacing(10)
 
-        check_btn = QPushButton("Проверить обновления")
+        check_btn = QPushButton("Проверить")
         check_btn.setObjectName("SecondaryButton")
         check_btn.clicked.connect(self.check_updates_from_settings)
 
-        self.download_update_btn = QPushButton("Скачать обновление")
-        self.download_update_btn.setObjectName("PrimaryButton")
+        self.download_update_btn = QPushButton("Скачать")
+        self.download_update_btn.setObjectName("SecondaryButton")
         self.download_update_btn.setEnabled(False)
-        self.download_update_btn.clicked.connect(self.download_latest_update)
+        self.download_update_btn.clicked.connect(lambda checked=False: self.download_latest_update(False))
 
-        release_btn = QPushButton("Открыть GitHub Releases")
+        self.install_update_btn = QPushButton("Скачать и обновить")
+        self.install_update_btn.setObjectName("PrimaryButton")
+        self.install_update_btn.setEnabled(False)
+        self.install_update_btn.clicked.connect(lambda checked=False: self.download_latest_update(True))
+
+        release_btn = QPushButton("GitHub Releases")
         release_btn.setObjectName("SecondaryButton")
         release_btn.clicked.connect(self.open_github_releases)
 
         actions.addWidget(check_btn)
         actions.addWidget(self.download_update_btn)
+        actions.addWidget(self.install_update_btn)
         actions.addWidget(release_btn)
         actions.addStretch()
 
@@ -455,9 +470,10 @@ class SettingsPage(QWidget):
         if self.update_check_worker and self.update_check_worker.isRunning():
             return
 
-        self.update_status_label.setText("Проверяю GitHub Releases...")
+        self.update_status_label.setText("Проверяю GitHub Releases и сайт release.json...")
         self.update_progress.setValue(0)
         self.download_update_btn.setEnabled(False)
+        self.install_update_btn.setEnabled(False)
 
         self.update_check_worker = UpdateCheckWorker()
         self.update_check_worker.success.connect(self.on_update_check_success)
@@ -469,41 +485,76 @@ class SettingsPage(QWidget):
 
         if not release:
             self.update_status_label.setText(
-                "GitHub repo для обновлений пока не настроен или релизов ещё нет. "
-                "Проверь core/app_info.py: GITHUB_OWNER и GITHUB_REPO."
+                "Обновления не найдены: GitHub Release или website/release.json пока недоступны. "
+                "Проверь, опубликован ли релиз и включён ли сайт."
             )
+            self.download_update_btn.setEnabled(False)
+            self.install_update_btn.setEnabled(False)
             return
 
         asset_name = release.preferred_asset.name if release.preferred_asset else "asset не найден"
+        source = "GitHub Releases" if getattr(release, "source", "github") == "github" else "сайт release.json"
 
         if release.is_newer:
             self.update_status_label.setText(
                 f"Доступна новая версия: {release.tag} / {release.name}\n"
                 f"Текущая версия: {APP_VERSION}\n"
+                f"Источник: {source}\n"
                 f"Repo: {release.repo}\n"
-                f"Asset: {asset_name}"
+                f"Asset: {asset_name}\n\n"
+                "Можно скачать файл или нажать «Скачать и обновить»: Nexus скачает Setup EXE, "
+                "закроется и запустит установщик."
             )
             self.download_update_btn.setEnabled(bool(release.preferred_asset))
+
+            try:
+                from core.updater import is_installer_path
+                installer_available = bool(release.preferred_asset and is_installer_path(release.preferred_asset.name))
+            except Exception:
+                installer_available = False
+
+            self.install_update_btn.setEnabled(installer_available)
         else:
             self.update_status_label.setText(
                 f"Установлена актуальная версия: {APP_VERSION}\n"
-                f"Последний релиз GitHub: {release.tag}\n"
+                f"Последний релиз: {release.tag}\n"
+                f"Источник: {source}\n"
                 f"Repo: {release.repo}"
             )
+            self.download_update_btn.setEnabled(False)
+            self.install_update_btn.setEnabled(False)
+
+    def start_update_from_release(self, release):
+        """Called from startup update prompt when user agrees to update now."""
+        self.on_update_check_success(release)
+
+        if not release or not release.is_newer or not release.preferred_asset:
+            return
+
+        self.download_latest_update(install_after=True)
 
     def on_update_check_failed(self, error):
         self.update_status_label.setText(f"Не удалось проверить обновления: {error}")
+        self.download_update_btn.setEnabled(False)
+        self.install_update_btn.setEnabled(False)
 
-    def download_latest_update(self):
+    def download_latest_update(self, install_after=False):
         if not self.latest_release:
-            QMessageBox.information(self, "Нет данных", "Сначала нажми «Проверить обновления».")
+            QMessageBox.information(self, "Нет данных", "Сначала нажми «Проверить».")
             return
 
         if self.update_download_worker and self.update_download_worker.isRunning():
             return
 
-        self.update_status_label.setText("Скачиваю обновление...")
+        self.install_after_update = bool(install_after)
+        self.update_status_label.setText(
+            "Скачиваю обновление для автоматической установки..."
+            if self.install_after_update
+            else "Скачиваю обновление..."
+        )
         self.update_progress.setValue(0)
+        self.download_update_btn.setEnabled(False)
+        self.install_update_btn.setEnabled(False)
 
         self.update_download_worker = UpdateDownloadWorker(self.latest_release)
         self.update_download_worker.progress.connect(self.on_update_download_progress)
@@ -519,6 +570,41 @@ class SettingsPage(QWidget):
         self.update_progress.setValue(100)
         self.update_status_label.setText(f"Обновление скачано:\n{path}")
 
+        if self.install_after_update:
+            self.install_after_update = False
+
+            try:
+                from core.updater import start_installer_after_exit, is_installer_path
+
+                if not is_installer_path(path):
+                    QMessageBox.information(
+                        self,
+                        "Обновление скачано",
+                        "Скачан portable ZIP. Его нужно распаковать вручную.\n\n"
+                        f"Файл:\n{path}"
+                    )
+                    return
+
+                result = QMessageBox.question(
+                    self,
+                    "Запустить обновление?",
+                    f"Файл скачан:\n{path}\n\n"
+                    "Сейчас Nexus создаст маленький update-helper, закроется и запустит установщик.\n"
+                    "В установщике оставь галочку ярлыка на рабочем столе.\n\n"
+                    "Продолжить?"
+                )
+
+                if result == QMessageBox.Yes:
+                    start_installer_after_exit(path)
+                    app = QApplication.instance()
+                    if app:
+                        app.quit()
+                return
+
+            except Exception as error:
+                QMessageBox.warning(self, "Не удалось запустить обновление", str(error))
+                return
+
         result = QMessageBox.question(
             self,
             "Обновление скачано",
@@ -532,7 +618,17 @@ class SettingsPage(QWidget):
             open_downloaded_update(path)
 
     def on_update_download_failed(self, error):
+        self.install_after_update = False
         self.update_status_label.setText(f"Не удалось скачать обновление: {error}")
+        if self.latest_release and self.latest_release.is_newer:
+            self.download_update_btn.setEnabled(bool(self.latest_release.preferred_asset))
+            try:
+                from core.updater import is_installer_path
+                self.install_update_btn.setEnabled(
+                    bool(self.latest_release.preferred_asset and is_installer_path(self.latest_release.preferred_asset.name))
+                )
+            except Exception:
+                self.install_update_btn.setEnabled(False)
 
     def open_github_releases(self):
         from core.updater import open_release_page

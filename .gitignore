@@ -84,3 +84,10 @@ dist/
 release/
 .venv/
 __pycache__/
+
+# Keep PyInstaller specs, ignore heavy temporary PyInstaller output
+!build/
+build/*
+!build/*.spec
+build/pyinstaller/
+

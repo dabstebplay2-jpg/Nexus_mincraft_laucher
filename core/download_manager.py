@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
-import os
 import threading
 import time
 import uuid
@@ -10,21 +8,10 @@ from pathlib import Path
 
 from storage.paths import DATA_DIR
 
-logger = logging.getLogger(__name__)
-
-# ВАЖНО: в приложении создаётся несколько DownloadManager:
-# - страница «Загрузки»;
-# - поток запуска Minecraft;
-# - поток установки модов.
-# Раньше каждый экземпляр имел свой RLock и все они писали в один downloads.json,
-# из-за чего Windows иногда ловил PermissionError на os.replace(...downloads.json.tmp -> downloads.json).
-# Этот lock общий для всего процесса.
-_FILE_LOCK = threading.RLock()
-
 
 class DownloadManager:
     def __init__(self):
-        self._lock = _FILE_LOCK
+        self._lock = threading.RLock()
         self.data_dir = DATA_DIR
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.file_path = self.data_dir / "downloads.json"
@@ -32,61 +19,21 @@ class DownloadManager:
         if not self.file_path.exists():
             self.save({"tasks": []})
 
-    def _normalize(self, data):
-        if not isinstance(data, dict):
+    def load(self):
+        try:
+            data = json.loads(self.file_path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError
+        except Exception:
             data = {"tasks": []}
-        if not isinstance(data.get("tasks"), list):
-            data["tasks"] = []
+
+        data.setdefault("tasks", [])
         return data
 
-    def load(self):
-        with self._lock:
-            for attempt in range(8):
-                try:
-                    if not self.file_path.exists():
-                        return {"tasks": []}
-                    data = json.loads(self.file_path.read_text(encoding="utf-8"))
-                    return self._normalize(data)
-                except (PermissionError, OSError) as error:
-                    if attempt >= 7:
-                        logger.warning("Failed to read downloads file: %s", error)
-                        return {"tasks": []}
-                    time.sleep(0.05 * (attempt + 1))
-                except Exception as error:
-                    logger.warning("Invalid downloads.json, using empty task list: %s", error)
-                    return {"tasks": []}
-
     def save(self, data):
-        data = self._normalize(data)
-
-        with self._lock:
-            self.data_dir.mkdir(parents=True, exist_ok=True)
-
-            # Уникальный tmp-файл нужен, чтобы два потока/экземпляра не дрались за один
-            # downloads.json.tmp. На Windows это частая причина WinError 5.
-            tmp = self.data_dir / f"{self.file_path.name}.{os.getpid()}.{threading.get_ident()}.{uuid.uuid4().hex}.tmp"
-            payload = json.dumps(data, ensure_ascii=False, indent=2)
-
-            try:
-                tmp.write_text(payload, encoding="utf-8")
-
-                last_error = None
-                for attempt in range(12):
-                    try:
-                        os.replace(str(tmp), str(self.file_path))
-                        return
-                    except (PermissionError, OSError) as error:
-                        last_error = error
-                        time.sleep(0.06 * (attempt + 1))
-
-                raise last_error or PermissionError(f"Cannot replace {self.file_path}")
-
-            finally:
-                try:
-                    if tmp.exists():
-                        tmp.unlink()
-                except Exception:
-                    pass
+        tmp = self.file_path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(self.file_path)
 
     def list_tasks(self):
         with self._lock:
@@ -175,51 +122,25 @@ class DownloadManager:
             self.save(data)
             return task_id
 
-    def update_task(self, task_id, status=None, progress=None, downloaded_bytes=None, total_bytes=None, speed_bps=None):
-        if not task_id:
-            return None
-
+    def update_task(self, task_id, status=None, progress=None, downloaded_bytes=None, total_bytes=None):
         with self._lock:
             data = self.load()
             for task in data["tasks"]:
                 if task.get("id") == task_id:
-                    changed = False
-
-                    if status is not None and task.get("status") != str(status):
+                    if status is not None:
                         task["status"] = str(status)
-                        changed = True
                     if progress is not None:
-                        new_progress = int(progress)
-                        if task.get("progress") != new_progress:
-                            task["progress"] = new_progress
-                            changed = True
+                        task["progress"] = int(progress)
                     if downloaded_bytes is not None:
-                        new_downloaded = int(downloaded_bytes)
-                        if task.get("downloaded_bytes") != new_downloaded:
-                            task["downloaded_bytes"] = new_downloaded
-                            changed = True
+                        task["downloaded_bytes"] = int(downloaded_bytes)
                     if total_bytes is not None:
-                        new_total = int(total_bytes)
-                        if task.get("total_bytes") != new_total:
-                            task["total_bytes"] = new_total
-                            changed = True
-                    if speed_bps is not None:
-                        new_speed = int(speed_bps)
-                        if task.get("speed_bps") != new_speed:
-                            task["speed_bps"] = new_speed
-                            changed = True
-
-                    if changed:
-                        task["updated_at"] = int(time.time())
-                        self.save(data)
-
+                        task["total_bytes"] = int(total_bytes)
+                    task["updated_at"] = int(time.time())
+                    self.save(data)
                     return task
             return None
 
     def finish_task(self, task_id, status="Завершено"):
-        if not task_id:
-            return None
-
         with self._lock:
             data = self.load()
             for task in data["tasks"]:
@@ -234,9 +155,6 @@ class DownloadManager:
             return None
 
     def fail_task(self, task_id, error, status="Ошибка"):
-        if not task_id:
-            return None
-
         with self._lock:
             data = self.load()
             for task in data["tasks"]:

@@ -1,8 +1,8 @@
 import os
 
 APP_NAME = "Nexus Launcher"
-APP_VERSION = "0.7.1"
-APP_CODENAME = "Release Builder"
+APP_VERSION = "0.7.4"
+APP_CODENAME = "User Guided Auto Update"
 
 APP_FULL_NAME = f"{APP_NAME} {APP_VERSION}"
 USER_AGENT = f"NexusLauncher/{APP_VERSION}"
@@ -17,3 +17,8 @@ GITHUB_LATEST_RELEASE_PAGE = f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/r
 
 WINDOWS_EXE_ASSET_PREFIX = "NexusLauncher"
 PORTABLE_ASSET_KEYWORD = "portable"
+
+WEBSITE_RELEASE_JSON_URL = os.environ.get(
+    "NEXUS_WEBSITE_RELEASE_JSON_URL",
+    f"https://{GITHUB_OWNER}.github.io/{GITHUB_REPO}/release.json",
+)

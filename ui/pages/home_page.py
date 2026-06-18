@@ -75,7 +75,7 @@ class MinecraftHero(QFrame):
     def __init__(self):
         super().__init__()
         self.setObjectName("MinecraftHero")
-        self.setMinimumHeight(270)
+        self.setMinimumHeight(210)
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -142,8 +142,8 @@ class HomePage(QWidget):
 
         self.content = QWidget()
         root = QVBoxLayout(self.content)
-        root.setContentsMargins(28, 24, 28, 24)
-        root.setSpacing(18)
+        root.setContentsMargins(24, 20, 24, 20)
+        root.setSpacing(14)
 
         self.scroll.setWidget(self.content)
         outer.addWidget(self.scroll)
@@ -152,13 +152,13 @@ class HomePage(QWidget):
         root.addLayout(self.create_overview_strip())
 
         middle = QHBoxLayout()
-        middle.setSpacing(18)
+        middle.setSpacing(14)
         middle.addWidget(self.create_instances_panel(), 5)
         middle.addWidget(self.create_quick_actions_panel(), 4)
         root.addLayout(middle)
 
         bottom = QHBoxLayout()
-        bottom.setSpacing(18)
+        bottom.setSpacing(14)
         bottom.addWidget(self.create_activity_panel(), 5)
         bottom.addWidget(self.create_recommendations_panel(), 4)
         root.addLayout(bottom)
@@ -211,8 +211,8 @@ class HomePage(QWidget):
         hero = MinecraftHero()
 
         layout = QVBoxLayout(hero)
-        layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(16)
+        layout.setContentsMargins(22, 18, 22, 18)
+        layout.setSpacing(12)
 
         top = QHBoxLayout()
         top.setSpacing(18)
@@ -301,10 +301,10 @@ class HomePage(QWidget):
     def create_hero_stat(self, icon_name, title, value, progress, key):
         card = QFrame()
         card.setObjectName("HeroStatCard")
-        card.setMinimumHeight(74)
+        card.setMinimumHeight(62)
 
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(7)
 
         row = QHBoxLayout()
@@ -332,7 +332,7 @@ class HomePage(QWidget):
         bar.setRange(0, 100)
         bar.setValue(progress)
         bar.setTextVisible(False)
-        bar.setFixedHeight(7)
+        bar.setFixedHeight(5)
         card.progress_bar = bar
 
         layout.addLayout(row)
@@ -358,10 +358,10 @@ class HomePage(QWidget):
     def create_overview_card(self, icon_name, label, value, meta):
         card = QFrame()
         card.setObjectName("OverviewStatCard")
-        card.setMinimumHeight(108)
+        card.setMinimumHeight(88)
 
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(8)
 
         top = QHBoxLayout()
@@ -458,8 +458,8 @@ class HomePage(QWidget):
         panel.setObjectName("DashboardPanel")
 
         self.instances_layout = QVBoxLayout(panel)
-        self.instances_layout.setContentsMargins(20, 18, 20, 18)
-        self.instances_layout.setSpacing(12)
+        self.instances_layout.setContentsMargins(16, 14, 16, 14)
+        self.instances_layout.setSpacing(9)
         return panel
 
     def rebuild_instances_panel(self):
@@ -491,10 +491,10 @@ class HomePage(QWidget):
 
         instances = self.get_instances()
         if not instances:
-            empty = QLabel("Сборок пока нет. Создай первую сборку Nexus.")
+            empty = QLabel("Сборок пока нет. Нажми «Новая сборка».")
             empty.setObjectName("EmptyText")
             empty.setAlignment(Qt.AlignCenter)
-            empty.setMinimumHeight(160)
+            empty.setMinimumHeight(72)
             self.instances_layout.addWidget(empty)
         else:
             sorted_instances = sorted(
@@ -509,7 +509,8 @@ class HomePage(QWidget):
         show_all.setObjectName("WideGhostButton")
         show_all.clicked.connect(lambda checked=False: self.navigate_requested.emit(1))
 
-        self.instances_layout.addStretch()
+        if instances:
+            self.instances_layout.addStretch()
         self.instances_layout.addWidget(show_all)
 
     def create_instance_row(self, instance, index):
@@ -571,8 +572,8 @@ class HomePage(QWidget):
         panel.setObjectName("DashboardPanel")
 
         self.quick_actions_layout = QVBoxLayout(panel)
-        self.quick_actions_layout.setContentsMargins(20, 18, 20, 18)
-        self.quick_actions_layout.setSpacing(12)
+        self.quick_actions_layout.setContentsMargins(16, 14, 16, 14)
+        self.quick_actions_layout.setSpacing(9)
 
         title = QLabel("Быстрые действия")
         title.setObjectName("PanelTitle")
@@ -587,16 +588,15 @@ class HomePage(QWidget):
         grid.setVerticalSpacing(12)
 
         actions = [
-            ("plus", "Создать сборку", "Добавить новую конфигурацию Minecraft", lambda checked=False: self.create_instance_requested.emit()),
-            ("mods", "Каталог модов", "Найти и установить новые моды", lambda checked=False: self.navigate_requested.emit(2)),
-            ("library", "Библиотека", "Открыть все установленные моды", lambda: self.navigate_requested.emit(3)),
-            ("downloads", "Загрузки", "Проверить прогресс и историю задач", lambda checked=False: self.navigate_requested.emit(4)),
-            ("accounts", "Аккаунты", "Настроить профиль и скины", lambda: self.navigate_requested.emit(5)),
-            ("settings", "Настройки", "RAM, Java и параметры лаунчера", lambda: self.navigate_requested.emit(6)),
+            ("plus", "Создать сборку", "Новая конфигурация Minecraft", lambda checked=False: self.create_instance_requested.emit()),
+            ("mods", "Каталог модов", "Моды, шейдеры, ресурспаки", lambda checked=False: self.navigate_requested.emit(2)),
+            ("library", "Библиотека", "Установленные проекты", lambda: self.navigate_requested.emit(3)),
+            ("downloads", "Загрузки", "История и прогресс", lambda checked=False: self.navigate_requested.emit(4)),
+            ("settings", "Настройки", "RAM, Java и тема", lambda: self.navigate_requested.emit(6)),
         ]
 
         for idx, (icon_name, title_text, desc_text, callback) in enumerate(actions):
-            grid.addWidget(self.create_quick_action_card(icon_name, title_text, desc_text, callback), idx, 0)
+            grid.addWidget(self.create_quick_action_card(icon_name, title_text, desc_text, callback), idx // 2, idx % 2)
 
         self.quick_actions_layout.addLayout(grid)
         self.quick_actions_layout.addStretch()
@@ -608,8 +608,8 @@ class HomePage(QWidget):
         card.setCursor(Qt.PointingHandCursor)
 
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(10)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(7)
 
         top = QHBoxLayout()
         icon_label = QLabel("◆")
@@ -687,7 +687,7 @@ class HomePage(QWidget):
         row = QFrame()
         row.setObjectName("ActivityRow")
         layout = QHBoxLayout(row)
-        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(12)
 
         icon_label = QLabel("◆")
@@ -759,7 +759,7 @@ class HomePage(QWidget):
         row = QFrame()
         row.setObjectName("RecommendationRow")
         layout = QVBoxLayout(row)
-        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(8)
 
         title = QLabel(title_text)
