@@ -1,4 +1,4 @@
-const DEFAULT_VERSION = window.NEXUS_VERSION || "0.7.7";
+const DEFAULT_VERSION = window.NEXUS_VERSION || "0.7.8";
 const DEFAULT_REPO = window.NEXUS_REPO || "dabstebplay2-jpg/Nexus_mincraft_laucher";
 
 const $ = (selector) => document.querySelector(selector);

@@ -1,8 +1,8 @@
 import os
 
 APP_NAME = "Nexus Launcher"
-APP_VERSION = "0.7.7"
-APP_CODENAME = "Verified Auto Update"
+APP_VERSION = "0.7.8"
+APP_CODENAME = "PyInstaller Storage Fix"
 
 APP_FULL_NAME = f"{APP_NAME} {APP_VERSION}"
 USER_AGENT = f"NexusLauncher/{APP_VERSION}"

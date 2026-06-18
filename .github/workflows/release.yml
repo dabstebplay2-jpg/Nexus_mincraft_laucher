@@ -1,4 +1,4 @@
-﻿name: Build Windows EXE and Release
+name: Build Windows EXE and Release
 
 on:
   workflow_dispatch:

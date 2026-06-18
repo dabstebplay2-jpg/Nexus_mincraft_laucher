@@ -2,6 +2,8 @@
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_all
 
+# SPECPATH points to <project>/build when the spec is started as build/NexusLauncher-*.spec.
+# The project root is one level above it.
 project_root = Path(SPECPATH).resolve().parent
 
 datas = [
@@ -10,6 +12,29 @@ datas = [
 ]
 
 binaries = []
+
+def collect_local_modules(package_name: str):
+    package_dir = project_root / package_name
+    modules = []
+
+    if not package_dir.exists():
+        return modules
+
+    for path in package_dir.rglob("*.py"):
+        if "__pycache__" in path.parts:
+            continue
+
+        rel = path.relative_to(project_root).with_suffix("")
+        parts = list(rel.parts)
+
+        if parts[-1] == "__init__":
+            parts = parts[:-1]
+
+        if parts:
+            modules.append(".".join(parts))
+
+    return modules
+
 hiddenimports = [
     "requests",
     "urllib3",
@@ -24,14 +49,20 @@ hiddenimports = [
     "PySide6.QtSvgWidgets",
 ]
 
-# Do NOT collect_all("PySide6"). It pulls QtWebEngine, QML, SQL drivers, 3D, Multimedia,
-# and creates huge release artifacts plus many false warning messages.
+# Explicitly include all local packages. Without this, optimized PyInstaller builds can miss
+# namespace-like local modules such as storage.paths and crash with:
+# ModuleNotFoundError: No module named 'storage'
+for local_package in ["app", "auth", "core", "mods", "storage", "ui", "tools"]:
+    hiddenimports += collect_local_modules(local_package)
+
+# Third-party packages that need their metadata/hooks.
 for package in ["minecraft_launcher_lib", "keyring"]:
     collected = collect_all(package)
     datas += collected[0]
     binaries += collected[1]
     hiddenimports += collected[2]
 
+# Keep the release lighter and avoid false QtWebEngine/QML/SQL DLL warnings.
 qt_heavy_excludes = [
     "PySide6.Qt3DAnimation",
     "PySide6.Qt3DCore",
@@ -87,7 +118,7 @@ a = Analysis(
     pathex=[str(project_root)],
     binaries=binaries,
     datas=datas,
-    hiddenimports=hiddenimports,
+    hiddenimports=sorted(set(hiddenimports)),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
