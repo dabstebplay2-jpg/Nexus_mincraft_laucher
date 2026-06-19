@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QFrame,
+    QSizePolicy,
 )
 
 try:
@@ -62,7 +63,7 @@ class Sidebar(QWidget):
         super().__init__()
 
         self.setObjectName("Sidebar")
-        self.setFixedWidth(228)
+        self.setFixedWidth(248)
         self.compact = False
         self._nav_labels = []
         self._logo_text_widgets = []
@@ -110,37 +111,40 @@ class Sidebar(QWidget):
     def create_logo(self):
         card = QFrame()
         card.setObjectName("SidebarLogoCard")
-        card.setMinimumHeight(90)
+        card.setMinimumHeight(88)
 
         layout = QHBoxLayout(card)
-        layout.setContentsMargins(18, 14, 18, 14)
-        layout.setSpacing(14)
+        layout.setContentsMargins(14, 12, 12, 12)
+        layout.setSpacing(10)
 
         mark = QLabel("×")
         mark.setObjectName("NexusMark")
         mark.setAlignment(Qt.AlignCenter)
-        mark.setFixedSize(58, 58)
+        mark.setFixedSize(56, 56)
 
         qicon = get_icon("nexus")
         if qicon:
-            mark.setPixmap(qicon.pixmap(QSize(58, 58)))
+            mark.setPixmap(qicon.pixmap(QSize(56, 56)))
 
         text = QVBoxLayout()
         text.setSpacing(0)
 
         title = QLabel("NEXUS")
         title.setObjectName("NexusLogoTitle")
+        title.setMinimumWidth(128)
+        title.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         subtitle = QLabel("MINECRAFT")
         subtitle.setObjectName("NexusLogoSubtitle")
+        subtitle.setMinimumWidth(128)
+        subtitle.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self._logo_text_widgets.extend([title, subtitle])
 
         text.addWidget(title)
         text.addWidget(subtitle)
 
         layout.addWidget(mark)
-        layout.addLayout(text)
-        layout.addStretch()
+        layout.addLayout(text, 1)
 
         return card
 
@@ -158,7 +162,7 @@ class Sidebar(QWidget):
             return
 
         self.compact = compact
-        self.setFixedWidth(68 if compact else 236)
+        self.setFixedWidth(68 if compact else 248)
         self.root_layout.setContentsMargins(8 if compact else 12, 10 if compact else 14, 8 if compact else 12, 10 if compact else 14)
         self.root_layout.setSpacing(10 if compact else 14)
 

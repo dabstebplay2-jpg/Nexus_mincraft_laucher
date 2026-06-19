@@ -1738,13 +1738,119 @@ QProgressBar::chunk,
 }
 """
 
+
+CONTENT_SPLIT_AND_DARK_ONLY_STYLE = r"""
+/* Content split tabs */
+#ContentTypeTab {
+    background-color: rgba(10, 15, 14, 0.88);
+    color: #DCE8D3;
+    border: 1px solid rgba(132, 149, 112, 0.24);
+    border-radius: 13px;
+    padding: 9px 18px;
+    font-size: 12px;
+    font-weight: 900;
+    min-height: 36px;
+}
+
+#ContentTypeTab:hover {
+    background-color: rgba(74, 127, 57, 0.18);
+    border-color: rgba(132, 168, 91, 0.42);
+}
+
+#ContentTypeTab[active="true"],
+#ContentTypeTab:checked {
+    color: #FFFFFF;
+    background: #4A7F39;
+    border-color: rgba(178, 204, 146, 0.32);
+}
+
+/* Hard override: light theme is disabled until it is redesigned properly.
+   Even if the saved setting is "light", the UI stays in the same readable
+   Minecraft-dark style instead of switching to broken pale surfaces. */
+#AppContent,
+QMainWindow {
+    background-color: #090D0A;
+}
+
+QLabel {
+    color: #F4F7EC;
+}
+
+QFrame#ModResultCard QLabel,
+QFrame#Card QLabel,
+QFrame#Panel QLabel,
+QFrame#DashboardPanel QLabel,
+QFrame#MiniCard QLabel,
+QFrame#SettingsOptionsBox QLabel,
+QFrame#DownloadSummaryCard QLabel,
+QFrame#InstanceCard QLabel,
+QFrame#DownloadTaskCard QLabel,
+QFrame#HeroStatCard QLabel,
+QFrame#SettingsStatCard QLabel,
+QFrame#SkinCard QLabel,
+QFrame#AccountRow QLabel,
+QFrame#DetailInfoRow QLabel,
+QFrame#QuickActionCard QLabel,
+QFrame#OverviewStatCard QLabel {
+    color: #F4F7EC;
+}
+
+QFrame#ModResultCard #PanelText,
+QFrame#ModResultCard #InstanceMeta,
+#PanelText,
+#InstanceMeta,
+#MutedText,
+#PageDescription {
+    color: #B8C6B1;
+}
+"""
+
+
+SIDEBAR_LOGO_SAFE_STYLE = r"""
+/* Fix for clipped NEXUS title in sidebar logo card */
+#SidebarLogoCard {
+    min-height: 88px;
+    border-radius: 18px;
+}
+
+#NexusMark {
+    min-width: 56px;
+    max-width: 56px;
+    min-height: 56px;
+    max-height: 56px;
+    border-radius: 13px;
+}
+
+#NexusLogoTitle {
+    color: #F4F7EC;
+    font-size: 22px;
+    font-weight: 950;
+    letter-spacing: 3px;
+    padding: 0px;
+    margin: 0px;
+    background: transparent;
+}
+
+#NexusLogoSubtitle {
+    color: #B8C6B1;
+    font-size: 11px;
+    font-weight: 850;
+    letter-spacing: 3px;
+    padding: 0px;
+    margin: 0px;
+    background: transparent;
+}
+"""
+
 def get_app_style(theme=None):
     theme = (theme or _read_saved_theme() or "dark").lower()
 
-    if theme == "amoled":
-        return APP_STYLE + AMOLED_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE
-
+    # Светлая тема пока отключена: текущий светлый вариант ломает читаемость.
+    # Кнопка темы теперь переключает только dark <-> amoled.
     if theme == "light":
-        return APP_STYLE + LIGHT_STYLE + COMFORT_STYLE + LIGHT_COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE
+        theme = "dark"
 
-    return APP_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE
+    if theme == "amoled":
+        return APP_STYLE + AMOLED_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE + CONTENT_SPLIT_AND_DARK_ONLY_STYLE + SIDEBAR_LOGO_SAFE_STYLE
+
+    return APP_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE + CONTENT_SPLIT_AND_DARK_ONLY_STYLE + SIDEBAR_LOGO_SAFE_STYLE
