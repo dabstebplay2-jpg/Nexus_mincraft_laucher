@@ -75,7 +75,7 @@ class MinecraftHero(QFrame):
     def __init__(self):
         super().__init__()
         self.setObjectName("MinecraftHero")
-        self.setMinimumHeight(210)
+        self.setMinimumHeight(190)
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -89,7 +89,7 @@ class MinecraftHero(QFrame):
         for i in range(24):
             x = (i * 67) % max(w, 1)
             y = 24 + ((i * 19) % 80)
-            painter.fillRect(x, y, 42, 12, QColor(90, 111, 145, 70))
+            painter.fillRect(x, y, 42, 12, QColor(93, 104, 91, 65))
 
         for i in range(54):
             x = (i * 31) % max(w, 1)
@@ -97,14 +97,14 @@ class MinecraftHero(QFrame):
 
             painter.fillRect(x + 8, base + 20, 8, 38, QColor(72, 45, 24, 100))
             painter.fillRect(x, base, 30, 28, QColor(22, 101, 52, 125))
-            painter.fillRect(x + 5, base - 16, 22, 22, QColor(34, 197, 94, 95))
+            painter.fillRect(x + 5, base - 16, 22, 22, QColor(91, 128, 76, 95))
 
         block = 18
         top = h - 54
 
         colors = [
             QColor(22, 101, 52, 130),
-            QColor(34, 197, 94, 90),
+            QColor(82, 118, 64, 90),
             QColor(75, 50, 28, 100),
             QColor(20, 83, 45, 150),
         ]
@@ -115,7 +115,7 @@ class MinecraftHero(QFrame):
                 y = top + row * block + ((col + row) % 2) * 3
                 painter.fillRect(x, y, block, block, colors[(row + col) % len(colors)])
 
-        painter.fillRect(0, 0, w, h, QColor(2, 6, 23, 105))
+        painter.fillRect(0, 0, w, h, QColor(6, 10, 8, 100))
 
 
 class HomePage(QWidget):
@@ -223,12 +223,12 @@ class HomePage(QWidget):
         welcome = QLabel("Добро пожаловать в")
         welcome.setObjectName("HeroWelcome")
 
-        title = QLabel('Nexus <span style="color:#22C55E;">Launcher</span>')
+        title = QLabel('Nexus <span style="color:#8DBA63;">Launcher</span>')
         title.setObjectName("HeroTitle")
         title.setTextFormat(Qt.RichText)
 
         subtitle = QLabel(
-            "Современный лаунчер для сборок, модов, аккаунтов и полной экосистемы Minecraft."
+            "Удобный Minecraft-лаунчер для сборок, модов, шейдеров и аккаунтов без лишнего шума."
         )
         subtitle.setObjectName("HeroSubtitle")
         subtitle.setWordWrap(True)

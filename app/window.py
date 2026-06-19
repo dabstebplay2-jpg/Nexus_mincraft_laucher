@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+from PySide6.QtGui import QIcon
+
 from PySide6.QtCore import QTimer, QThread, Signal
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -88,6 +90,12 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("Nexus Launcher")
+        try:
+            icon_path = Path(__file__).resolve().parents[1] / "assets" / "nexus.ico"
+            if icon_path.exists():
+                self.setWindowIcon(QIcon(str(icon_path)))
+        except Exception:
+            pass
         self.setMinimumSize(560, 420)
         self.resize(1320, 800)
         self.setStyleSheet(get_app_style())

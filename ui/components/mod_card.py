@@ -8,7 +8,7 @@ def fmt(v):
 class ModCard(QWidget):
     install_clicked=Signal(object); details_clicked=Signal(object)
     def __init__(self,project):
-        super().__init__(); self.project=project; self.setObjectName('ModCard'); self.setMinimumHeight(220)
+        super().__init__(); self.project=project; self.setObjectName('ModCard'); self.setMinimumHeight(175)
         root=QVBoxLayout(self); root.setContentsMargins(16,14,16,14); root.setSpacing(10)
         head=QHBoxLayout(); box=QFrame(); box.setObjectName('ModIconBox'); box.setFixedSize(58,58); bl=QVBoxLayout(box); bl.setContentsMargins(0,0,0,0)
         icon=RemoteImageLabel(58,58,'◆'); icon.set_remote_image(project.get('icon_url')); bl.addWidget(icon)

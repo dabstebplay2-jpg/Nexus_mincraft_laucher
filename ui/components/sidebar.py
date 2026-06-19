@@ -62,7 +62,7 @@ class Sidebar(QWidget):
         super().__init__()
 
         self.setObjectName("Sidebar")
-        self.setFixedWidth(236)
+        self.setFixedWidth(226)
         self.compact = False
         self._nav_labels = []
         self._logo_text_widgets = []
@@ -110,7 +110,7 @@ class Sidebar(QWidget):
     def create_logo(self):
         card = QFrame()
         card.setObjectName("SidebarLogoCard")
-        card.setMinimumHeight(96)
+        card.setMinimumHeight(90)
 
         layout = QHBoxLayout(card)
         layout.setContentsMargins(18, 14, 18, 14)
@@ -119,11 +119,11 @@ class Sidebar(QWidget):
         mark = QLabel("×")
         mark.setObjectName("NexusMark")
         mark.setAlignment(Qt.AlignCenter)
-        mark.setFixedSize(52, 52)
+        mark.setFixedSize(58, 58)
 
         qicon = get_icon("nexus")
         if qicon:
-            mark.setPixmap(qicon.pixmap(QSize(52, 52)))
+            mark.setPixmap(qicon.pixmap(QSize(58, 58)))
 
         text = QVBoxLayout()
         text.setSpacing(0)
@@ -131,7 +131,7 @@ class Sidebar(QWidget):
         title = QLabel("NEXUS")
         title.setObjectName("NexusLogoTitle")
 
-        subtitle = QLabel("LAUNCHER")
+        subtitle = QLabel("MINECRAFT")
         subtitle.setObjectName("NexusLogoSubtitle")
         self._logo_text_widgets.extend([title, subtitle])
 

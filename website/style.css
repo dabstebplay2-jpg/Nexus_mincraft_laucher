@@ -822,3 +822,21 @@ h3 {
     flex-direction: column;
   }
 }
+
+.brand-mark img,
+.preview-logo span img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.brand-mark {
+  overflow: hidden;
+  padding: 2px;
+}
+
+.preview-logo span {
+  overflow: hidden;
+  padding: 2px;
+}

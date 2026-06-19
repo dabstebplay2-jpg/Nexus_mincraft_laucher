@@ -2,8 +2,10 @@ import logging
 import sys
 import traceback
 import threading
+from pathlib import Path
 
 from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtGui import QIcon
 
 from core.logger import setup_logging
 from core.network_manager import disable_proxy_for_launcher, log_proxy_environment
@@ -76,6 +78,12 @@ def main():
 
         logger.info("Creating QApplication")
         app = QApplication(sys.argv)
+        try:
+            app_icon = Path(__file__).resolve().parent / "assets" / "nexus.ico"
+            if app_icon.exists():
+                app.setWindowIcon(QIcon(str(app_icon)))
+        except Exception:
+            pass
 
         from ui.styles import get_app_style
         theme = settings_data.get("theme", "dark")

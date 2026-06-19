@@ -961,13 +961,418 @@ COMFORT_STYLE = '\n/* Nexus Comfort Minecraft UI Patch */\n* {\n    font-size: 1
 
 LIGHT_COMFORT_STYLE = '\n/* Light theme comfort overrides */\n#AppContent {\n    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #F5FAF2, stop:0.55 #EEF7EA, stop:1 #EEF6FF);\n}\n#Sidebar {\n    background-color: #F8FFF7;\n}\n#SidebarProfileCard[active="true"] {\n    background-color: rgba(187, 247, 208, 0.78);\n}\n#MinecraftShortcutCard {\n    background-color: rgba(255, 255, 255, 0.92);\n    border-color: rgba(15, 23, 42, 0.12);\n    color: #0F172A;\n}\n#ToggleFiltersButton {\n    background-color: rgba(34, 197, 94, 0.12);\n    border: 1px solid rgba(34, 197, 94, 0.30);\n    border-radius: 16px;\n    color: #065F46;\n    padding: 8px 16px;\n    font-size: 12px;\n    font-weight: 800;\n}\n#ToggleFiltersButton:hover {\n    background-color: rgba(34, 197, 94, 0.22);\n}\n#TopbarThemeButton {\n    background-color: rgba(255, 255, 255, 0.90);\n    color: #0F172A;\n}\n'
 
+
+MINECRAFT_CLEAN_STYLE = r"""
+/* Nexus Minecraft Clean Fix: stable, readable, non-neon UI */
+
+* {
+    font-family: "Segoe UI";
+    font-size: 12px;
+    color: #E6ECE3;
+}
+
+/* Main surfaces */
+QMainWindow {
+    background-color: #0A0D0A;
+}
+
+#AppContent {
+    background: qlineargradient(
+        x1:0, y1:0, x2:1, y2:1,
+        stop:0 #0B1110,
+        stop:0.48 #101820,
+        stop:1 #172116
+    );
+}
+
+QWidget {
+    background-color: transparent;
+}
+
+/* Scrollbars: calm grass accent, not neon */
+QScrollBar:vertical {
+    background: rgba(7, 10, 8, 130);
+    width: 9px;
+    border-radius: 4px;
+    margin: 4px 2px 4px 2px;
+}
+QScrollBar::handle:vertical {
+    background: rgba(91, 128, 76, 175);
+    border-radius: 4px;
+    min-height: 32px;
+}
+QScrollBar::handle:vertical:hover {
+    background: rgba(108, 148, 89, 215);
+}
+QScrollBar:horizontal {
+    background: rgba(7, 10, 8, 120);
+    height: 8px;
+    border-radius: 4px;
+    margin: 2px 4px;
+}
+QScrollBar::handle:horizontal {
+    background: rgba(91, 128, 76, 175);
+    border-radius: 4px;
+    min-width: 32px;
+}
+
+/* Cards and panels */
+QFrame#Card,
+QFrame#Panel,
+QFrame#DashboardPanel,
+QFrame#MiniCard,
+QFrame#SettingsOptionsBox,
+QFrame#DownloadSummaryCard,
+QFrame#InstanceCard,
+QFrame#ModResultCard,
+QFrame#DownloadTaskCard,
+QFrame#DownloadTaskCardActive,
+QFrame#HeroStatCard,
+QFrame#SettingsStatCard,
+QFrame#SkinCard,
+QFrame#AccountRow,
+QFrame#AccountRowActive,
+QFrame#DetailInfoRow,
+QFrame#QuickActionCard,
+QFrame#OverviewStatCard,
+QFrame#ActivityRow,
+QFrame#RecommendationRow,
+QFrame#InstanceDashboardRow,
+QFrame#InstanceDashboardRowActive,
+QWidget#InstanceCard,
+QWidget#Card {
+    background-color: rgba(14, 20, 18, 0.92);
+    border: 1px solid rgba(132, 149, 112, 0.20);
+    border-radius: 14px;
+}
+
+QFrame#Card:hover,
+QFrame#Panel:hover,
+QFrame#DashboardPanel:hover,
+QFrame#MiniCard:hover,
+QFrame#InstanceCard:hover,
+QFrame#ModResultCard:hover,
+QFrame#QuickActionCard:hover,
+QFrame#OverviewStatCard:hover,
+QFrame#InstanceDashboardRow:hover,
+QFrame#InstanceDashboardRowActive:hover,
+QWidget#InstanceCard:hover,
+QWidget#Card:hover {
+    background-color: rgba(18, 27, 22, 0.96);
+    border: 1px solid rgba(117, 150, 92, 0.36);
+}
+
+/* Sidebar */
+#Sidebar {
+    background: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 #090D0A,
+        stop:0.56 #050705,
+        stop:1 #020302
+    );
+    border-right: 1px solid rgba(132, 149, 112, 0.15);
+}
+
+#SidebarLogoCard {
+    background: qlineargradient(
+        x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(22, 37, 25, 0.98),
+        stop:1 rgba(17, 24, 22, 0.98)
+    );
+    border: 1px solid rgba(117, 150, 92, 0.28);
+    border-radius: 18px;
+}
+
+#NexusMark,
+#SidebarAvatar {
+    background-color: rgba(76, 121, 61, 0.24);
+    border: 1px solid rgba(115, 168, 91, 0.38);
+    border-radius: 13px;
+}
+
+#NexusLogoTitle {
+    color: #F4F7EC;
+    letter-spacing: 4px;
+    font-weight: 950;
+}
+
+#NexusLogoSubtitle,
+#SidebarSectionTitle {
+    color: #9AA78D;
+    letter-spacing: 3px;
+}
+
+#SidebarNavButton {
+    background-color: transparent;
+    color: #D9E2D1;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    padding: 0 12px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 750;
+    min-height: 42px;
+}
+
+#SidebarNavButton:hover {
+    background-color: rgba(76, 121, 61, 0.14);
+    border: 1px solid rgba(132, 149, 112, 0.18);
+}
+
+#SidebarNavButton[active="true"] {
+    color: #FFFFFF;
+    background: #3D6F32;
+    border: 1px solid rgba(178, 204, 146, 0.28);
+}
+
+#SidebarProfileCard {
+    background-color: rgba(14, 20, 18, 0.94);
+    border: 1px solid rgba(132, 149, 112, 0.20);
+    border-radius: 14px;
+}
+
+#SidebarProfileCard[active="true"] {
+    background-color: rgba(56, 87, 46, 0.38);
+    border-color: rgba(132, 168, 91, 0.44);
+}
+
+/* Topbar: compact and readable */
+#Topbar {
+    background-color: rgba(8, 13, 12, 0.92);
+    border-bottom: 1px solid rgba(132, 149, 112, 0.14);
+}
+
+#TopbarTitle {
+    color: #F4F7EC;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+#TopbarSubtitle {
+    color: #AAB6A2;
+    font-size: 11px;
+}
+
+#TopbarSearch,
+QLineEdit,
+QTextEdit,
+QPlainTextEdit,
+QComboBox,
+QSpinBox,
+QDoubleSpinBox,
+QLineEdit#Input,
+#SearchInput {
+    background-color: rgba(5, 8, 8, 0.82);
+    border: 1px solid rgba(132, 149, 112, 0.20);
+    border-radius: 12px;
+    color: #EEF4EA;
+    padding: 8px 12px;
+    font-size: 12px;
+    min-height: 22px;
+    selection-background-color: rgba(79, 128, 61, 0.45);
+}
+
+#TopbarSearch:focus,
+QLineEdit:focus,
+QTextEdit:focus,
+QPlainTextEdit:focus,
+QComboBox:focus {
+    border: 1px solid rgba(132, 168, 91, 0.58);
+    background-color: rgba(8, 13, 12, 0.95);
+}
+
+/* Buttons */
+#PrimaryButton,
+#HeroPlayButton,
+#TopbarPlayButton {
+    background: #4A7F39;
+    color: #FFFFFF;
+    border: 1px solid rgba(178, 204, 146, 0.25);
+    border-radius: 12px;
+    padding: 8px 15px;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+#PrimaryButton:hover,
+#HeroPlayButton:hover,
+#TopbarPlayButton:hover {
+    background: #5B8F46;
+    border-color: rgba(207, 225, 178, 0.34);
+}
+
+#SecondaryButton,
+#GhostButton,
+#SmallGhostButton,
+#WideGhostButton,
+#TopbarThemeButton,
+#TopbarStatusButton,
+#DangerButton,
+#ToggleFiltersButton {
+    background-color: rgba(10, 15, 14, 0.86);
+    color: #E7EEE0;
+    border: 1px solid rgba(132, 149, 112, 0.22);
+    border-radius: 12px;
+    padding: 8px 13px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+#SecondaryButton:hover,
+#GhostButton:hover,
+#SmallGhostButton:hover,
+#WideGhostButton:hover,
+#TopbarThemeButton:hover,
+#TopbarStatusButton:hover,
+#ToggleFiltersButton:hover {
+    background-color: rgba(76, 121, 61, 0.18);
+    border-color: rgba(132, 168, 91, 0.38);
+}
+
+#DangerButton {
+    color: #F4C7BC;
+    border-color: rgba(160, 83, 67, 0.35);
+}
+
+/* Typography */
+#PageTitle {
+    color: #F4F7EC;
+    font-size: 28px;
+    font-weight: 950;
+    letter-spacing: 0px;
+}
+
+#PageDescription,
+#PanelText,
+#MutedText,
+#QuickActionText,
+#InstanceMeta {
+    color: #B8C6B1;
+    font-size: 12px;
+}
+
+#PanelTitle,
+#SectionTitle {
+    color: #F4F7EC;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+#CardTitle,
+#InstanceTitle,
+#QuickActionTitle {
+    color: #F4F7EC;
+    font-size: 14px;
+    font-weight: 850;
+}
+
+#OverviewStatValue,
+#DownloadBigNumber,
+#SettingsRamValue,
+#HeroStatValue {
+    color: #FFFFFF;
+    font-weight: 950;
+}
+
+#OverviewStatLabel,
+#HeroStatTitle,
+#SmallBadge,
+#StatusBadge,
+#InstanceBadge,
+#ModTag {
+    color: #C5D0BA;
+    background-color: rgba(76, 121, 61, 0.16);
+    border: 1px solid rgba(132, 149, 112, 0.20);
+    border-radius: 7px;
+    padding: 3px 8px;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+/* Minecraft hero: keep game identity, remove sci-fi neon */
+#MinecraftHero {
+    background: qlineargradient(
+        x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(13, 23, 17, 0.96),
+        stop:0.55 rgba(13, 18, 19, 0.96),
+        stop:1 rgba(31, 38, 26, 0.96)
+    );
+    border: 1px solid rgba(132, 149, 112, 0.22);
+    border-radius: 16px;
+}
+
+#HeroWelcome {
+    color: #A9C88F;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 1.4px;
+}
+
+#HeroTitle {
+    color: #FFFFFF;
+    font-size: 32px;
+    font-weight: 950;
+}
+
+#HeroSubtitle {
+    color: #D1DBCC;
+    font-size: 13px;
+}
+
+/* Progress */
+QProgressBar,
+#MiniProgress,
+#BigProgress,
+#DownloadProgress {
+    background-color: rgba(5, 8, 7, 0.92);
+    border: 1px solid rgba(132, 149, 112, 0.16);
+    border-radius: 5px;
+    max-height: 8px;
+}
+
+QProgressBar::chunk,
+#MiniProgress::chunk,
+#BigProgress::chunk,
+#DownloadProgress::chunk {
+    background: #5F9A47;
+    border-radius: 5px;
+}
+
+/* Mod and icon boxes */
+#ModIconBox,
+#ModIconImage,
+#ModDetailsIcon,
+#OverviewIcon,
+#QuickActionIcon,
+#BlockIcon,
+#DownloadIcon,
+#HeroStatIcon {
+    background-color: rgba(76, 121, 61, 0.16);
+    border: 1px solid rgba(132, 149, 112, 0.22);
+    border-radius: 10px;
+}
+
+#ModResultCard {
+    border-radius: 14px;
+    min-height: 150px;
+}
+
+/* Bottom status */
+#BottomStatusBar {
+    background-color: rgba(5, 8, 7, 0.92);
+    border-top: 1px solid rgba(132, 149, 112, 0.12);
+    min-height: 24px;
+    max-height: 26px;
+}
+"""
+
 def get_app_style(theme=None):
     theme = (theme or _read_saved_theme() or "dark").lower()
 
     if theme == "amoled":
-        return APP_STYLE + AMOLED_STYLE + COMFORT_STYLE
+        return APP_STYLE + AMOLED_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE
 
     if theme == "light":
-        return APP_STYLE + LIGHT_STYLE + COMFORT_STYLE + LIGHT_COMFORT_STYLE
+        return APP_STYLE + LIGHT_STYLE + COMFORT_STYLE + LIGHT_COMFORT_STYLE + MINECRAFT_CLEAN_STYLE
 
-    return APP_STYLE + COMFORT_STYLE
+    return APP_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE

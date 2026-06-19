@@ -23,11 +23,11 @@ class Topbar(QWidget):
         super().__init__()
 
         self.setObjectName("Topbar")
-        self.setFixedHeight(72)
+        self.setFixedHeight(66)
         self.compact = False
 
         root = QHBoxLayout(self)
-        root.setContentsMargins(22, 10, 24, 10)
+        root.setContentsMargins(18, 8, 18, 8)
         root.setSpacing(12)
 
         title_block = QVBoxLayout()
@@ -44,7 +44,7 @@ class Topbar(QWidget):
 
         self.search_input = QLineEdit()
         self.search_input.setObjectName("TopbarSearch")
-        self.search_input.setPlaceholderText("Поиск сборок, модов, настроек...")
+        self.search_input.setPlaceholderText("Поиск сборок, модов, шейдеров...")
         self.search_input.setMinimumWidth(180)
         self.search_input.setMaximumWidth(390)
 
@@ -58,7 +58,7 @@ class Topbar(QWidget):
 
         self.search_input.returnPressed.connect(self.submit_search)
 
-        self.status_button = QPushButton("READY")
+        self.status_button = QPushButton("ГОТОВО")
         self.status_button.setObjectName("TopbarStatusButton")
         self.status_button.setCursor(Qt.PointingHandCursor)
         try:
