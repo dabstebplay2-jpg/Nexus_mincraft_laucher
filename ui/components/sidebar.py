@@ -62,7 +62,7 @@ class Sidebar(QWidget):
         super().__init__()
 
         self.setObjectName("Sidebar")
-        self.setFixedWidth(226)
+        self.setFixedWidth(228)
         self.compact = False
         self._nav_labels = []
         self._logo_text_widgets = []

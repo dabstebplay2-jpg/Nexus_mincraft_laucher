@@ -281,15 +281,31 @@ class ModrinthSearchWorker(QThread):
             if self.category:
                 facets.append([f"categories:{self.category}"])
 
-            if self.loader and self.loader.lower() not in {"vanilla", "any", "любой"} and self.project_type in {"mod", "modpack"}:
-                facets.append([f"categories:{self.loader.lower()}"])
+            loader_value = str(self.loader or "").strip().lower()
+            loader_aliases = {
+                "f": "fabric",
+                "fab": "fabric",
+                "fabric-loader": "fabric",
+                "fg": "forge",
+                "forge-loader": "forge",
+                "nf": "neoforge",
+                "neo": "neoforge",
+                "neoforge-loader": "neoforge",
+                "q": "quilt",
+                "quilt-loader": "quilt",
+            }
+            loader_value = loader_aliases.get(loader_value, loader_value)
+
+            if loader_value and loader_value not in {"vanilla", "any", "любой", "none", "no"} and self.project_type in {"mod", "modpack"}:
+                facets.append([f"categories:{loader_value}"])
 
             if self.side == "client_side":
                 facets.append(["client_side:required", "client_side:optional"])
             elif self.side == "server_side":
                 facets.append(["server_side:required", "server_side:optional"])
             elif self.side == "both":
-                facets.append(["client_side:required", "server_side:required"])
+                facets.append(["client_side:required"])
+                facets.append(["server_side:required"])
 
             params = {
                 "query": self.query,
@@ -666,6 +682,10 @@ class ModsPage(QWidget):
         self.search_busy = False
         self.current_results = []
         self._last_columns = 0
+        self._pending_search_reset = False
+        self._debounce_timer = QTimer(self)
+        self._debounce_timer.setSingleShot(True)
+        self._debounce_timer.timeout.connect(self._run_scheduled_search)
 
         self.build_ui()
         self.load_instances()
@@ -706,7 +726,7 @@ class ModsPage(QWidget):
         self.search_btn.setFixedHeight(34)
 
         settings = get_launcher_settings()
-        default_collapsed = settings.get_mods_filters_collapsed()
+        default_collapsed = False
         self.toggle_filters_btn = QPushButton("Показать фильтры" if default_collapsed else "Скрыть фильтры")
         self.toggle_filters_btn.setObjectName("ToggleFiltersButton")
         self.toggle_filters_btn.setCursor(Qt.PointingHandCursor)
@@ -731,13 +751,13 @@ class ModsPage(QWidget):
         self.advanced_filters_widget = QFrame()
         self.advanced_filters_widget.setObjectName("ModsAdvancedFilters")
         adv = QVBoxLayout(self.advanced_filters_widget)
-        adv.setContentsMargins(0, 0, 0, 0)
+        adv.setContentsMargins(14, 12, 14, 12)
         adv.setSpacing(8)
 
-        title = QLabel("Моды")
-        title.setObjectName("PageTitle")
+        title = QLabel("Фильтры каталога")
+        title.setObjectName("SectionTitle")
 
-        description = QLabel("Каталог Modrinth в стиле Minecraft: моды, шейдеры, ресурспаки, популярные пресеты и быстрая установка.")
+        description = QLabel("Выбери тип проекта, категорию, сторону и сортировку. Фильтры применяются сразу, без перезагрузки страницы.")
         description.setObjectName("PageDescription")
         description.setWordWrap(True)
 
@@ -780,19 +800,19 @@ class ModsPage(QWidget):
 
         self.category_combo = QComboBox()
         self.category_combo.setMinimumWidth(120)
-        self.category_combo.currentIndexChanged.connect(self.search_clicked)
+        self.category_combo.currentIndexChanged.connect(self.schedule_search)
 
         self.side_combo = QComboBox()
         self.side_combo.setMinimumWidth(110)
         for label, value in SIDE_FILTERS:
             self.side_combo.addItem(label, value)
-        self.side_combo.currentIndexChanged.connect(self.search_clicked)
+        self.side_combo.currentIndexChanged.connect(self.schedule_search)
 
         self.sort_combo = QComboBox()
         self.sort_combo.setMinimumWidth(120)
         for label, value in SORT_OPTIONS:
             self.sort_combo.addItem(label, value)
-        self.sort_combo.currentIndexChanged.connect(self.search_clicked)
+        self.sort_combo.currentIndexChanged.connect(self.schedule_search)
 
         smart_button = QPushButton("Smart Builder")
         smart_button.setObjectName("SecondaryButton")
@@ -802,12 +822,17 @@ class ModsPage(QWidget):
         import_pack_button.setObjectName("SecondaryButton")
         import_pack_button.clicked.connect(self.import_mrpack)
 
+        reset_filters_button = QPushButton("Сбросить фильтры")
+        reset_filters_button.setObjectName("SecondaryButton")
+        reset_filters_button.clicked.connect(self.reset_filters)
+
         controls.addWidget(self.type_combo, 0, 0)
         controls.addWidget(self.category_combo, 0, 1)
         controls.addWidget(self.side_combo, 0, 2)
         controls.addWidget(self.sort_combo, 0, 3)
         controls.addWidget(smart_button, 1, 0)
         controls.addWidget(import_pack_button, 1, 1)
+        controls.addWidget(reset_filters_button, 1, 2)
         controls.setColumnStretch(3, 1)
 
         adv.addWidget(title)
@@ -977,7 +1002,7 @@ class ModsPage(QWidget):
             self.side_combo.setEnabled(project_type in {"mod", "modpack"})
 
         if search:
-            self.search_clicked()
+            self.schedule_search()
 
     def load_instances(self):
         self.instance_combo.clear()
@@ -1021,6 +1046,8 @@ class ModsPage(QWidget):
             self.status_label.setText(self.selected_project_type_info().get("description", "") + "  •  " + shader_status_text(self.selected_instance()))
         if self.results:
             self.render_results()
+        if getattr(self, "did_autoload", False):
+            self.schedule_search()
 
     def update_compatibility_stat(self):
         selected = self.selected_instance()
@@ -1041,10 +1068,57 @@ class ModsPage(QWidget):
 
         return None
 
+    def schedule_search(self, *args, reset=True):
+        """Debounced search used by filter controls.
+
+        Fixes the old behaviour where changing several filters while Modrinth
+        was still loading silently did nothing. Now the last requested search is
+        queued and runs after the current worker finishes.
+        """
+        self._pending_search_reset = bool(reset) or getattr(self, "_pending_search_reset", False)
+
+        if self.search_busy or (self.search_worker and self.search_worker.isRunning()):
+            return
+
+        if hasattr(self, "_debounce_timer"):
+            self._debounce_timer.start(220)
+        else:
+            self.start_search(reset=reset)
+
+    def _run_scheduled_search(self):
+        reset = True if getattr(self, "_pending_search_reset", True) else False
+        self._pending_search_reset = False
+        self.start_search(reset=reset)
+
+    def reset_filters(self):
+        if hasattr(self, "query_input"):
+            self.query_input.clear()
+
+        for combo, value in [
+            (getattr(self, "type_combo", None), "mod"),
+            (getattr(self, "side_combo", None), ""),
+            (getattr(self, "sort_combo", None), "downloads"),
+        ]:
+            if combo is None:
+                continue
+            index = combo.findData(value)
+            if index >= 0:
+                combo.blockSignals(True)
+                combo.setCurrentIndex(index)
+                combo.blockSignals(False)
+
+        self.on_type_changed(search=False)
+
+        if hasattr(self, "category_combo"):
+            index = self.category_combo.findData("")
+            if index >= 0:
+                self.category_combo.blockSignals(True)
+                self.category_combo.setCurrentIndex(index)
+                self.category_combo.blockSignals(False)
+
+        self.start_search(reset=True)
+
     def search_clicked(self, *args):
-        if self.advanced_filters_widget.isVisible():
-            self.set_advanced_filters_collapsed(True)
-            get_launcher_settings().set_mods_filters_collapsed(True)
         self.start_search(reset=True)
 
     def load_all_mods_first_page(self):
@@ -1061,6 +1135,7 @@ class ModsPage(QWidget):
 
     def start_search(self, reset=True, force_query=None):
         if self.search_worker and self.search_worker.isRunning():
+            self._pending_search_reset = bool(reset) or getattr(self, "_pending_search_reset", False)
             return
 
         if reset:
@@ -1085,7 +1160,19 @@ class ModsPage(QWidget):
             loader = instance.get("loader")
 
         self.search_busy = True
-        self.status_label.setText("Загрузка списка модов с Modrinth...")
+        active_filters = []
+        if self.selected_project_type_info():
+            active_filters.append(self.selected_project_type_info().get("label", self.selected_project_type()))
+        if self.selected_category():
+            active_filters.append(self.category_combo.currentText())
+        if self.selected_side():
+            active_filters.append(self.side_combo.currentText())
+        if loader:
+            active_filters.append(str(loader))
+        if minecraft_version:
+            active_filters.append(str(minecraft_version))
+        suffix = " • ".join(active_filters)
+        self.status_label.setText("Загрузка Modrinth" + (f": {suffix}" if suffix else "..."))
         self.load_more_button.setEnabled(False)
 
         self.search_worker = ModrinthSearchWorker(
@@ -1134,10 +1221,16 @@ class ModsPage(QWidget):
 
         self.load_more_button.setEnabled(len(self.results) < self.total_hits)
 
+        if getattr(self, "_pending_search_reset", False):
+            QTimer.singleShot(60, self._run_scheduled_search)
+
     def on_search_failed(self, error_text, details):
         self.search_busy = False
         self.status_label.setText("Ошибка загрузки Modrinth.")
         self.load_more_button.setEnabled(False)
+
+        if getattr(self, "_pending_search_reset", False):
+            QTimer.singleShot(60, self._run_scheduled_search)
 
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Critical)
@@ -1169,7 +1262,7 @@ class ModsPage(QWidget):
         clear_layout(self.grid)
 
         if not self.results:
-            empty = QLabel("Моды пока не загружены. Нажми «Найти» или подожди автозагрузку популярных модов.")
+            empty = QLabel("Каталог пока не загружен. Нажми «Найти» или выбери фильтры.")
             empty.setObjectName("PanelText")
             empty.setAlignment(Qt.AlignCenter)
             empty.setMinimumHeight(140)

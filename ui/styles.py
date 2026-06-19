@@ -1366,13 +1366,385 @@ QProgressBar::chunk,
 }
 """
 
+
+LAUNCHER_SITE_MATCH_STYLE = r"""
+/* Nexus Launcher — site-matched Minecraft dark skin
+   Goal: make desktop launcher closer to website: calm dark panels, moss/stone green,
+   less bright neon, more app-like cards. */
+
+* {
+    font-family: "Segoe UI";
+    color: #F4F7EC;
+}
+
+QMainWindow {
+    background-color: #090D0A;
+}
+
+#AppContent {
+    background: qlineargradient(
+        x1:0, y1:0, x2:1, y2:1,
+        stop:0 #090D0A,
+        stop:0.45 #0B1110,
+        stop:1 #101820
+    );
+}
+
+/* calmer scrollbars */
+QScrollBar:vertical {
+    background: rgba(8, 13, 12, 165);
+    width: 9px;
+    border-radius: 4px;
+    margin: 4px 2px 4px 2px;
+}
+QScrollBar::handle:vertical {
+    background: rgba(74, 127, 57, 190);
+    border-radius: 4px;
+    min-height: 34px;
+}
+QScrollBar::handle:vertical:hover {
+    background: rgba(91, 143, 70, 220);
+}
+QScrollBar:horizontal {
+    background: transparent;
+    height: 0px;
+}
+QScrollBar::handle:horizontal {
+    background: transparent;
+    height: 0px;
+}
+
+/* sidebar closer to website header/preview */
+#Sidebar {
+    background: #050705;
+    border-right: 1px solid rgba(132, 149, 112, 0.16);
+}
+
+#SidebarLogoCard {
+    background: rgba(14, 20, 18, 0.96);
+    border: 1px solid rgba(132, 149, 112, 0.26);
+    border-radius: 18px;
+}
+
+#NexusMark {
+    background-color: rgba(13, 29, 19, 0.95);
+    border: 1px solid rgba(68, 183, 96, 0.42);
+    border-radius: 13px;
+}
+
+#NexusLogoTitle {
+    color: #F4F7EC;
+    letter-spacing: 5px;
+    font-size: 24px;
+    font-weight: 950;
+}
+
+#NexusLogoSubtitle,
+#SidebarSectionTitle {
+    color: #B8C6B1;
+    letter-spacing: 4px;
+}
+
+#SidebarNavButton {
+    color: #E6ECE3;
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 850;
+    padding: 0 12px;
+}
+
+#SidebarNavButton:hover {
+    background-color: rgba(74, 127, 57, 0.14);
+    border-color: rgba(132, 149, 112, 0.18);
+}
+
+#SidebarNavButton[active="true"] {
+    color: #FFFFFF;
+    background: #4A7F39;
+    border: 1px solid rgba(178, 204, 146, 0.26);
+}
+
+#SidebarProfileCard {
+    background: rgba(14, 20, 18, 0.96);
+    border: 1px solid rgba(132, 149, 112, 0.22);
+    border-radius: 14px;
+}
+
+#SidebarProfileCard[active="true"] {
+    background: rgba(74, 127, 57, 0.20);
+    border-color: rgba(132, 168, 91, 0.40);
+}
+
+/* topbar */
+#Topbar {
+    background: rgba(8, 13, 12, 0.94);
+    border-bottom: 1px solid rgba(132, 149, 112, 0.16);
+}
+
+#TopbarTitle {
+    color: #F4F7EC;
+    font-size: 18px;
+    font-weight: 950;
+}
+
+#TopbarSubtitle {
+    color: #B8C6B1;
+    font-size: 11px;
+}
+
+#CompactStatus {
+    color: #A9C88F;
+    font-size: 11px;
+    font-weight: 850;
+    padding: 0 6px;
+}
+
+/* inputs */
+QLineEdit,
+QTextEdit,
+QPlainTextEdit,
+QComboBox,
+QSpinBox,
+QDoubleSpinBox,
+#TopbarSearch,
+#SearchInput,
+QLineEdit#Input {
+    background-color: rgba(5, 8, 7, 0.86);
+    border: 1px solid rgba(132, 149, 112, 0.24);
+    border-radius: 13px;
+    color: #F4F7EC;
+    padding: 8px 12px;
+    font-size: 12px;
+    min-height: 22px;
+    selection-background-color: rgba(74, 127, 57, 0.55);
+}
+
+QLineEdit:focus,
+QTextEdit:focus,
+QPlainTextEdit:focus,
+QComboBox:focus,
+#TopbarSearch:focus,
+#SearchInput:focus {
+    background-color: rgba(8, 13, 12, 0.96);
+    border-color: rgba(132, 168, 91, 0.52);
+}
+
+/* buttons */
+#PrimaryButton,
+#HeroPlayButton,
+#TopbarPlayButton {
+    background: #4A7F39;
+    color: #FFFFFF;
+    border: 1px solid rgba(178, 204, 146, 0.26);
+    border-radius: 13px;
+    padding: 8px 15px;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+#PrimaryButton:hover,
+#HeroPlayButton:hover,
+#TopbarPlayButton:hover {
+    background: #5B8F46;
+    border-color: rgba(178, 204, 146, 0.40);
+}
+
+#SecondaryButton,
+#GhostButton,
+#SmallGhostButton,
+#WideGhostButton,
+#TopbarThemeButton,
+#TopbarStatusButton,
+#ToggleFiltersButton {
+    background-color: rgba(10, 15, 14, 0.88);
+    color: #F4F7EC;
+    border: 1px solid rgba(132, 149, 112, 0.24);
+    border-radius: 13px;
+    padding: 8px 13px;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+#SecondaryButton:hover,
+#GhostButton:hover,
+#SmallGhostButton:hover,
+#WideGhostButton:hover,
+#TopbarThemeButton:hover,
+#TopbarStatusButton:hover,
+#ToggleFiltersButton:hover {
+    background-color: rgba(74, 127, 57, 0.18);
+    border-color: rgba(132, 168, 91, 0.42);
+}
+
+/* cards / panels */
+QFrame#Card,
+QFrame#Panel,
+QFrame#DashboardPanel,
+QFrame#MiniCard,
+QFrame#SettingsOptionsBox,
+QFrame#DownloadSummaryCard,
+QFrame#InstanceCard,
+QFrame#ModResultCard,
+QFrame#DownloadTaskCard,
+QFrame#DownloadTaskCardActive,
+QFrame#HeroStatCard,
+QFrame#SettingsStatCard,
+QFrame#SkinCard,
+QFrame#AccountRow,
+QFrame#AccountRowActive,
+QFrame#DetailInfoRow,
+QFrame#QuickActionCard,
+QFrame#OverviewStatCard,
+QFrame#ActivityRow,
+QFrame#RecommendationRow,
+QFrame#InstanceDashboardRow,
+QFrame#InstanceDashboardRowActive,
+QWidget#InstanceCard,
+QWidget#Card {
+    background: rgba(14, 20, 18, 0.94);
+    border: 1px solid rgba(132, 149, 112, 0.22);
+    border-radius: 16px;
+}
+
+QFrame#Card:hover,
+QFrame#Panel:hover,
+QFrame#DashboardPanel:hover,
+QFrame#MiniCard:hover,
+QFrame#InstanceCard:hover,
+QFrame#ModResultCard:hover,
+QFrame#QuickActionCard:hover,
+QFrame#OverviewStatCard:hover,
+QFrame#InstanceDashboardRow:hover,
+QFrame#InstanceDashboardRowActive:hover,
+QWidget#InstanceCard:hover,
+QWidget#Card:hover {
+    background: rgba(18, 27, 22, 0.96);
+    border-color: rgba(132, 168, 91, 0.36);
+}
+
+/* Modrinth page filters */
+#ModsAdvancedFilters {
+    background: rgba(14, 20, 18, 0.90);
+    border: 1px solid rgba(132, 149, 112, 0.18);
+    border-radius: 16px;
+}
+
+#MinecraftShortcutCard {
+    text-align: left;
+    background: rgba(14, 20, 18, 0.92);
+    border: 1px solid rgba(132, 149, 112, 0.20);
+    border-radius: 14px;
+    color: #E6ECE3;
+    padding: 11px 13px;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+#MinecraftShortcutCard:hover {
+    background: rgba(74, 127, 57, 0.16);
+    border-color: rgba(132, 168, 91, 0.38);
+}
+
+#ModResultCard {
+    background: rgba(10, 16, 26, 0.82);
+    border: 1px solid rgba(132, 149, 112, 0.20);
+    border-radius: 16px;
+}
+
+#ModResultCard:hover {
+    background: rgba(12, 20, 29, 0.92);
+    border-color: rgba(132, 168, 91, 0.40);
+}
+
+#StatusBadge,
+#SmallBadge,
+#InstanceBadge,
+#ModTag {
+    color: #D8E8CC;
+    background-color: rgba(74, 127, 57, 0.18);
+    border: 1px solid rgba(132, 168, 91, 0.26);
+    border-radius: 8px;
+    padding: 3px 8px;
+    font-size: 10px;
+    font-weight: 850;
+}
+
+#PageTitle {
+    color: #F4F7EC;
+    font-size: 28px;
+    font-weight: 950;
+}
+
+#PageDescription,
+#PanelText,
+#MutedText,
+#QuickActionText,
+#InstanceMeta {
+    color: #B8C6B1;
+}
+
+#PanelTitle,
+#SectionTitle,
+#CardTitle,
+#InstanceTitle,
+#QuickActionTitle {
+    color: #F4F7EC;
+    font-weight: 900;
+}
+
+/* hero */
+#MinecraftHero {
+    background: qlineargradient(
+        x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(14, 20, 18, 0.96),
+        stop:0.52 rgba(9, 13, 10, 0.94),
+        stop:1 rgba(16, 24, 32, 0.94)
+    );
+    border: 1px solid rgba(132, 149, 112, 0.24);
+    border-radius: 18px;
+}
+
+#HeroWelcome {
+    color: #B7D69A;
+}
+
+#HeroTitle {
+    color: #F4F7EC;
+}
+
+QProgressBar,
+#MiniProgress,
+#BigProgress,
+#DownloadProgress {
+    background-color: rgba(5, 8, 7, 0.92);
+    border: 1px solid rgba(132, 149, 112, 0.14);
+    border-radius: 5px;
+    max-height: 8px;
+}
+
+QProgressBar::chunk,
+#MiniProgress::chunk,
+#BigProgress::chunk,
+#DownloadProgress::chunk {
+    background: #4A7F39;
+    border-radius: 5px;
+}
+
+#BottomStatusBar {
+    background: rgba(5, 8, 7, 0.96);
+    border-top: 1px solid rgba(132, 149, 112, 0.14);
+}
+"""
+
 def get_app_style(theme=None):
     theme = (theme or _read_saved_theme() or "dark").lower()
 
     if theme == "amoled":
-        return APP_STYLE + AMOLED_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE
+        return APP_STYLE + AMOLED_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE
 
     if theme == "light":
-        return APP_STYLE + LIGHT_STYLE + COMFORT_STYLE + LIGHT_COMFORT_STYLE + MINECRAFT_CLEAN_STYLE
+        return APP_STYLE + LIGHT_STYLE + COMFORT_STYLE + LIGHT_COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE
 
-    return APP_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE
+    return APP_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE
