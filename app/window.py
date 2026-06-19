@@ -89,6 +89,12 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        try:
+            from core.windows_app_id import set_windows_app_id
+            set_windows_app_id()
+        except Exception:
+            pass
+
         self.setWindowTitle("Nexus Launcher")
         try:
             icon_path = Path(__file__).resolve().parents[1] / "assets" / "nexus.ico"
@@ -197,6 +203,12 @@ class MainWindow(QMainWindow):
             self.startup_update_worker.quit()
             self.startup_update_worker.wait(3000)
 
+        try:
+            from core.discord_presence import discord_presence
+            discord_presence().close()
+        except Exception:
+            pass
+
         if self._pending_update_path:
             try:
                 from core.updater import start_installer_after_exit
@@ -290,6 +302,12 @@ class MainWindow(QMainWindow):
         self.status_label.setText("Готово")
 
     def _do_update_install(self):
+        try:
+            from core.discord_presence import discord_presence
+            discord_presence().close()
+        except Exception:
+            pass
+
         if self._pending_update_path:
             self.close()
         elif self._update_release:
@@ -335,7 +353,9 @@ class MainWindow(QMainWindow):
 
     def toggle_theme(self):
         current = self.current_theme().lower()
-        next_theme = "light" if current in {"dark", "amoled"} else "dark"
+        # Light theme is disabled until it is redesigned properly.
+        # Toggle only between normal dark and AMOLED dark.
+        next_theme = "amoled" if current == "dark" else "dark"
         self.save_theme(next_theme)
         self.apply_theme(next_theme)
         if hasattr(self.settings_page, "sync_settings_combos"):
@@ -376,6 +396,15 @@ class MainWindow(QMainWindow):
             self.topbar.set_page(title, subtitle)
             self.status_label.setText(f"Готово • {title}")
             self.sidebar.set_active(index)
+
+            try:
+                from core.discord_presence import discord_presence
+                if index == PageIndex.MODS:
+                    discord_presence().set_browsing_mods()
+                else:
+                    discord_presence().set_launcher_idle(title)
+            except Exception:
+                pass
 
     def open_create_instance(self):
         self.change_page(PageIndex.INSTANCES)

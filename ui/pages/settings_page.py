@@ -17,6 +17,8 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QGridLayout,
     QComboBox,
+    QSpinBox,
+    QLineEdit,
     QApplication,
 )
 
@@ -158,8 +160,10 @@ class SettingsPage(QWidget):
 
         self.root.addWidget(self.create_pc_info_panel())
         self.root.addWidget(self.create_ram_panel())
+        self.root.addWidget(self.create_resolution_panel())
         self.root.addWidget(self.create_java_panel())
         self.root.addWidget(self.create_language_theme_panel())
+        self.root.addWidget(self.create_discord_panel())
         self.root.addWidget(self.create_update_panel())
         self.root.addWidget(self.create_diagnostics_panel())
 
@@ -333,6 +337,132 @@ class SettingsPage(QWidget):
 
         return panel
 
+
+    def create_resolution_panel(self):
+        panel = QFrame()
+        panel.setObjectName("DashboardPanel")
+
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(22, 20, 22, 20)
+        layout.setSpacing(14)
+
+        top = QHBoxLayout()
+
+        title = QLabel("Разрешение окна Minecraft")
+        title.setObjectName("PanelTitle")
+
+        width, height = self.settings.get_minecraft_resolution()
+        self.resolution_preview_label = QLabel(f"{width} × {height}")
+        self.resolution_preview_label.setObjectName("SettingsRamValue")
+
+        top.addWidget(title)
+        top.addStretch()
+        top.addWidget(self.resolution_preview_label)
+
+        hint = QLabel(
+            "Включи фиксированное разрешение, если хочешь, чтобы Minecraft запускался "
+            "с нужным размером окна. Это удобно для тестов, записи видео и слабых ПК. "
+            "Если выключить — Minecraft сам выберет размер окна."
+        )
+        hint.setObjectName("PanelText")
+        hint.setWordWrap(True)
+
+        self.resolution_enabled_checkbox = QCheckBox("Запускать Minecraft с фиксированным разрешением")
+        self.resolution_enabled_checkbox.setObjectName("SettingsCheckBox")
+        self.resolution_enabled_checkbox.setChecked(self.settings.is_minecraft_resolution_enabled())
+        self.resolution_enabled_checkbox.stateChanged.connect(self.on_resolution_enabled_changed)
+
+        presets_row = QHBoxLayout()
+        presets_row.setSpacing(10)
+
+        preset_label = QLabel("Пресет:")
+        preset_label.setMinimumWidth(140)
+
+        self.resolution_preset_combo = QComboBox()
+        self.resolution_preset_combo.addItem("HD 1280 × 720", (1280, 720))
+        self.resolution_preset_combo.addItem("1600 × 900", (1600, 900))
+        self.resolution_preset_combo.addItem("Full HD 1920 × 1080", (1920, 1080))
+        self.resolution_preset_combo.addItem("QHD 2560 × 1440", (2560, 1440))
+        self.resolution_preset_combo.addItem("4K 3840 × 2160", (3840, 2160))
+        self.resolution_preset_combo.addItem("Свои значения", None)
+        self.resolution_preset_combo.currentIndexChanged.connect(self.on_resolution_preset_changed)
+
+        presets_row.addWidget(preset_label)
+        presets_row.addWidget(self.resolution_preset_combo, 1)
+
+        custom_row = QHBoxLayout()
+        custom_row.setSpacing(10)
+
+        width_label = QLabel("Ширина:")
+        width_label.setMinimumWidth(140)
+
+        self.resolution_width_spin = QSpinBox()
+        self.resolution_width_spin.setRange(320, 7680)
+        self.resolution_width_spin.setSingleStep(10)
+        self.resolution_width_spin.setValue(width)
+        self.resolution_width_spin.valueChanged.connect(self.on_resolution_value_changed)
+
+        height_label = QLabel("Высота:")
+
+        self.resolution_height_spin = QSpinBox()
+        self.resolution_height_spin.setRange(240, 4320)
+        self.resolution_height_spin.setSingleStep(10)
+        self.resolution_height_spin.setValue(height)
+        self.resolution_height_spin.valueChanged.connect(self.on_resolution_value_changed)
+
+        custom_row.addWidget(width_label)
+        custom_row.addWidget(self.resolution_width_spin)
+        custom_row.addWidget(height_label)
+        custom_row.addWidget(self.resolution_height_spin)
+        custom_row.addStretch()
+
+        quick_row = QHBoxLayout()
+        quick_row.setSpacing(10)
+
+        for label, size in [
+            ("720p", (1280, 720)),
+            ("900p", (1600, 900)),
+            ("1080p", (1920, 1080)),
+            ("1440p", (2560, 1440)),
+        ]:
+            button = QPushButton(label)
+            button.setObjectName("RamPresetButton")
+            button.clicked.connect(lambda checked=False, value=size: self.set_resolution_value(*value))
+            quick_row.addWidget(button)
+
+        quick_row.addStretch()
+
+        warning = QLabel(
+            "Важно: это стартовый размер окна Minecraft. Если в игре включить полноэкранный режим, "
+            "он может перекрыть это значение."
+        )
+        warning.setObjectName("PanelText")
+        warning.setWordWrap(True)
+
+        actions = QHBoxLayout()
+
+        save_button = QPushButton("Сохранить разрешение")
+        save_button.setObjectName("PrimaryButton")
+        save_button.clicked.connect(self.save_resolution)
+
+        actions.addStretch()
+        actions.addWidget(save_button)
+
+        layout.addLayout(top)
+        layout.addWidget(hint)
+        layout.addWidget(self.resolution_enabled_checkbox)
+        layout.addLayout(presets_row)
+        layout.addLayout(custom_row)
+        layout.addLayout(quick_row)
+        layout.addWidget(warning)
+        layout.addLayout(actions)
+
+        self.sync_resolution_preset()
+        self.update_resolution_controls_enabled()
+
+        return panel
+
+
     def create_java_panel(self):
         panel = QFrame()
         panel.setObjectName("DashboardPanel")
@@ -400,6 +530,76 @@ class SettingsPage(QWidget):
 
         return panel
 
+
+
+
+    def create_discord_panel(self):
+        panel = QFrame()
+        panel.setObjectName("DashboardPanel")
+
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(22, 20, 22, 20)
+        layout.setSpacing(12)
+
+        title = QLabel("Discord Rich Presence")
+        title.setObjectName("PanelTitle")
+
+        desc = QLabel(
+            "Показывает в Discord, что ты находишься в Nexus Launcher или играешь в Minecraft через Nexus. "
+            "Для работы нужен Discord Application Client ID. Без него лаунчер не ломается, просто статус не включится."
+        )
+        desc.setObjectName("PanelText")
+        desc.setWordWrap(True)
+
+        self.discord_enabled_checkbox = QCheckBox("Включить Discord-статус")
+        self.discord_enabled_checkbox.setObjectName("SettingsCheckBox")
+        self.discord_enabled_checkbox.setChecked(self.settings.is_discord_presence_enabled())
+
+        client_row = QHBoxLayout()
+        client_label = QLabel("Client ID:")
+        client_label.setMinimumWidth(140)
+
+        self.discord_client_id_input = QLineEdit()
+        self.discord_client_id_input.setPlaceholderText("Вставь Discord Application Client ID")
+        self.discord_client_id_input.setText(self.settings.get_discord_client_id())
+
+        client_row.addWidget(client_label)
+        client_row.addWidget(self.discord_client_id_input, 1)
+
+        help_text = QLabel(
+            "Discord должен быть запущен. В Discord Developer Portal создай Application, скопируй Client ID, "
+            "и при желании добавь asset с ключом nexus для красивой картинки."
+        )
+        help_text.setObjectName("PanelText")
+        help_text.setWordWrap(True)
+
+        self.discord_status_label = QLabel("Статус: не проверено")
+        self.discord_status_label.setObjectName("PanelText")
+        self.discord_status_label.setWordWrap(True)
+
+        actions = QHBoxLayout()
+
+        save_btn = QPushButton("Сохранить Discord")
+        save_btn.setObjectName("PrimaryButton")
+        save_btn.clicked.connect(self.save_discord_presence_settings)
+
+        test_btn = QPushButton("Проверить")
+        test_btn.setObjectName("SecondaryButton")
+        test_btn.clicked.connect(self.test_discord_presence)
+
+        actions.addStretch()
+        actions.addWidget(test_btn)
+        actions.addWidget(save_btn)
+
+        layout.addWidget(title)
+        layout.addWidget(desc)
+        layout.addWidget(self.discord_enabled_checkbox)
+        layout.addLayout(client_row)
+        layout.addWidget(help_text)
+        layout.addWidget(self.discord_status_label)
+        layout.addLayout(actions)
+
+        return panel
 
 
     def create_update_panel(self):
@@ -470,6 +670,36 @@ class SettingsPage(QWidget):
         layout.addWidget(self.update_progress)
 
         return panel
+
+
+    def save_discord_presence_settings(self):
+        enabled = self.discord_enabled_checkbox.isChecked()
+        client_id = self.discord_client_id_input.text().strip()
+
+        self.settings.set_discord_presence_settings(enabled, client_id)
+
+        try:
+            from core.discord_presence import discord_presence
+            if enabled:
+                ok = discord_presence().set_launcher_idle("Настройки")
+                if ok:
+                    self.discord_status_label.setText("Статус: Discord Rich Presence подключён.")
+                else:
+                    self.discord_status_label.setText(
+                        "Статус: не подключилось. Проверь, что Discord запущен и Client ID указан правильно. "
+                        f"Ошибка: {discord_presence().last_error()}"
+                    )
+            else:
+                discord_presence().close()
+                self.discord_status_label.setText("Статус: выключено.")
+        except Exception as error:
+            self.discord_status_label.setText(f"Статус: ошибка проверки — {error}")
+
+        QMessageBox.information(self, "Discord сохранён", "Настройки Discord Rich Presence сохранены.")
+
+    def test_discord_presence(self):
+        self.save_discord_presence_settings()
+
 
     def check_updates_from_settings(self):
         if self.update_check_worker and self.update_check_worker.isRunning():
@@ -743,6 +973,95 @@ class SettingsPage(QWidget):
         except Exception as e:
             QMessageBox.warning(self, "Ошибка", str(e))
 
+
+    def set_resolution_value(self, width, height):
+        self.resolution_width_spin.blockSignals(True)
+        self.resolution_height_spin.blockSignals(True)
+
+        self.resolution_width_spin.setValue(int(width))
+        self.resolution_height_spin.setValue(int(height))
+
+        self.resolution_width_spin.blockSignals(False)
+        self.resolution_height_spin.blockSignals(False)
+
+        self.on_resolution_value_changed()
+        self.sync_resolution_preset()
+
+    def on_resolution_preset_changed(self, index):
+        data = self.resolution_preset_combo.itemData(index)
+        if not data:
+            return
+
+        width, height = data
+        self.set_resolution_value(width, height)
+
+    def on_resolution_value_changed(self, *args):
+        if not hasattr(self, "resolution_preview_label"):
+            return
+
+        width = self.resolution_width_spin.value()
+        height = self.resolution_height_spin.value()
+        self.resolution_preview_label.setText(f"{width} × {height}")
+        self.sync_resolution_preset()
+
+    def sync_resolution_preset(self):
+        if not hasattr(self, "resolution_preset_combo"):
+            return
+
+        width = self.resolution_width_spin.value()
+        height = self.resolution_height_spin.value()
+
+        match_index = -1
+        for index in range(self.resolution_preset_combo.count()):
+            data = self.resolution_preset_combo.itemData(index)
+            if data and tuple(data) == (width, height):
+                match_index = index
+                break
+
+        if match_index < 0:
+            match_index = self.resolution_preset_combo.findText("Свои значения")
+
+        if match_index >= 0 and self.resolution_preset_combo.currentIndex() != match_index:
+            self.resolution_preset_combo.blockSignals(True)
+            self.resolution_preset_combo.setCurrentIndex(match_index)
+            self.resolution_preset_combo.blockSignals(False)
+
+    def on_resolution_enabled_changed(self, *args):
+        self.update_resolution_controls_enabled()
+
+    def update_resolution_controls_enabled(self):
+        if not hasattr(self, "resolution_enabled_checkbox"):
+            return
+
+        enabled = self.resolution_enabled_checkbox.isChecked()
+        self.resolution_preset_combo.setEnabled(enabled)
+        self.resolution_width_spin.setEnabled(enabled)
+        self.resolution_height_spin.setEnabled(enabled)
+
+    def save_resolution(self):
+        enabled = self.resolution_enabled_checkbox.isChecked()
+        width = self.resolution_width_spin.value()
+        height = self.resolution_height_spin.value()
+
+        saved_width, saved_height = self.settings.set_minecraft_resolution(
+            width,
+            height,
+            enabled=enabled,
+        )
+
+        self.resolution_preview_label.setText(f"{saved_width} × {saved_height}")
+
+        QMessageBox.information(
+            self,
+            "Разрешение сохранено",
+            (
+                f"Minecraft будет запускаться с разрешением {saved_width} × {saved_height}."
+                if enabled
+                else "Фиксированное разрешение выключено. Minecraft сам выберет размер окна."
+            )
+        )
+
+
     def create_stat_card(self, title, value):
         card = QFrame()
         card.setObjectName("SettingsStatCard")
@@ -774,6 +1093,11 @@ class SettingsPage(QWidget):
         self.max_label.setText(self.pc["safe_max_ram_text"])
 
         self.update_preset_buttons()
+        if hasattr(self, "resolution_width_spin"):
+            width, height = self.settings.get_minecraft_resolution()
+            self.set_resolution_value(width, height)
+            self.resolution_enabled_checkbox.setChecked(self.settings.is_minecraft_resolution_enabled())
+            self.update_resolution_controls_enabled()
         self.refresh_live_memory()
         # Java больше не проверяется синхронно при старте: это могло подвешивать окно.
         self.on_ram_changed(self.ram_slider.value())

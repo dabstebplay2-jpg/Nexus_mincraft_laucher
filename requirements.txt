@@ -21,3 +21,4 @@ requests==2.34.2
 setuptools==82.0.1
 shiboken6==6.11.1
 urllib3==2.7.0
+pypresence==4.3.0

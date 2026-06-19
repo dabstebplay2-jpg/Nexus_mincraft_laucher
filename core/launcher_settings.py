@@ -30,6 +30,11 @@ class LauncherSettings:
             "theme": "dark",
             "language": "ru",
             "mods_filters_collapsed": True,
+            "minecraft_resolution_enabled": False,
+            "minecraft_resolution_width": 1280,
+            "minecraft_resolution_height": 720,
+            "discord_presence_enabled": False,
+            "discord_client_id": "",
         }
 
     def load(self):
@@ -43,6 +48,21 @@ class LauncherSettings:
                 data = self.default_settings()
                 data.update(raw)
                 data["ram_mb"] = clamp_ram_mb(data.get("ram_mb", get_recommended_ram_mb()))
+                data["minecraft_resolution_width"] = self._clamp_resolution_value(
+                    data.get("minecraft_resolution_width", 1280),
+                    default=1280,
+                    min_value=320,
+                    max_value=7680,
+                )
+                data["minecraft_resolution_height"] = self._clamp_resolution_value(
+                    data.get("minecraft_resolution_height", 720),
+                    default=720,
+                    min_value=240,
+                    max_value=4320,
+                )
+                data["minecraft_resolution_enabled"] = bool(data.get("minecraft_resolution_enabled", False))
+                data["discord_presence_enabled"] = bool(data.get("discord_presence_enabled", False))
+                data["discord_client_id"] = str(data.get("discord_client_id", "") or "").strip()
 
                 return data
             except Exception:
@@ -108,6 +128,96 @@ class LauncherSettings:
         with self._lock:
             self.data["mods_filters_collapsed"] = bool(collapsed)
             self.save()
+
+
+    def _clamp_resolution_value(self, value, default=1280, min_value=320, max_value=7680):
+        try:
+            value = int(value)
+        except Exception:
+            value = int(default)
+
+        return max(int(min_value), min(int(max_value), value))
+
+    def is_minecraft_resolution_enabled(self):
+        with self._lock:
+            return bool(self.data.get("minecraft_resolution_enabled", False))
+
+    def set_minecraft_resolution_enabled(self, enabled):
+        with self._lock:
+            self.data["minecraft_resolution_enabled"] = bool(enabled)
+            self.save()
+            return self.data["minecraft_resolution_enabled"]
+
+    def get_minecraft_resolution(self):
+        with self._lock:
+            width = self._clamp_resolution_value(
+                self.data.get("minecraft_resolution_width", 1280),
+                default=1280,
+                min_value=320,
+                max_value=7680,
+            )
+            height = self._clamp_resolution_value(
+                self.data.get("minecraft_resolution_height", 720),
+                default=720,
+                min_value=240,
+                max_value=4320,
+            )
+            return width, height
+
+    def set_minecraft_resolution(self, width, height, enabled=None):
+        with self._lock:
+            self.data["minecraft_resolution_width"] = self._clamp_resolution_value(
+                width,
+                default=1280,
+                min_value=320,
+                max_value=7680,
+            )
+            self.data["minecraft_resolution_height"] = self._clamp_resolution_value(
+                height,
+                default=720,
+                min_value=240,
+                max_value=4320,
+            )
+
+            if enabled is not None:
+                self.data["minecraft_resolution_enabled"] = bool(enabled)
+
+            self.save()
+            return (
+                self.data["minecraft_resolution_width"],
+                self.data["minecraft_resolution_height"],
+            )
+
+
+    def is_discord_presence_enabled(self):
+        with self._lock:
+            return bool(self.data.get("discord_presence_enabled", False))
+
+    def set_discord_presence_enabled(self, enabled):
+        with self._lock:
+            self.data["discord_presence_enabled"] = bool(enabled)
+            self.save()
+            return self.data["discord_presence_enabled"]
+
+    def get_discord_client_id(self):
+        with self._lock:
+            return str(self.data.get("discord_client_id", "") or "").strip()
+
+    def set_discord_client_id(self, client_id):
+        with self._lock:
+            self.data["discord_client_id"] = str(client_id or "").strip()
+            self.save()
+            return self.data["discord_client_id"]
+
+    def set_discord_presence_settings(self, enabled, client_id):
+        with self._lock:
+            self.data["discord_presence_enabled"] = bool(enabled)
+            self.data["discord_client_id"] = str(client_id or "").strip()
+            self.save()
+            return {
+                "enabled": self.data["discord_presence_enabled"],
+                "client_id": self.data["discord_client_id"],
+            }
 
 
 _launcher_settings = LauncherSettings()

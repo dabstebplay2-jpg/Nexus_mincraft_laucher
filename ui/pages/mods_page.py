@@ -686,6 +686,7 @@ class ModsPage(QWidget):
         self._debounce_timer = QTimer(self)
         self._debounce_timer.setSingleShot(True)
         self._debounce_timer.timeout.connect(self._run_scheduled_search)
+        self.type_buttons = {}
 
         self.build_ui()
         self.load_instances()
@@ -697,7 +698,7 @@ class ModsPage(QWidget):
 
     def set_advanced_filters_collapsed(self, collapsed):
         self.advanced_filters_widget.setVisible(not collapsed)
-        self.toggle_filters_btn.setText("Показать фильтры" if collapsed else "Скрыть фильтры")
+        self.toggle_filters_btn.setText("Показать каталог" if collapsed else "Скрыть каталог")
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -710,6 +711,27 @@ class ModsPage(QWidget):
         root = QVBoxLayout(self)
         root.setContentsMargins(20, 14, 20, 14)
         root.setSpacing(8)
+
+        # ── Content type tabs: always visible, so Nexus clearly separates content ──
+        self.type_tabs_row = QHBoxLayout()
+        self.type_tabs_row.setSpacing(8)
+
+        for label, value, hint in [
+            ("Моды", "mod", "JAR в папку mods"),
+            ("Модпаки", "modpack", "MRPACK → новая сборка"),
+            ("Шейдеры", "shader", "ZIP в shaderpacks"),
+            ("Ресурспаки", "resourcepack", "ZIP в resourcepacks"),
+        ]:
+            btn = QPushButton(label)
+            btn.setObjectName("ContentTypeTab")
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setCheckable(True)
+            btn.setToolTip(hint)
+            btn.clicked.connect(lambda checked=False, v=value: self.apply_project_type(v))
+            self.type_buttons[value] = btn
+            self.type_tabs_row.addWidget(btn)
+
+        self.type_tabs_row.addStretch()
 
         # ── Compact top bar (always visible) ──
         compact_bar = QHBoxLayout()
@@ -726,8 +748,8 @@ class ModsPage(QWidget):
         self.search_btn.setFixedHeight(34)
 
         settings = get_launcher_settings()
-        default_collapsed = False
-        self.toggle_filters_btn = QPushButton("Показать фильтры" if default_collapsed else "Скрыть фильтры")
+        default_collapsed = settings.get_mods_filters_collapsed()
+        self.toggle_filters_btn = QPushButton("Показать каталог" if default_collapsed else "Скрыть каталог")
         self.toggle_filters_btn.setObjectName("ToggleFiltersButton")
         self.toggle_filters_btn.setCursor(Qt.PointingHandCursor)
         self.toggle_filters_btn.clicked.connect(self.toggle_advanced_filters)
@@ -757,7 +779,7 @@ class ModsPage(QWidget):
         title = QLabel("Фильтры каталога")
         title.setObjectName("SectionTitle")
 
-        description = QLabel("Выбери тип проекта, категорию, сторону и сортировку. Фильтры применяются сразу, без перезагрузки страницы.")
+        description = QLabel("Компактный каталог: быстрые подборки, категория, сторона и сортировка. Раздел выбирается верхними вкладками.")
         description.setObjectName("PageDescription")
         description.setWordWrap(True)
 
@@ -826,19 +848,19 @@ class ModsPage(QWidget):
         reset_filters_button.setObjectName("SecondaryButton")
         reset_filters_button.clicked.connect(self.reset_filters)
 
-        controls.addWidget(self.type_combo, 0, 0)
-        controls.addWidget(self.category_combo, 0, 1)
-        controls.addWidget(self.side_combo, 0, 2)
-        controls.addWidget(self.sort_combo, 0, 3)
-        controls.addWidget(smart_button, 1, 0)
-        controls.addWidget(import_pack_button, 1, 1)
-        controls.addWidget(reset_filters_button, 1, 2)
-        controls.setColumnStretch(3, 1)
+        self.type_combo.setVisible(False)
+
+        controls.addWidget(self.category_combo, 0, 0)
+        controls.addWidget(self.side_combo, 0, 1)
+        controls.addWidget(self.sort_combo, 0, 2)
+        controls.addWidget(smart_button, 0, 3)
+        controls.addWidget(import_pack_button, 1, 0)
+        controls.addWidget(reset_filters_button, 1, 1)
+        controls.setColumnStretch(2, 1)
 
         adv.addWidget(title)
         adv.addWidget(description)
         adv.addLayout(self.shortcut_row)
-        adv.addLayout(self.stats_row)
         adv.addLayout(controls)
 
         # Status label
@@ -871,6 +893,7 @@ class ModsPage(QWidget):
         bottom.addWidget(self.load_more_button)
 
         # ── Assemble ──
+        root.addLayout(self.type_tabs_row)
         root.addLayout(compact_bar)
         root.addWidget(self.advanced_filters_widget)
         root.addWidget(self.status_label)
@@ -901,9 +924,6 @@ class ModsPage(QWidget):
             self.category_combo.setCurrentIndex(category_index)
 
         self.query_input.setText(query)
-        if self.advanced_filters_widget.isVisible():
-            self.set_advanced_filters_collapsed(True)
-            get_launcher_settings().set_mods_filters_collapsed(True)
         self.start_search(reset=True)
 
     def create_stat_card(self, title, value, desc):
@@ -951,9 +971,50 @@ class ModsPage(QWidget):
             "modpack": "Импортировать модпак",
         }.get(project_type, "Установить")
 
+    def project_type_from_project(self, project):
+        """Use the real Modrinth project_type when it is present.
+
+        This is important for automatic separation:
+        - mod -> .minecraft/mods
+        - shader -> .minecraft/shaderpacks
+        - resourcepack -> .minecraft/resourcepacks
+        - modpack -> .mrpack import/new instance
+        """
+        value = str((project or {}).get("project_type") or "").lower().strip()
+        if value in {"mod", "modpack", "resourcepack", "shader"}:
+            return value
+        return self.selected_project_type()
+
+    def project_type_label(self, project_type):
+        return {
+            "mod": "Мод",
+            "modpack": "Модпак",
+            "resourcepack": "Ресурспак",
+            "shader": "Шейдер",
+        }.get(project_type, "Проект")
+
     def selected_project_type(self):
         value = self.type_combo.currentData() if hasattr(self, "type_combo") else None
         return str(value or "mod")
+
+    def apply_project_type(self, project_type, search=True):
+        index = self.type_combo.findData(project_type) if hasattr(self, "type_combo") else -1
+        if index >= 0:
+            self.type_combo.blockSignals(True)
+            self.type_combo.setCurrentIndex(index)
+            self.type_combo.blockSignals(False)
+
+        self.on_type_changed(search=search)
+
+    def sync_type_tabs(self):
+        current = self.selected_project_type()
+        for value, button in getattr(self, "type_buttons", {}).items():
+            button.blockSignals(True)
+            button.setChecked(value == current)
+            button.setProperty("active", value == current)
+            button.style().unpolish(button)
+            button.style().polish(button)
+            button.blockSignals(False)
 
     def selected_project_type_info(self):
         current = self.selected_project_type()
@@ -977,6 +1038,7 @@ class ModsPage(QWidget):
     def on_type_changed(self, *args, search=True):
         project_type = self.selected_project_type()
         info = self.selected_project_type_info()
+        self.sync_type_tabs()
 
         if hasattr(self, "category_combo"):
             self.category_combo.blockSignals(True)
@@ -1000,6 +1062,12 @@ class ModsPage(QWidget):
 
         if hasattr(self, "side_combo"):
             self.side_combo.setEnabled(project_type in {"mod", "modpack"})
+            if project_type not in {"mod", "modpack"}:
+                self.side_combo.blockSignals(True)
+                index = self.side_combo.findData("")
+                if index >= 0:
+                    self.side_combo.setCurrentIndex(index)
+                self.side_combo.blockSignals(False)
 
         if search:
             self.schedule_search()
@@ -1179,7 +1247,7 @@ class ModsPage(QWidget):
             query=query,
             project_type=self.selected_project_type(),
             category=self.selected_category(),
-            side=self.selected_side(),
+            side=self.selected_side() if self.selected_project_type() in {"mod", "modpack"} else "",
             sort_index=self.selected_sort(),
             offset=self.offset,
             limit=self.limit,
@@ -1282,14 +1350,14 @@ class ModsPage(QWidget):
     def create_mod_card(self, project):
         card = QFrame()
         card.setObjectName("ModResultCard")
-        card.setMinimumHeight(160)
+        card.setMinimumHeight(142)
 
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setContentsMargins(12, 9, 12, 9)
         layout.setSpacing(6)
 
         selected_instance = self.selected_instance()
-        project_type = self.selected_project_type()
+        project_type = self.project_type_from_project(project)
         state = installed_state(selected_instance, project, project_type) if selected_instance else {
             "state": "no_instance",
             "label": "Нет сборки",
@@ -1327,7 +1395,7 @@ class ModsPage(QWidget):
         description = QLabel(project.get("description", "Без описания"))
         description.setObjectName("PanelText")
         description.setWordWrap(True)
-        description.setMaximumHeight(38)
+        description.setMaximumHeight(32)
 
         meta_line = QHBoxLayout()
         meta_line.setSpacing(6)
@@ -1412,14 +1480,17 @@ class ModsPage(QWidget):
 
     def show_details(self, project):
         payload = dict(project or {})
-        payload["project_type"] = payload.get("project_type") or self.selected_project_type()
+        payload["project_type"] = self.project_type_from_project(payload)
         dialog = ModDetailsDialog(payload, self)
         dialog.exec()
 
     def install_project(self, project):
-        project_type = self.selected_project_type()
+        project = dict(project or {})
+        project_type = self.project_type_from_project(project)
+        project["project_type"] = project_type
         type_info = self.selected_project_type_info()
 
+        type_info = next((item for item in PROJECT_TYPES if item.get("value") == project_type), type_info)
         if not type_info.get("installable"):
             return
 
@@ -1612,7 +1683,8 @@ class ModsPage(QWidget):
                 "Шейдер установлен",
                 f"{install_message}\n\n"
                 f"Папка: {folder}\n\n"
-                "В игре открой настройки шейдеров Iris/Oculus/OptiFine и выбери установленный shader pack."
+                "В игре открой: Настройки видео → Наборы шейдеров → выбери установленный shader pack.\n\n"
+                "Важно: Iris Shaders — это загрузчик шейдеров, а сам shader pack — это отдельный .zip файл."
             )
             return
 
@@ -1758,7 +1830,7 @@ class ModsPage(QWidget):
         if not slug:
             return
 
-        project_type = project.get("project_type") or self.selected_project_type()
+        project_type = self.project_type_from_project(project)
         path_by_type = {
             "mod": "mod",
             "modpack": "modpack",

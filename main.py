@@ -50,6 +50,12 @@ def main():
         return
 
     try:
+        try:
+            from core.windows_app_id import set_windows_app_id
+            set_windows_app_id()
+        except Exception:
+            logger.debug("Windows AppUserModelID setup skipped", exc_info=True)
+
         logger.info("Checking proxy environment before cleanup")
         log_proxy_environment()
 
@@ -79,6 +85,13 @@ def main():
         logger.info("Creating QApplication")
         app = QApplication(sys.argv)
         try:
+            app.setApplicationName("Nexus Launcher")
+            app.setApplicationDisplayName("Nexus Launcher")
+            app.setOrganizationName("Nexus Minecraft")
+        except Exception:
+            pass
+
+        try:
             app_icon = Path(__file__).resolve().parent / "assets" / "nexus.ico"
             if app_icon.exists():
                 app.setWindowIcon(QIcon(str(app_icon)))
@@ -98,6 +111,12 @@ def main():
         window = MainWindow()
         window.show()
 
+        try:
+            from core.discord_presence import discord_presence
+            discord_presence().set_launcher_idle("Главная")
+        except Exception:
+            logger.debug("Discord presence startup skipped", exc_info=True)
+
         if "--open-updates" in sys.argv:
             from PySide6.QtCore import QTimer
             from app.window import PageIndex
@@ -114,6 +133,12 @@ def main():
 
         logger.info("Application event loop started")
         exit_code = app.exec()
+
+        try:
+            from core.discord_presence import discord_presence
+            discord_presence().close()
+        except Exception:
+            pass
 
         logger.info("Application closed with code %s", exit_code)
         sys.exit(exit_code)

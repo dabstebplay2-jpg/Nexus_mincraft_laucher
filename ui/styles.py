@@ -1842,6 +1842,58 @@ SIDEBAR_LOGO_SAFE_STYLE = r"""
 }
 """
 
+
+NEXUS_OVERHAUL_POLISH_STYLE = r"""
+/* Overhaul polish: tighter catalog and clearer dark Minecraft UI */
+#ModsAdvancedFilters {
+    border-radius: 18px;
+    background-color: rgba(8, 13, 10, 0.88);
+    border: 1px solid rgba(114, 139, 91, 0.22);
+}
+
+#MinecraftShortcutCard {
+    min-height: 38px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+}
+
+#ContentTypeTab {
+    min-width: 78px;
+    min-height: 36px;
+    padding: 8px 18px;
+}
+
+#ModResultCard {
+    border-radius: 16px;
+    background-color: rgba(8, 14, 11, 0.92);
+}
+
+#ModResultCard:hover {
+    background-color: rgba(12, 20, 15, 0.96);
+    border-color: rgba(114, 162, 79, 0.45);
+}
+
+#ToggleFiltersButton {
+    min-width: 130px;
+}
+
+#TopbarStatusButton {
+    min-width: 96px;
+}
+
+/* Settings page Discord Client ID input */
+QLineEdit {
+    selection-background-color: #4D7F39;
+}
+
+/* Make bottom/status bar a bit more launcher-like */
+#BottomStatusBar {
+    background-color: rgba(4, 7, 5, 0.90);
+    border-top: 1px solid rgba(122, 142, 98, 0.20);
+}
+"""
+
 def get_app_style(theme=None):
     theme = (theme or _read_saved_theme() or "dark").lower()
 
@@ -1851,6 +1903,6 @@ def get_app_style(theme=None):
         theme = "dark"
 
     if theme == "amoled":
-        return APP_STYLE + AMOLED_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE + CONTENT_SPLIT_AND_DARK_ONLY_STYLE + SIDEBAR_LOGO_SAFE_STYLE
+        return APP_STYLE + AMOLED_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE + CONTENT_SPLIT_AND_DARK_ONLY_STYLE + SIDEBAR_LOGO_SAFE_STYLE + NEXUS_OVERHAUL_POLISH_STYLE
 
-    return APP_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE + CONTENT_SPLIT_AND_DARK_ONLY_STYLE + SIDEBAR_LOGO_SAFE_STYLE
+    return APP_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE + CONTENT_SPLIT_AND_DARK_ONLY_STYLE + SIDEBAR_LOGO_SAFE_STYLE + NEXUS_OVERHAUL_POLISH_STYLE

@@ -1,6 +1,7 @@
 import logging
 import shutil
 import subprocess
+import threading
 from pathlib import Path
 
 import minecraft_launcher_lib
@@ -178,6 +179,17 @@ class Launcher:
             "-Xms1024M",
         ]
 
+        launcher_settings = get_launcher_settings()
+        if launcher_settings.is_minecraft_resolution_enabled():
+            width, height = launcher_settings.get_minecraft_resolution()
+            # minecraft-launcher-lib expects these values as strings.
+            options["customResolution"] = True
+            options["resolutionWidth"] = str(width)
+            options["resolutionHeight"] = str(height)
+            logger.info("Using custom Minecraft resolution: %sx%s", width, height)
+        else:
+            options["customResolution"] = False
+
         command = minecraft_launcher_lib.command.get_minecraft_command(
             launch_version,
             str(minecraft_dir),
@@ -203,10 +215,32 @@ class Launcher:
         self.set_status("Запуск Minecraft...")
         logger.info("Starting Minecraft process. launch_version=%s", launch_version)
 
-        subprocess.Popen(
+        process = subprocess.Popen(
             command,
             cwd=str(minecraft_dir),
         )
+
+        try:
+            from core.discord_presence import discord_presence
+            discord_presence().set_playing(instance)
+
+            def _watch_minecraft_process():
+                try:
+                    process.wait()
+                    logger.info("Minecraft process exited with code %s", process.returncode)
+                finally:
+                    try:
+                        discord_presence().set_launcher_idle("Minecraft закрыт")
+                    except Exception:
+                        pass
+
+            threading.Thread(
+                target=_watch_minecraft_process,
+                name="MinecraftProcessWatcher",
+                daemon=True,
+            ).start()
+        except Exception:
+            logger.debug("Discord presence process watch skipped", exc_info=True)
 
         get_instance_manager().mark_played(instance["id"])
 
