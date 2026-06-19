@@ -3,23 +3,25 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Nexus Launcher — Minecraft лаунчер</title>
-  <meta name="description" content="Nexus Launcher — простой Windows-лаунчер для Minecraft-сборок, модов, шейдеров и обновлений." />
-  <meta name="theme-color" content="#2fd566" />
+  <title>Nexus Launcher — Minecraft launcher</title>
+  <meta name="description" content="Nexus Launcher — тёмный Minecraft-лаунчер для сборок, модов, шейдеров и обновлений." />
+  <meta name="theme-color" content="#0b1110" />
   <meta property="og:title" content="Nexus Launcher" />
-  <meta property="og:description" content="Minecraft-сборки, моды, шейдеры и установщик для Windows." />
+  <meta property="og:description" content="Сборки, моды, шейдеры, аккаунты и установщик для Windows." />
   <meta property="og:image" content="assets/og-cover.svg" />
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="header">
+  <div class="page-grid" aria-hidden="true"></div>
+
+  <header class="site-shell top-shell">
     <a class="brand" href="#top" aria-label="Nexus Launcher">
-      <img src="assets/logo.svg" alt="" />
-      <span>
+      <span class="brand-mark">N</span>
+      <span class="brand-copy">
         <strong>NEXUS</strong>
-        <small>Launcher</small>
+        <small>Minecraft Launcher</small>
       </span>
     </a>
 
@@ -28,27 +30,36 @@
     <nav class="nav" id="nav">
       <a href="#features">Возможности</a>
       <a href="#download">Скачать</a>
-      <a href="#screens">Интерфейс</a>
+      <a href="#interface">Интерфейс</a>
       <a href="#faq">FAQ</a>
     </nav>
   </header>
 
-  <main id="top">
-    <section class="hero container">
-      <div class="hero-text">
-        <p class="label">Windows • Minecraft Launcher • <span id="versionText">latest</span></p>
-        <h1>Нормальный лаунчер для Minecraft-сборок.</h1>
-        <p class="lead">
-          Nexus Launcher помогает запускать Minecraft, создавать сборки,
-          искать моды, ставить шейдеры и обновляться через GitHub Releases.
-        </p>
-
-        <div class="actions">
-          <a class="button primary" id="downloadBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.13-win-x64.exe" download>Скачать для Windows</a>
-          <a class="button secondary" href="#features">Что умеет?</a>
+  <main id="top" class="main">
+    <section class="hero site-shell">
+      <div class="hero-left">
+        <div class="launcher-label">
+          <span></span>
+          <b>WINDOWS • MINECRAFT LAUNCHER • <em id="versionText">0.7.13</em></b>
         </div>
 
-        <div class="badges">
+        <h1>Nexus Launcher</h1>
+
+        <p class="lead">
+          Тёмный Minecraft-лаунчер для сборок, модов, шейдеров, аккаунтов и обновлений.
+          Визуально ближе к приложению: спокойно, понятно и без лишнего неона.
+        </p>
+
+        <div class="hero-actions">
+          <a class="btn primary" id="downloadBtn"
+             href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.13-win-x64.exe"
+             download>
+            Скачать для Windows
+          </a>
+          <a class="btn secondary" href="#interface">Посмотреть интерфейс</a>
+        </div>
+
+        <div class="chips">
           <span>Setup installer</span>
           <span>Desktop shortcut</span>
           <span>Portable ZIP</span>
@@ -56,174 +67,224 @@
         </div>
       </div>
 
-      <div class="launcher-card" aria-label="Превью лаунчера">
+      <div class="app-preview" aria-label="Превью интерфейса Nexus Launcher">
         <div class="window-bar">
           <span></span><span></span><span></span>
           <b>Nexus Launcher</b>
         </div>
 
-        <div class="preview-layout">
-          <aside>
-            <div class="logo-block">N</div>
-            <i class="active"></i>
-            <i></i>
-            <i></i>
-            <i></i>
+        <div class="preview-body">
+          <aside class="preview-sidebar">
+            <div class="preview-logo">
+              <span>N</span>
+              <div>
+                <strong>NEXUS</strong>
+                <small>MINECRAFT</small>
+              </div>
+            </div>
+
+            <div class="preview-nav">
+              <i class="active"></i>
+              <i></i>
+              <i></i>
+              <i></i>
+              <i></i>
+            </div>
+
+            <div class="preview-player">
+              <span></span>
+              <div>
+                <b>NexusPlayer</b>
+                <small>● Offline</small>
+              </div>
+            </div>
           </aside>
 
-          <div class="preview-content">
-            <div class="preview-title">
-              <small>Главная</small>
-              <strong>Nexus Player</strong>
+          <section class="preview-content">
+            <div class="preview-top">
+              <div>
+                <small>Главная</small>
+                <strong>Nexus Launcher</strong>
+              </div>
+              <button>▶ Играть</button>
             </div>
 
-            <div class="minecraft-strip">
-              <div></div><div></div><div></div><div></div><div></div>
-              <div></div><div></div><div></div><div></div><div></div>
+            <div class="minecraft-hero">
+              <div>
+                <small>Добро пожаловать в</small>
+                <b>Nexus Launcher</b>
+                <p>Сборки, моды, шейдеры и аккаунты в одном центре.</p>
+              </div>
+              <div class="ram-cards">
+                <span><b>RAM</b><em>8 GB</em></span>
+                <span><b>Java</b><em>Auto</em></span>
+              </div>
             </div>
 
-            <div class="preview-grid">
-              <div><b>Fabric</b><span>1.20.1</span></div>
-              <div><b>RAM</b><span>4096 MB</span></div>
-              <div><b>Mods</b><span>Modrinth</span></div>
-              <div><b>Java</b><span>Auto</span></div>
+            <div class="preview-cards">
+              <article><b>0</b><span>сборки</span></article>
+              <article><b>0</b><span>моды</span></article>
+              <article><b>1</b><span>загрузки</span></article>
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </section>
 
-    <section class="stats container">
-      <div><b id="versionStat">latest</b><span>версия</span></div>
-      <div><b>1 click</b><span>скачивание</span></div>
-      <div><b>Modrinth</b><span>моды и шейдеры</span></div>
-      <div><b>Setup</b><span>установщик</span></div>
+    <section class="stats site-shell">
+      <article>
+        <b id="versionStat">0.7.13</b>
+        <span>версия</span>
+      </article>
+      <article>
+        <b>1 click</b>
+        <span>скачивание</span>
+      </article>
+      <article>
+        <b>Modrinth</b>
+        <span>моды и шейдеры</span>
+      </article>
+      <article>
+        <b>Setup</b>
+        <span>установщик</span>
+      </article>
     </section>
 
-    <section class="section container" id="features">
+    <section class="section site-shell" id="features">
       <div class="section-head">
-        <p class="label">Возможности</p>
-        <h2>Без перегруза: только то, что нужно для запуска.</h2>
+        <span class="dot-label">ВОЗМОЖНОСТИ</span>
+        <h2>Как в лаунчере: простые блоки и понятные действия.</h2>
       </div>
 
-      <div class="cards">
+      <div class="feature-grid">
         <article>
-          <span class="icon">🧱</span>
+          <span class="icon">▣</span>
           <h3>Сборки</h3>
-          <p>Отдельные профили Minecraft с версией, loader, RAM и Java.</p>
+          <p>Отдельные Minecraft-профили с версией, loader, RAM и Java.</p>
         </article>
-
         <article>
-          <span class="icon">⚙️</span>
+          <span class="icon">✚</span>
           <h3>Моды</h3>
           <p>Поиск по Modrinth, установка в выбранную сборку и проверка статуса.</p>
         </article>
-
         <article>
-          <span class="icon">🌄</span>
+          <span class="icon">▤</span>
           <h3>Шейдеры</h3>
           <p>Скачивание shader packs и подсказки по Iris, Oculus или OptiFine.</p>
         </article>
-
         <article>
-          <span class="icon">🔄</span>
+          <span class="icon">↻</span>
           <h3>Обновления</h3>
           <p>Подготовка к автообновлениям через GitHub Releases.</p>
         </article>
       </div>
     </section>
 
-    <section class="section container split" id="download">
+    <section class="section site-shell download-section" id="download">
       <div>
-        <p class="label">Скачать</p>
-        <h2>Одна кнопка — прямой download установщика.</h2>
-        <p class="text">
-          Кнопка скачивает Setup EXE из последнего GitHub Release без перехода на страницу GitHub.
+        <span class="dot-label">СКАЧАТЬ</span>
+        <h2>Прямой download установщика.</h2>
+        <p>
+          Кнопка скачивает Setup EXE из последнего GitHub Release.
           После установки Nexus запускается как обычное Windows-приложение.
         </p>
       </div>
 
-      <div class="download-panel">
-        <a class="button primary wide" id="mainDownloadBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.13-win-x64.exe" download>Скачать Nexus Launcher</a>
-        <a class="button secondary wide" id="portableBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncher-0.7.13-win-x64-portable.zip" download>Скачать portable ZIP</a>
-        <button class="button ghost wide" id="copyBtn">Скопировать ссылку</button>
+      <div class="download-card">
+        <a class="btn primary wide" id="setupBtn"
+           href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.7.13-win-x64.exe"
+           download>
+          Скачать Nexus Launcher
+        </a>
 
-        <div class="file-box">
-          <b id="assetName">NexusLauncherSetup-0.7.13-win-x64.exe</b>
-          <span>Если Windows SmartScreen покажет предупреждение — это из-за отсутствия платной цифровой подписи.</span>
+        <a class="btn secondary wide" id="portableBtn"
+           href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncher-0.7.13-win-x64-portable.zip"
+           download>
+          Скачать portable ZIP
+        </a>
+
+        <button class="btn secondary wide" id="copyLinkBtn" type="button">
+          Скопировать ссылку
+        </button>
+
+        <div class="file-note">
+          <b id="fileName">NexusLauncherSetup-0.7.13-win-x64.exe</b>
+          <span>SmartScreen может предупредить из-за отсутствия платной цифровой подписи.</span>
         </div>
       </div>
     </section>
 
-    <section class="section container" id="screens">
+    <section class="section site-shell" id="interface">
       <div class="section-head">
-        <p class="label">Интерфейс</p>
-        <h2>Лаунчер уже выглядит как приложение, а не папка с Python.</h2>
+        <span class="dot-label">ИНТЕРФЕЙС</span>
+        <h2>Сайт теперь повторяет логику лаунчера.</h2>
       </div>
 
-      <div class="ui-showcase">
-        <div class="mini-panel">
-          <b>Главная</b>
-          <span>сборки, быстрые действия, активность</span>
-        </div>
-        <div class="mini-panel">
-          <b>Моды</b>
-          <span>FPS, шейдеры, Vanilla+, ресурспаки</span>
-        </div>
-        <div class="mini-panel">
-          <b>Профиль</b>
-          <span>аккаунты открываются по клику на игрока</span>
-        </div>
+      <div class="interface-grid">
+        <article>
+          <h3>Левый сайдбар</h3>
+          <p>Навигация, профиль и главный бренд-блок визуально похожи на приложение.</p>
+        </article>
+        <article>
+          <h3>Главная</h3>
+          <p>Hero-блок, статистика и быстрые действия оформлены как панели лаунчера.</p>
+        </article>
+        <article>
+          <h3>Minecraft-dark</h3>
+          <p>Тёмный камень, трава, мох и спокойные зелёные акценты без кислотного неона.</p>
+        </article>
       </div>
     </section>
 
-    <section class="section container roadmap">
-      <p class="label">Roadmap</p>
-      <h2>Путь к версии 1.0</h2>
+    <section class="section site-shell roadmap">
+      <div class="section-head">
+        <span class="dot-label">ROADMAP</span>
+        <h2>Путь к версии 1.0</h2>
+      </div>
 
       <div class="roadmap-grid">
-        <div><b>0.7.1</b><span>EXE</span></div>
-        <div><b>0.7.2</b><span>Installer</span></div>
-        <div><b>0.7.9</b><span>Self check</span></div>
-        <div class="current"><b>0.7.10</b><span>Tracked hook fix</span></div>
+        <article><b>0.7.1</b><span>EXE</span></article>
+        <article><b>0.7.2</b><span>Installer</span></article>
+        <article><b>0.7.9</b><span>Self check</span></article>
+        <article class="active"><b>0.7.13</b><span>Clean UI</span></article>
       </div>
     </section>
 
-    <section class="section container faq" id="faq">
-      <div>
-        <p class="label">FAQ</p>
+    <section class="section site-shell faq" id="faq">
+      <div class="section-head">
+        <span class="dot-label">FAQ</span>
         <h2>Частые вопросы</h2>
       </div>
 
-      <div class="faq-list">
-        <details open>
-          <summary>Это официальный лаунчер Mojang/Microsoft?</summary>
-          <p>Нет. Nexus Launcher — отдельный неофициальный проект.</p>
-        </details>
-        <details>
-          <summary>Скачивание идёт без перехода на GitHub?</summary>
-          <p>Да. Кнопка ведёт прямо на asset из последнего GitHub Release.</p>
-        </details>
-        <details>
-          <summary>Куда ставится программа?</summary>
-          <p>В папку пользователя Windows, с ярлыком на рабочем столе после установки.</p>
-        </details>
-      </div>
+      <details open>
+        <summary>Это официальный лаунчер Mojang/Microsoft?</summary>
+        <p>Нет. Nexus Launcher — отдельный неофициальный проект.</p>
+      </details>
+
+      <details>
+        <summary>Скачивание идёт без перехода на GitHub?</summary>
+        <p>Да. Кнопка ведёт напрямую на файл из последнего GitHub Release.</p>
+      </details>
+
+      <details>
+        <summary>Куда ставится программа?</summary>
+        <p>Установщик ставит Nexus как обычное Windows-приложение и создаёт ярлык.</p>
+      </details>
     </section>
   </main>
 
-  <footer class="footer container">
-    <div class="footer-brand">
-      <img src="assets/logo.svg" alt="" />
-      <span>Nexus Launcher</span>
+  <footer class="site-shell footer">
+    <div class="brand mini">
+      <span class="brand-mark">N</span>
+      <span class="brand-copy">
+        <strong>Nexus Launcher</strong>
+      </span>
     </div>
-    <p>Простой Minecraft launcher для Windows. Версия <b id="footerVersion">latest</b>.</p>
+
+    <p>Простой Minecraft launcher для Windows. Версия <b id="footerVersion">0.7.13</b>.</p>
   </footer>
 
-  <script>
-    window.NEXUS_VERSION = "0.7.13";
-    window.NEXUS_REPO = "dabstebplay2-jpg/Nexus_mincraft_laucher";
-  </script>
+  <script src="script.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
