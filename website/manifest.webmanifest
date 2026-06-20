@@ -4,18 +4,18 @@
   "description": "Minecraft launcher for Windows",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#07130d",
-  "theme_color": "#35d66b",
+  "background_color": "#f4f7ee",
+  "theme_color": "#f4f7ee",
   "icons": [
     {
-      "src": "assets/favicon.svg",
-      "sizes": "128x128",
-      "type": "image/svg+xml"
+      "src": "assets/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
     },
     {
-      "src": "assets/logo.svg",
-      "sizes": "128x128",
-      "type": "image/svg+xml"
+      "src": "assets/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
   ]
 }

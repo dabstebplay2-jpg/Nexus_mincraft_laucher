@@ -1,6 +1,6 @@
-; Inno Setup script for Nexus Launcher
+﻿; Inno Setup script for Nexus Launcher
 #define MyAppName "Nexus Launcher"
-#define MyAppVersion "0.7.13"
+#define MyAppVersion "0.8.0"
 #define MyAppPublisher "dabstebplay2-jpg"
 #define MyAppURL "https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher"
 #define MyAppExeName "NexusLauncher.exe"
@@ -47,3 +47,4 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 
 [UninstallRun]
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--uninstall"; Flags: runhidden
+

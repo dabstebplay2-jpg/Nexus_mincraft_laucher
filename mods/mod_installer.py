@@ -270,6 +270,15 @@ class ModInstaller:
         installed.append(str(target))
         logger.info("Installed mod file: %s", target)
 
+        # Dependencies are only auto-installed for normal .jar mods.
+        #
+        # Shader packs and resource packs may list Iris/OptiFine/other projects as
+        # dependencies on Modrinth, but those dependencies are .jar mods. Installing
+        # them with project_type="shader" would either fail validation or put a .jar
+        # into shaderpacks. Nexus handles shader loaders separately after install.
+        if project_type != "mod":
+            return
+
         for dependency in version.get("dependencies", []):
             if dependency.get("dependency_type") != "required":
                 continue
@@ -283,7 +292,7 @@ class ModInstaller:
                     dependency_version,
                     instance,
                     installed,
-                    project_type=project_type,
+                    project_type="mod",
                     depth=depth + 1,
                     seen_version_ids=seen_version_ids,
                 )
@@ -301,7 +310,7 @@ class ModInstaller:
                         self.pick_best_version(versions),
                         instance,
                         installed,
-                        project_type=project_type,
+                        project_type="mod",
                         depth=depth + 1,
                         seen_version_ids=seen_version_ids,
                     )

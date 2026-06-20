@@ -1,16 +1,11 @@
-Nexus Launcher Website — Stable Simple Fix
+Nexus Launcher website
 
-Это упрощённая стабильная версия сайта:
-- без налезающих floating-карточек;
-- без тяжёлого canvas-фона;
-- без абсолютных блоков поверх контента;
-- без огромных пустых секций;
-- нормальная адаптация под экран;
-- прямое скачивание установщика из GitHub Releases.
-
-Локальный запуск:
-cd C:\Nexus_minecraft_launcher\website
-..\.venv\Scripts\python.exe -m http.server 8080
-
-Открыть:
-http://localhost:8080
+Тексты сайта очищены от внутренних комментариев и рассуждений.
+Контент описывает только функции лаунчера:
+- загрузка Windows installer и portable ZIP;
+- управление сборками;
+- каталог Modrinth;
+- моды, шейдеры, ресурспаки и модпаки;
+- Discord Rich Presence;
+- параметры запуска Minecraft;
+- roadmap проекта.

@@ -1,68 +1,44 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="robots" content="noindex, follow" />
-  <meta name="description" content="Политика конфиденциальности Nexus Launcher." />
-  <meta name="theme-color" content="#16a34a" />
-  <title>Конфиденциальность — Nexus Launcher</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Privacy — Nexus Launcher</title>
   <link rel="icon" href="assets/favicon.png" type="image/png" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="page-bg" aria-hidden="true"></div>
-  <div class="noise" aria-hidden="true"></div>
-
   <header class="site-header">
-    <a class="brand" href="index.html" aria-label="Nexus Launcher — на главную">
-      <span class="brand-mark" aria-hidden="true">N</span>
-      <span>
-        <strong>NEXUS</strong>
-        <small>Minecraft Launcher</small>
-      </span>
+    <a class="brand" href="index.html">
+      <img src="assets/logo.png" alt="" />
+      <span><b>Nexus Launcher</b><small>Minecraft desktop app</small></span>
     </a>
   </header>
 
-  <main class="section-shell legal-page">
-    <span class="tag">Legal</span>
-    <h1>Конфиденциальность</h1>
-    <p>Последнее обновление: 14 июня 2026</p>
-
-    <h2>Кратко</h2>
-    <p>
-      Nexus Launcher — локальное desktop-приложение. Сайт nexus-launcher.github.io
-      не использует cookies, не собирает персональные данные и не содержит сторонней аналитики.
-    </p>
-
-    <h2>Что делает лаунчер</h2>
-    <ul>
-      <li>Хранит сборки, настройки и логи локально на вашем компьютере (<code>%APPDATA%\NexusLauncher</code>).</li>
-      <li>Обращается к API Mojang, Modrinth и другим сервисам только для скачивания игры и модов.</li>
-      <li>Не отправляет ваши файлы на серверы Nexus — у проекта нет собственного backend.</li>
-    </ul>
-
-    <h2>Что делает сайт</h2>
-    <ul>
-      <li>Отдаёт статические файлы (HTML, CSS, JS) и архив для скачивания.</li>
-      <li>Не регистрирует аккаунты и не запрашивает email.</li>
-      <li>Хостинг-провайдер (GitHub Pages, Netlify и т.д.) может вести стандартные server logs — см. их политику.</li>
-    </ul>
-
-    <h2>Контакты</h2>
-    <p>
-      По вопросам проекта используйте репозиторий GitHub проекта Nexus Launcher.
-    </p>
-
-    <p><a class="btn btn-secondary" href="index.html">← На главную</a></p>
-  </main>
-
-  <footer class="site-footer section-shell">
-    <div class="footer-brand">
-      <strong>Nexus Launcher</strong>
-      <span>Build. Mod. Launch. Control.</span>
+  <main class="section">
+    <div class="section-head">
+      <small>Privacy</small>
+      <h2>Конфиденциальность</h2>
+      <p>Nexus Launcher хранит основные настройки, сборки и логи локально на компьютере пользователя.</p>
     </div>
-    <p class="footer-legal">Неофициальный проект. Не связан с Mojang Studios или Microsoft.</p>
-  </footer>
+
+    <div class="workflow-board">
+      <article>
+        <span>Local</span>
+        <h3>Локальные данные</h3>
+        <p>Сборки, настройки, логи и выбранные параметры запуска сохраняются на устройстве пользователя.</p>
+      </article>
+      <article>
+        <span>External</span>
+        <h3>Внешние сервисы</h3>
+        <p>Каталог использует Modrinth, а сайт получает информацию о релизах через GitHub Releases.</p>
+      </article>
+      <article>
+        <span>Discord</span>
+        <h3>Discord Rich Presence</h3>
+        <p>Discord-статус включается пользователем в настройках лаунчера и может быть отключён.</p>
+      </article>
+    </div>
+  </main>
 </body>
 </html>

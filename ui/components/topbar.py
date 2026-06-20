@@ -123,12 +123,9 @@ class Topbar(QWidget):
 
     def set_theme(self, theme):
         theme = str(theme or "dark").lower()
-        if theme == "light":
-            self.theme_button.setText("☀")
-            self.theme_button.setToolTip("Светлая тема активна. Нажми, чтобы включить тёмную.")
-        elif theme == "amoled":
+        if theme == "amoled":
             self.theme_button.setText("●")
-            self.theme_button.setToolTip("AMOLED активна. Нажми, чтобы включить светлую.")
+            self.theme_button.setToolTip("AMOLED активна. Нажми, чтобы включить обычную тёмную тему.")
         else:
             self.theme_button.setText("☾")
-            self.theme_button.setToolTip("Тёмная тема активна. Нажми, чтобы включить светлую.")
+            self.theme_button.setToolTip("Тёмная тема активна. Нажми, чтобы включить AMOLED.")
