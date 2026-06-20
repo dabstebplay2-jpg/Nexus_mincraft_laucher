@@ -434,6 +434,7 @@ def create_update_launcher_script(downloaded_path: str | Path, silent: bool = Tr
     UPDATES_DIR.mkdir(parents=True, exist_ok=True)
 
     script = UPDATES_DIR / "run_nexus_update.cmd"
+    parent_pid = os.getpid()
 
     if os.name == "nt":
         installer_args = ""
@@ -444,7 +445,14 @@ def create_update_launcher_script(downloaded_path: str | Path, silent: bool = Tr
             "@echo off\r\n"
             "title Nexus Launcher Update\r\n"
             "echo Waiting for Nexus Launcher to close...\r\n"
-            "timeout /t 2 /nobreak >nul\r\n"
+            f"set NEXUS_PARENT_PID={parent_pid}\r\n"
+            "for /l %%i in (1,1,60) do (\r\n"
+            "  tasklist /FI \"PID eq %NEXUS_PARENT_PID%\" 2>nul | find \"%NEXUS_PARENT_PID%\" >nul\r\n"
+            "  if errorlevel 1 goto nexus_closed\r\n"
+            "  timeout /t 1 /nobreak >nul\r\n"
+            ")\r\n"
+            ":nexus_closed\r\n"
+            "timeout /t 1 /nobreak >nul\r\n"
             f'start "" "{downloaded_path}"{installer_args}\r\n',
             encoding="utf-8",
         )

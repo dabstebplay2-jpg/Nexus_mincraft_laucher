@@ -1,5 +1,5 @@
 const repo = window.NEXUS_REPO || "dabstebplay2-jpg/Nexus_mincraft_laucher";
-const fallbackVersion = window.NEXUS_VERSION || "1.0.1";
+const fallbackVersion = window.NEXUS_VERSION || "1.0.2";
 
 const menuBtn = document.getElementById("menuBtn");
 const nav = document.getElementById("nav");

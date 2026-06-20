@@ -1,9 +1,9 @@
 ; Nexus Launcher installer
 ; Build with:
-;   ISCC.exe /DAppVersion=1.0.1 installer\NexusLauncher.iss
+;   ISCC.exe /DAppVersion=1.0.2 installer\NexusLauncher.iss
 
 #ifndef AppVersion
-#define AppVersion "1.0.1"
+#define AppVersion "1.0.2"
 #endif
 
 #define AppName "Nexus Launcher"
@@ -65,6 +65,23 @@ Filename: "{app}\{#AppExeName}"; Description: "Запустить Nexus Launcher
 [Code]
 const
   AppUninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{B5D3C6F2-4C92-4F01-9E4F-41B0E3B85C47}_is1';
+
+procedure StopRunningNexusLauncher();
+var
+  ResultCode: Integer;
+begin
+  Log('Stopping running Nexus Launcher processes before install/update.');
+  Exec(
+    ExpandConstant('{cmd}'),
+    '/C taskkill /IM "{#AppExeName}" /T /F >NUL 2>NUL',
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  );
+  Log('taskkill Nexus Launcher exit code: ' + IntToStr(ResultCode));
+  Sleep(1200);
+end;
 
 function ExtractExeAndParams(CommandLine: string; var ExePath: string; var Params: string): Boolean;
 var
@@ -129,7 +146,16 @@ end;
 
 function InitializeSetup(): Boolean;
 begin
+  StopRunningNexusLauncher();
   RunPreviousUninstaller(HKCU);
   RunPreviousUninstaller(HKLM);
   Result := True;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then
+  begin
+    StopRunningNexusLauncher();
+  end;
 end;

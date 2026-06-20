@@ -187,6 +187,7 @@ class MainWindow(QMainWindow):
         self._pending_update_path = None
         self._update_release = None
         self._update_pending_restart = False
+        self._installing_update = False
 
         self.update_bar = self.create_update_bar()
         self.update_bar.setVisible(False)
@@ -217,7 +218,7 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
-        if self._pending_update_path:
+        if self._installing_update and self._pending_update_path:
             try:
                 from core.updater import start_installer_after_exit
                 start_installer_after_exit(self._pending_update_path, silent=True)
@@ -317,6 +318,7 @@ class MainWindow(QMainWindow):
             pass
 
         if self._pending_update_path:
+            self._installing_update = True
             self.close()
         elif self._update_release:
             self._on_update_check_done(self._update_release)
@@ -326,6 +328,7 @@ class MainWindow(QMainWindow):
         self._update_release = None
         self._pending_update_path = None
         self._update_pending_restart = False
+        self._installing_update = False
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
