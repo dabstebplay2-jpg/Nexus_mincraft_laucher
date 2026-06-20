@@ -29,6 +29,7 @@ class PageIndex:
     SETTINGS = 6
     LOGS = 7
 from storage.paths import DATA_DIR
+from core.launcher_settings import get_launcher_settings
 from ui.styles import get_app_style
 from ui.components.sidebar import Sidebar
 from ui.components.topbar import Topbar
@@ -102,21 +103,20 @@ class MainWindow(QMainWindow):
                 self.setWindowIcon(QIcon(str(icon_path)))
         except Exception:
             pass
-        self.setMinimumSize(560, 420)
-        self.resize(1320, 800)
-        self.setStyleSheet(get_app_style())
+        self.setMinimumSize(980, 640)
+        self.resize(1240, 760)
 
         self.last_play_instance = None
 
         self.page_meta = [
-            ("Главная", "Центр управления Nexus Launcher"),
-            ("Сборки", "Создание, запуск и настройка Minecraft-сборок"),
-            ("Моды", "Каталог Modrinth, поиск, установка и подробности модов"),
-            ("Библиотека", "Установленные моды по сборкам"),
-            ("Загрузки", "Центр загрузок Minecraft, модов, Java и ресурсов"),
-            ("Аккаунты", "Offline, Microsoft, Ely.by профили и скины"),
-            ("Настройки", "Java, RAM, сеть, папки и диагностика"),
-            ("Логи", "Логи лаунчера, Minecraft и crash-отчёты"),
+            ("Главная", "Краткий обзор и быстрый старт"),
+            ("Сборки", "Создание, запуск и настройка сборок"),
+            ("Каталог", "Моды, шейдеры, ресурспаки и модпаки"),
+            ("Библиотека", "Установленный контент по сборкам"),
+            ("Загрузки", "История загрузок и состояние задач"),
+            ("Аккаунты", "Offline, Microsoft, Ely.by и скины"),
+            ("Настройки", "Java, RAM, папки и параметры лаунчера"),
+            ("Логи", "Логи лаунчера и Minecraft"),
         ]
 
         root = QWidget()
@@ -143,7 +143,7 @@ class MainWindow(QMainWindow):
         self.topbar = Topbar()
         self.topbar.search_submitted.connect(self.handle_search)
         self.topbar.play_clicked.connect(self.handle_quick_play)
-        self.topbar.theme_toggle_clicked.connect(self.toggle_theme)
+        self.topbar.sidebar_toggle_clicked.connect(self.toggle_sidebar)
 
         self.home_page = HomePage()
         self.home_page.navigate_requested.connect(self.change_page)
@@ -191,8 +191,16 @@ class MainWindow(QMainWindow):
         self.update_bar = self.create_update_bar()
         self.update_bar.setVisible(False)
 
+        initial_compact = get_launcher_settings().is_sidebar_collapsed() or self.width() < 1180
+        if hasattr(self.sidebar, "set_compact"):
+            self.sidebar.set_compact(initial_compact)
+        if hasattr(self.topbar, "set_sidebar_collapsed"):
+            self.topbar.set_sidebar_collapsed(initial_compact)
+        if hasattr(self.topbar, "set_compact"):
+            self.topbar.set_compact(initial_compact)
+
         self.change_page(0)
-        self.topbar.set_theme(self.current_theme())
+        self.apply_theme(self.current_theme())
         QTimer.singleShot(3000, self.check_updates_on_startup)
 
 
@@ -321,7 +329,7 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        compact = self.width() < 1040
+        compact = self.width() < 1180
         if hasattr(self.sidebar, "set_compact"):
             self.sidebar.set_compact(compact)
         if hasattr(self.topbar, "set_compact"):
@@ -353,19 +361,33 @@ class MainWindow(QMainWindow):
 
     def toggle_theme(self):
         current = self.current_theme().lower()
-        # Light theme is disabled until it is redesigned properly.
-        # Toggle only between normal dark and AMOLED dark.
+        if current == "light":
+            current = "dark"
         next_theme = "amoled" if current == "dark" else "dark"
         self.save_theme(next_theme)
         self.apply_theme(next_theme)
         if hasattr(self.settings_page, "sync_settings_combos"):
             self.settings_page.sync_settings_combos()
 
+    def toggle_sidebar(self):
+        collapsed = not bool(getattr(self.sidebar, "compact", False))
+        self.sidebar.set_compact(collapsed)
+        if hasattr(self.topbar, "set_sidebar_collapsed"):
+            self.topbar.set_sidebar_collapsed(collapsed)
+        get_launcher_settings().set_sidebar_collapsed(collapsed)
+
     def apply_theme(self, theme=None):
         theme = theme or self.current_theme()
+        if str(theme).lower() == "light":
+            theme = "dark"
+            self.save_theme(theme)
         self.setStyleSheet(get_app_style(theme))
         if hasattr(self.topbar, "set_theme"):
             self.topbar.set_theme(theme)
+        if hasattr(self.sidebar, "refresh_theme"):
+            self.sidebar.refresh_theme(theme)
+        if hasattr(self.sidebar, "update_profile"):
+            self.sidebar.update_profile()
 
     def change_page(self, index):
         if index == PageIndex.HOME and hasattr(self.home_page, "refresh"):
@@ -382,6 +404,8 @@ class MainWindow(QMainWindow):
 
         if index == PageIndex.ACCOUNTS and hasattr(self.accounts_page, "refresh"):
             self.accounts_page.refresh()
+            if hasattr(self.sidebar, "update_profile"):
+                self.sidebar.update_profile()
 
         if index == PageIndex.SETTINGS and hasattr(self.settings_page, "refresh"):
             self.settings_page.refresh()
@@ -518,7 +542,7 @@ class MainWindow(QMainWindow):
         self.status_label = QLabel("Готово")
         self.status_label.setObjectName("BottomStatusText")
 
-        version = QLabel(f"Nexus Launcher {APP_VERSION} • Downloads Center")
+        version = QLabel(f"Nexus Launcher {APP_VERSION}")
         version.setObjectName("BottomStatusText")
 
         layout.addWidget(self.status_label)

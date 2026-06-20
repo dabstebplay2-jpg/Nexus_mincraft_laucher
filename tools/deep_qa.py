@@ -7,6 +7,8 @@ import traceback
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 def ok(text):
@@ -83,7 +85,7 @@ def check_runtime_not_tracked():
 
 def check_app_info():
     ns = {}
-    text = (ROOT / "core/app_info.py").read_text(encoding="utf-8")
+    text = (ROOT / "core/app_info.py").read_text(encoding="utf-8-sig")
     exec(compile(text, "core/app_info.py", "exec"), ns)
 
     version = ns.get("APP_VERSION")
@@ -112,11 +114,31 @@ def check_website_json():
     for rel in ["website/release.json", "website/downloads/release.json"]:
         path = ROOT / rel
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
+            data = json.loads(path.read_text(encoding="utf-8-sig"))
             ok(f"{rel}: valid JSON, version={data.get('version')}")
         except Exception as error:
             fail(f"{rel}: {error}")
             return False
+    return True
+
+
+def check_full_audit():
+    try:
+        from tools.full_audit import collect_issues
+    except Exception as error:
+        fail(f"full_audit import failed: {error}")
+        return False
+
+    issues = collect_issues(include_ui=False)
+    if issues:
+        fail(f"Full audit found {len(issues)} issue(s):")
+        for item in issues[:12]:
+            print("  -", item)
+        if len(issues) > 12:
+            print(f"  ... and {len(issues) - 12} more")
+        return False
+
+    ok("Full audit: imports, theme, loaders, instances")
     return True
 
 
@@ -129,6 +151,7 @@ def main():
         check_runtime_not_tracked(),
         check_app_info(),
         check_website_json(),
+        check_full_audit(),
     ]
 
     print()

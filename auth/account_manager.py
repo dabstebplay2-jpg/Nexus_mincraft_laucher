@@ -12,7 +12,7 @@ from typing import Any
 
 class AccountManager:
     """
-    Nexus Account Core v0.7.0
+    Nexus Account Core v1.0.1
 
     Offline-профиль + Microsoft/Ely.by.
     """

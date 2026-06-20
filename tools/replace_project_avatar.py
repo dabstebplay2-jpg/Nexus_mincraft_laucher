@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from PIL import Image, ImageChops
-
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
@@ -11,7 +9,19 @@ ICON_DIR = ASSETS / "icons"
 WEB_ASSETS = ROOT / "website" / "assets"
 
 
-def crop_and_square(image: Image.Image) -> Image.Image:
+def _require_pillow():
+    try:
+        from PIL import Image, ImageChops
+        return Image, ImageChops
+    except ImportError as exc:
+        raise SystemExit(
+            "Pillow (PIL) is required for this dev tool.\n"
+            "Install: pip install Pillow"
+        ) from exc
+
+
+def crop_and_square(image):
+    Image, ImageChops = _require_pillow()
     image = image.convert("RGBA")
     bg = Image.new("RGBA", image.size, (255, 255, 255, 255))
     diff = ImageChops.difference(image, bg)
@@ -37,6 +47,8 @@ def main() -> int:
     if len(sys.argv) < 2:
         print("Usage: python tools/replace_project_avatar.py path/to/avatar.png")
         return 2
+
+    Image, _ = _require_pillow()
 
     source = Path(sys.argv[1]).expanduser().resolve()
     if not source.exists():

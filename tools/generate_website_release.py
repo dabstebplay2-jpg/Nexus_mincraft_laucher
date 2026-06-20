@@ -47,7 +47,7 @@ def patch_index(version: str, repo: str):
 
     text = path.read_text(encoding="utf-8")
 
-    display_version = "latest"
+    display_version = version
     text = re.sub(r'(id="versionText">)[^<]+', rf"\g<1>{display_version}", text)
     text = re.sub(r'(id="versionStat">)[^<]+', rf"\g<1>{display_version}", text)
     text = re.sub(r'(id="footerVersion">)[^<]+', rf"\g<1>{display_version}", text)
@@ -91,6 +91,9 @@ def main() -> int:
     data = {
         "repo": repo,
         "version": version,
+        "channel": "stable",
+        "installer": f"{base}/{installer}",
+        "portable": f"{base}/{portable}",
         "latest_release_api": f"https://api.github.com/repos/{repo}/releases/latest",
         "latest_release_page": f"https://github.com/{repo}/releases/latest",
         "direct_download": f"{base}/{installer}",
@@ -107,6 +110,10 @@ def main() -> int:
         WEBSITE_DIR / "downloads" / "release.json",
         {
             "version": version,
+            "channel": "stable",
+            "repo": repo,
+            "installer": data["installer"],
+            "portable": data["portable"],
             "filename": installer,
             "download_url": data["direct_download"],
             "portable_filename": portable,

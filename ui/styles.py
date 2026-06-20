@@ -817,7 +817,10 @@ def _read_saved_theme():
         if not settings_file.exists():
             return "dark"
         data = json.loads(settings_file.read_text(encoding="utf-8"))
-        return data.get("theme", "dark")
+        theme = str(data.get("theme", "dark")).lower()
+        if theme == "light":
+            return "dark"
+        return theme
     except Exception:
         return "dark"
 
@@ -831,135 +834,8 @@ QMainWindow, #AppContent, #Sidebar, #Topbar, #BottomStatusBar {
 }
 """
 
-LIGHT_STYLE = r"""
-* {
-    color: #0F172A;
-}
-
-QMainWindow {
-    background-color: #F8FAFC;
-}
-
-#AppContent {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #F8FAFC, stop:0.55 #EEF6FF, stop:1 #F5F3FF);
-}
-
-#Sidebar {
-    background-color: #FFFFFF;
-    border-right: 1px solid rgba(15, 23, 42, 0.10);
-}
-
-#Topbar, #BottomStatusBar {
-    background-color: rgba(248, 250, 252, 0.96);
-    border-color: rgba(15, 23, 42, 0.10);
-}
-
-#SidebarLogoCard,
-#SidebarProfileCard,
-#DashboardPanel,
-#Panel,
-#Card,
-#MiniCard,
-#SettingsOptionsBox,
-#DownloadSummaryCard,
-#InstanceCard,
-#ModResultCard,
-#DownloadTaskCard,
-#DownloadTaskCardActive,
-#HeroStatCard,
-#SettingsStatCard,
-#SkinCard,
-#AccountRow,
-#AccountRowActive,
-#DetailInfoRow,
-#QuickActionCard,
-#OverviewStatCard,
-#ActivityRow,
-#RecommendationRow,
-QWidget#InstanceCard,
-QWidget#Card {
-    background-color: rgba(255, 255, 255, 0.92);
-    border: 1px solid rgba(15, 23, 42, 0.10);
-}
-
-#PageTitle,
-#PanelTitle,
-#SectionTitle,
-#CardTitle,
-#InstanceTitle,
-#TopbarTitle,
-#NexusLogoTitle,
-#HeroTitle,
-#HeroStatValue,
-#OverviewStatValue,
-#DownloadBigNumber,
-#SettingsRamValue {
-    color: #0F172A;
-}
-
-#PageDescription,
-#PanelText,
-#MutedText,
-#TopbarSubtitle,
-#InstanceMeta,
-#OverviewStatMeta,
-#ActivityMeta,
-#QuickActionText,
-#EmptyText {
-    color: #475569;
-}
-
-QLineEdit,
-QTextEdit,
-QPlainTextEdit,
-QComboBox,
-#TopbarSearch,
-#SearchInput,
-#Input {
-    background-color: rgba(255, 255, 255, 0.95);
-    border: 1px solid rgba(15, 23, 42, 0.14);
-    color: #0F172A;
-}
-
-#LogViewer,
-#ModDescriptionBox {
-    background-color: #FFFFFF;
-    color: #0F172A;
-}
-
-/* Mods page compact UI */
-#ToggleFiltersButton {
-    background-color: rgba(34, 197, 94, 0.15);
-    border: 1px solid rgba(74, 222, 128, 0.30);
-    border-radius: 16px;
-    color: #D1FAE5;
-    padding: 8px 16px;
-    font-size: 12px;
-    font-weight: 800;
-}
-#ToggleFiltersButton:hover {
-    background-color: rgba(34, 197, 94, 0.28);
-    border: 1px solid rgba(74, 222, 128, 0.50);
-}
-
-#CompactStatus {
-    color: #8CA0B8;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 0 8px;
-}
-
-#ModsAdvancedFilters {
-    background: transparent;
-    border: none;
-}
-
-"""
-
 
 COMFORT_STYLE = '\n/* Nexus Comfort Minecraft UI Patch */\n* {\n    font-size: 12px;\n}\n\n#AppContent {\n    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #07110B, stop:0.45 #071827, stop:1 #120A1B);\n}\n\nQScrollBar:horizontal {\n    height: 0px;\n    background: transparent;\n}\nQScrollBar::handle:horizontal {\n    height: 0px;\n    background: transparent;\n}\n\nQFrame#DashboardPanel,\nQFrame#Panel,\nQFrame#Card,\nQFrame#MiniCard,\nQFrame#DownloadSummaryCard,\nQFrame#InstanceCard,\nQFrame#ModResultCard,\nQFrame#DownloadTaskCard,\nQFrame#HeroStatCard,\nQFrame#SettingsStatCard,\nQFrame#QuickActionCard,\nQFrame#OverviewStatCard,\nQFrame#ActivityRow,\nQFrame#RecommendationRow,\nQFrame#InstanceDashboardRow,\nQFrame#InstanceDashboardRowActive,\nQWidget#Card {\n    border-radius: 16px;\n    background-color: rgba(8, 17, 31, 0.82);\n    border: 1px solid rgba(99, 155, 112, 0.22);\n}\n\nQFrame#DashboardPanel:hover,\nQFrame#ModResultCard:hover,\nQFrame#QuickActionCard:hover,\nQFrame#OverviewStatCard:hover,\nQFrame#InstanceDashboardRow:hover,\nQFrame#InstanceDashboardRowActive:hover {\n    border: 1px solid rgba(72, 199, 116, 0.42);\n    background-color: rgba(10, 23, 38, 0.92);\n}\n\n#Sidebar {\n    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #050807, stop:0.55 #020403, stop:1 #000000);\n}\n\n#SidebarLogoCard {\n    border-radius: 20px;\n    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(13, 31, 23, 0.96), stop:1 rgba(8, 15, 29, 0.96));\n}\n\n#SidebarProfileCard {\n    border-radius: 18px;\n    background-color: rgba(10, 18, 32, 0.94);\n}\n#SidebarProfileCard[active="true"] {\n    border: 1px solid rgba(74, 222, 128, 0.62);\n    background-color: rgba(22, 101, 52, 0.28);\n}\n\n#SidebarNavButton {\n    border-radius: 14px;\n    padding: 0 13px;\n    font-size: 13px;\n}\n#SidebarNavButton[active="true"] {\n    color: #06110B;\n    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #22C55E, stop:1 #86EFAC);\n}\n\n#Topbar {\n    background-color: rgba(5, 12, 24, 0.88);\n}\n#TopbarTitle {\n    font-size: 18px;\n}\n#TopbarSubtitle {\n    font-size: 11px;\n}\n\n#PageTitle {\n    font-size: 30px;\n    letter-spacing: 0px;\n}\n#HeroTitle {\n    font-size: 34px;\n}\n#PanelTitle,\n#SectionTitle {\n    font-size: 18px;\n}\n#CardTitle,\n#InstanceTitle,\n#QuickActionTitle {\n    font-size: 15px;\n}\n#PageDescription,\n#PanelText,\n#MutedText,\n#QuickActionText {\n    font-size: 12px;\n}\n#OverviewStatValue,\n#DownloadBigNumber {\n    font-size: 22px;\n}\n#HeroStatValue,\n#SettingsRamValue {\n    font-size: 16px;\n}\n#HeroStatTitle,\n#OverviewStatLabel {\n    font-size: 10px;\n    letter-spacing: 0.8px;\n}\n\nQLineEdit,\nQTextEdit,\nQPlainTextEdit,\nQComboBox,\n#TopbarSearch,\n#SearchInput,\nQLineEdit#Input {\n    border-radius: 13px;\n    padding: 9px 12px;\n    font-size: 12px;\n    min-height: 22px;\n}\n\n#TopbarThemeButton,\n#TopbarStatusButton,\n#TopbarPlayButton,\n#HeroPlayButton,\n#PrimaryButton,\n#SecondaryButton,\n#SmallGhostButton,\n#WideGhostButton,\n#GhostButton,\n#DangerButton {\n    border-radius: 13px;\n    padding: 9px 14px;\n    font-size: 12px;\n}\n\n#TopbarThemeButton {\n    background-color: rgba(15, 23, 42, 0.78);\n    border: 1px solid rgba(148, 163, 184, 0.18);\n    color: #D1FAE5;\n    font-weight: 900;\n}\n\n#TopbarPlayButton {\n    padding: 10px 22px;\n    color: #06110B;\n}\n\n#MinecraftHero {\n    border-radius: 20px;\n    background-color: rgba(7, 19, 22, 0.90);\n}\n\n#HeroWelcome {\n    font-size: 13px;\n}\n\n#HeroSubtitle {\n    font-size: 13px;\n}\n\n#StatusBadge,\n#SmallBadge,\n#InstanceBadge,\n#ModTag {\n    padding: 4px 9px;\n    border-radius: 8px;\n    font-size: 11px;\n    background-color: rgba(34, 197, 94, 0.12);\n}\n\n#OverviewIcon,\n#QuickActionIcon,\n#BlockIcon,\n#DownloadIcon,\n#HeroStatIcon {\n    border-radius: 10px;\n}\n\n#MinecraftShortcutCard {\n    text-align: left;\n    background-color: rgba(14, 24, 39, 0.88);\n    border: 1px solid rgba(99, 155, 112, 0.22);\n    border-radius: 16px;\n    color: #E5F7EA;\n    padding: 12px 14px;\n    font-size: 12px;\n    font-weight: 800;\n}\n#MinecraftShortcutCard:hover {\n    background-color: rgba(22, 101, 52, 0.23);\n    border-color: rgba(74, 222, 128, 0.42);\n}\n\n#ToggleFiltersButton {\n    background-color: rgba(34, 197, 94, 0.15);\n    border: 1px solid rgba(74, 222, 128, 0.30);\n    border-radius: 13px;\n    color: #D1FAE5;\n    padding: 8px 14px;\n    font-size: 12px;\n    font-weight: 800;\n}\n#ToggleFiltersButton:hover {\n    background-color: rgba(34, 197, 94, 0.28);\n    border: 1px solid rgba(74, 222, 128, 0.50);\n}\n\n#CompactStatus {\n    color: #8CA0B8;\n    font-size: 11px;\n    font-weight: 700;\n    padding: 0 6px;\n}\n\n#ModsAdvancedFilters {\n    background: transparent;\n    border: none;\n}\n\n#ModResultCard {\n    border-radius: 18px;\n}\n#ModIconImage,\n#ModIconBox,\n#ModDetailsIcon {\n    border-radius: 12px;\n}\n\nQProgressBar,\n#MiniProgress,\n#BigProgress,\n#DownloadProgress {\n    max-height: 7px;\n    border-radius: 4px;\n}\n\n#BottomStatusBar {\n    min-height: 24px;\n    max-height: 28px;\n}\n'
-
-LIGHT_COMFORT_STYLE = '\n/* Light theme comfort overrides */\n#AppContent {\n    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #F5FAF2, stop:0.55 #EEF7EA, stop:1 #EEF6FF);\n}\n#Sidebar {\n    background-color: #F8FFF7;\n}\n#SidebarProfileCard[active="true"] {\n    background-color: rgba(187, 247, 208, 0.78);\n}\n#MinecraftShortcutCard {\n    background-color: rgba(255, 255, 255, 0.92);\n    border-color: rgba(15, 23, 42, 0.12);\n    color: #0F172A;\n}\n#ToggleFiltersButton {\n    background-color: rgba(34, 197, 94, 0.12);\n    border: 1px solid rgba(34, 197, 94, 0.30);\n    border-radius: 16px;\n    color: #065F46;\n    padding: 8px 16px;\n    font-size: 12px;\n    font-weight: 800;\n}\n#ToggleFiltersButton:hover {\n    background-color: rgba(34, 197, 94, 0.22);\n}\n#TopbarThemeButton {\n    background-color: rgba(255, 255, 255, 0.90);\n    color: #0F172A;\n}\n'
 
 
 MINECRAFT_CLEAN_STYLE = r"""
@@ -1206,6 +1082,7 @@ QComboBox:focus {
 #SmallGhostButton,
 #WideGhostButton,
 #TopbarThemeButton,
+#TopbarMenuButton,
 #TopbarStatusButton,
 #DangerButton,
 #ToggleFiltersButton {
@@ -1223,10 +1100,34 @@ QComboBox:focus {
 #SmallGhostButton:hover,
 #WideGhostButton:hover,
 #TopbarThemeButton:hover,
+#TopbarMenuButton:hover,
 #TopbarStatusButton:hover,
 #ToggleFiltersButton:hover {
     background-color: rgba(76, 121, 61, 0.18);
     border-color: rgba(132, 168, 91, 0.38);
+}
+
+#CollapsibleHeader {
+    background-color: rgba(13, 20, 17, 0.92);
+    border: 1px solid rgba(132, 149, 112, 0.20);
+    border-radius: 18px;
+}
+
+#TopbarMenuButton {
+    min-width: 38px;
+    max-width: 46px;
+    font-size: 17px;
+    font-weight: 950;
+}
+
+#Sidebar[compact="true"] #SidebarLogoCard,
+#Sidebar[compact="true"] #SidebarProfileCard {
+    border-radius: 16px;
+}
+
+#Sidebar[compact="true"] #SidebarNavButton {
+    padding: 0;
+    text-align: center;
 }
 
 #DangerButton {
@@ -1764,9 +1665,7 @@ CONTENT_SPLIT_AND_DARK_ONLY_STYLE = r"""
     border-color: rgba(178, 204, 146, 0.32);
 }
 
-/* Hard override: light theme is disabled until it is redesigned properly.
-   Even if the saved setting is "light", the UI stays in the same readable
-   Minecraft-dark style instead of switching to broken pale surfaces. */
+/* Content area stays on the dark Minecraft palette in all themes. */
 #AppContent,
 QMainWindow {
     background-color: #090D0A;
@@ -1894,15 +1793,301 @@ QLineEdit {
 }
 """
 
+
+
+NEXUS_CALM_COMPACT_STYLE = r"""
+/* Calm compact launcher refresh */
+* {
+    font-size: 12px;
+}
+
+QMainWindow {
+    background-color: #101512;
+}
+
+#AppContent {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #141915, stop:0.55 #171e1a, stop:1 #11161f);
+}
+
+#Sidebar {
+    background-color: #0E1310;
+    border-right: 1px solid rgba(196, 205, 195, 0.10);
+}
+
+#SidebarLogoCard,
+#SidebarProfileCard,
+QFrame#DashboardPanel,
+QFrame#Panel,
+QFrame#Card,
+QFrame#MiniCard,
+QFrame#DownloadSummaryCard,
+QFrame#InstanceCard,
+QFrame#ModResultCard,
+QFrame#DownloadTaskCard,
+QFrame#HeroStatCard,
+QFrame#QuickActionCard,
+QFrame#OverviewStatCard,
+QFrame#ActivityRow,
+QFrame#RecommendationRow,
+#CalmHero,
+#HeroInfoChip {
+    background-color: rgba(26, 32, 28, 0.96);
+    border: 1px solid rgba(210, 220, 210, 0.09);
+    border-radius: 18px;
+}
+
+QFrame#InstanceDashboardRow,
+QFrame#InstanceDashboardRowActive {
+    background-color: rgba(14, 20, 17, 0.98);
+    border: 1px solid rgba(126, 165, 111, 0.24);
+    border-radius: 14px;
+    min-height: 58px;
+}
+
+QFrame#InstanceDashboardRow #InstanceTitle,
+QFrame#InstanceDashboardRowActive #InstanceTitle {
+    color: #F2F7F2;
+}
+
+QFrame#InstanceDashboardRow #InstanceMeta,
+QFrame#InstanceDashboardRowActive #InstanceMeta {
+    color: #AAB7AB;
+}
+
+#SidebarLogoCard,
+#SidebarProfileCard {
+    background-color: rgba(22, 28, 24, 0.98);
+    border-radius: 16px;
+}
+
+#CalmHero {
+    border-radius: 22px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(31, 40, 34, 0.98), stop:1 rgba(20, 27, 35, 0.98));
+}
+
+#HeroInfoChip {
+    min-width: 0px;
+    max-width: 280px;
+}
+
+#SidebarNavButton {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 14px;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #DCE5DD;
+}
+
+#SidebarNavButton:hover {
+    background-color: rgba(124, 160, 106, 0.10);
+    border-color: rgba(124, 160, 106, 0.20);
+}
+
+#SidebarNavButton[active="true"] {
+    background-color: rgba(124, 160, 106, 0.18);
+    border-color: rgba(124, 160, 106, 0.32);
+    color: #F2F7F2;
+}
+
+#NexusLogoTitle {
+    font-size: 21px;
+    letter-spacing: 2px;
+}
+
+#NexusLogoSubtitle,
+#SidebarSectionTitle,
+#TopbarSubtitle,
+#OverviewStatLabel,
+#HeroStatTitle,
+#InstanceMeta,
+#OverviewStatMeta,
+#ActivityMeta,
+#QuickActionText,
+#PanelText,
+#PageDescription,
+#MutedText,
+#EmptyText,
+#BottomStatusText {
+    color: #AAB7AB;
+}
+
+#SidebarSectionTitle {
+    letter-spacing: 2px;
+    padding-left: 6px;
+}
+
+#SidebarProfileName,
+#TopbarTitle,
+#PanelTitle,
+#CardTitle,
+#InstanceTitle,
+#HeroTitle,
+#OverviewStatValue,
+#HeroStatValue,
+#DownloadBigNumber,
+#PageTitle {
+    color: #F2F7F2;
+}
+
+#SidebarProfileStatus {
+    color: #9BB993;
+}
+
+#Topbar {
+    background-color: rgba(16, 21, 18, 0.90);
+    border-bottom: 1px solid rgba(210, 220, 210, 0.08);
+}
+
+#TopbarTitle {
+    font-size: 18px;
+}
+
+#TopbarSearch,
+#SearchInput,
+QLineEdit#Input,
+QLineEdit,
+QComboBox,
+QSpinBox,
+QDoubleSpinBox,
+QTextEdit,
+QPlainTextEdit {
+    background-color: rgba(17, 22, 19, 0.95);
+    border: 1px solid rgba(210, 220, 210, 0.10);
+    border-radius: 13px;
+    padding: 9px 12px;
+    color: #F2F7F2;
+}
+
+#TopbarPlayButton,
+#HeroPlayButton,
+#PrimaryButton {
+    background-color: #6E9460;
+    border: 1px solid #7EA56F;
+    border-radius: 13px;
+    color: #0D130E;
+    padding: 10px 18px;
+    font-weight: 800;
+}
+
+#TopbarPlayButton:hover,
+#HeroPlayButton:hover,
+#PrimaryButton:hover {
+    background-color: #82A973;
+}
+
+#SecondaryButton,
+#SmallGhostButton,
+#WideGhostButton,
+#GhostButton,
+#TopbarThemeButton,
+#ToggleFiltersButton {
+    background-color: rgba(19, 25, 21, 0.98);
+    border: 1px solid rgba(210, 220, 210, 0.10);
+    border-radius: 13px;
+    color: #E4ECE4;
+    padding: 9px 14px;
+    font-weight: 700;
+}
+
+#SecondaryButton:hover,
+#SmallGhostButton:hover,
+#WideGhostButton:hover,
+#GhostButton:hover,
+#TopbarThemeButton:hover,
+#ToggleFiltersButton:hover {
+    border-color: rgba(126, 165, 111, 0.30);
+    background-color: rgba(27, 34, 29, 0.98);
+}
+
+#HeroTitle {
+    font-size: 32px;
+}
+
+#HeroSubtitle {
+    font-size: 13px;
+    color: #D7E0D7;
+}
+
+#HeroWelcome {
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: #AAB7AB;
+}
+
+#StatusBadge,
+#SmallBadge,
+#InstanceBadge,
+#ModTag {
+    background-color: rgba(110, 148, 96, 0.14);
+    border: 1px solid rgba(126, 165, 111, 0.18);
+    color: #E7F1E4;
+    border-radius: 10px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    max-width: 160px;
+}
+
+#OverviewStatCard,
+#ActivityRow,
+#RecommendationRow,
+#InstanceDashboardRow,
+#InstanceDashboardRowActive,
+#HeroInfoChip {
+    border-radius: 16px;
+}
+
+#OverviewStatValue {
+    font-size: 22px;
+}
+
+#OverviewIcon,
+#QuickActionIcon,
+#BlockIcon,
+#DownloadIcon,
+#HeroStatIcon {
+    background-color: rgba(110, 148, 96, 0.10);
+    border: 1px solid rgba(126, 165, 111, 0.14);
+    border-radius: 10px;
+}
+
+#MiniProgress,
+#BigProgress,
+#DownloadProgress,
+QProgressBar {
+    background: rgba(12, 16, 14, 0.90);
+    border: 1px solid rgba(210, 220, 210, 0.06);
+    border-radius: 999px;
+    max-height: 6px;
+}
+
+#MiniProgress::chunk,
+#BigProgress::chunk,
+#DownloadProgress::chunk,
+QProgressBar::chunk {
+    background: #7EA56F;
+    border-radius: 999px;
+}
+
+#BottomStatusBar {
+    background-color: rgba(14, 18, 16, 0.96);
+    border-top: 1px solid rgba(210, 220, 210, 0.08);
+}
+"""
+
+
+
+
+
 def get_app_style(theme=None):
     theme = (theme or _read_saved_theme() or "dark").lower()
 
-    # Светлая тема пока отключена: текущий светлый вариант ломает читаемость.
-    # Кнопка темы теперь переключает только dark <-> amoled.
     if theme == "light":
         theme = "dark"
 
     if theme == "amoled":
-        return APP_STYLE + AMOLED_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE + CONTENT_SPLIT_AND_DARK_ONLY_STYLE + SIDEBAR_LOGO_SAFE_STYLE + NEXUS_OVERHAUL_POLISH_STYLE
+        return APP_STYLE + AMOLED_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE + CONTENT_SPLIT_AND_DARK_ONLY_STYLE + SIDEBAR_LOGO_SAFE_STYLE + NEXUS_OVERHAUL_POLISH_STYLE + NEXUS_CALM_COMPACT_STYLE
 
-    return APP_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE + CONTENT_SPLIT_AND_DARK_ONLY_STYLE + SIDEBAR_LOGO_SAFE_STYLE + NEXUS_OVERHAUL_POLISH_STYLE
+    return APP_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE + CONTENT_SPLIT_AND_DARK_ONLY_STYLE + SIDEBAR_LOGO_SAFE_STYLE + NEXUS_OVERHAUL_POLISH_STYLE + NEXUS_CALM_COMPACT_STYLE

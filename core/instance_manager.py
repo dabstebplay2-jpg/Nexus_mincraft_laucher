@@ -80,6 +80,7 @@ class InstanceManager:
         minecraft_version: str,
         loader: str = "vanilla",
         ram_mb: int = 4096,
+        loader_version: str | None = None,
     ):
         error = validate_instance_name(name)
         if error:
@@ -105,6 +106,7 @@ class InstanceManager:
             "name": name,
             "minecraft_version": minecraft_version,
             "loader": loader,
+            "loader_version": loader_version,
             "ram_mb": ram_mb,
             "path": str(instance_path),
             "minecraft_dir": str(minecraft_dir),
@@ -223,6 +225,7 @@ class InstanceManager:
             name = instance_data.get("name") or instance_data.get("id", "Imported")
             mc_version = instance_data.get("minecraft_version", "")
             loader = instance_data.get("loader", "vanilla")
+            loader_version = instance_data.get("loader_version")
             ram_mb = instance_data.get("ram_mb", 4096)
 
             if not mc_version:
@@ -246,6 +249,7 @@ class InstanceManager:
                 "name": name,
                 "minecraft_version": mc_version,
                 "loader": loader,
+                "loader_version": loader_version,
                 "ram_mb": ram_mb,
                 "path": str(new_instance_path),
                 "minecraft_dir": str(new_minecraft_dir),

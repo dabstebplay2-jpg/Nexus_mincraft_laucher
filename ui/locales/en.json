@@ -1,6 +1,6 @@
 {
   "app.name": "Nexus Launcher",
-  "app.version": "0.7.0",
+  "app.version": "1.0.1",
   "sidebar.home": "Home",
   "sidebar.instances": "Instances",
   "sidebar.mods": "Mods",
@@ -36,7 +36,6 @@
   "settings.theme": "Theme",
   "settings.ram": "RAM",
   "theme.dark": "Dark",
-  "theme.light": "Light",
   "theme.amoled": "AMOLED",
   "language.ru": "Russian",
   "language.en": "English",

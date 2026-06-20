@@ -13,7 +13,7 @@ from core.java_manager import (
     get_required_java_major,
     ensure_java_is_compatible,
 )
-from core.loader_manager import LoaderManager
+from core.loader_manager import LoaderManager, get_loader_manager
 from core.constants import APP_VERSION
 from core.instance_manager import get_instance_manager
 from core.launcher_settings import get_launcher_settings
@@ -22,6 +22,23 @@ from core.launcher_settings import get_launcher_settings
 logger = logging.getLogger(__name__)
 
 _MIN_DISK_SPACE_MB = 500
+
+
+def _format_download_timeout_error(error: Exception) -> RuntimeError:
+    return RuntimeError(
+        "Скачивание Minecraft не успело завершиться.\n\n"
+        "Проверь интернет, VPN/прокси и попробуй снова.\n"
+        "Если версия новая, Mojang runtime может скачиваться долго.\n\n"
+        f"Техническая ошибка: {error}"
+    )
+
+
+def _is_timeout_error(error: Exception) -> bool:
+    if isinstance(error, (requests.exceptions.Timeout, requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout)):
+        return True
+
+    text = str(error).lower()
+    return "timed out" in text or "timeout" in text or "10060" in text
 
 
 class Launcher:
@@ -42,24 +59,14 @@ class Launcher:
         except OSError:
             pass
 
-    def _check_loader_compatibility(self, loader: str, minecraft_version: str):
-        incompatible = {
-            "fabric": (1, 14),
-            "quilt": (1, 14),
-            "neoforge": (1, 20, 1),
-        }
-        min_ver = incompatible.get(loader)
-        if min_ver:
-            try:
-                parts = tuple(int(x) for x in minecraft_version.split(".")[:3])
-                if parts < min_ver:
-                    min_str = ".".join(str(x) for x in min_ver)
-                    raise RuntimeError(
-                        f"Загрузчик {loader} не поддерживает Minecraft {minecraft_version}. "
-                        f"Минимальная версия: {min_str}+."
-                    )
-            except (ValueError, IndexError):
-                pass
+    def _check_loader_compatibility(self, loader: str, minecraft_version: str, loader_version: str | None = None):
+        message = get_loader_manager().validate_loader_selection(
+            loader_id=loader,
+            minecraft_version=minecraft_version,
+            loader_version=loader_version,
+        )
+        if message:
+            raise RuntimeError(message)
 
     def _check_writable(self, minecraft_dir: Path):
         try:
@@ -77,6 +84,7 @@ class Launcher:
 
         minecraft_version = instance["minecraft_version"]
         loader = instance.get("loader", "vanilla").lower()
+        loader_version = instance.get("loader_version") or None
         minecraft_dir = Path(instance["minecraft_dir"])
         ram_mb = int(instance.get("ram_mb", 4096))
 
@@ -84,7 +92,7 @@ class Launcher:
 
         self._check_disk_space(minecraft_dir)
         self._check_writable(minecraft_dir)
-        self._check_loader_compatibility(loader, minecraft_version)
+        self._check_loader_compatibility(loader, minecraft_version, loader_version)
 
         callback = {
             "setStatus": self.set_status,
@@ -102,15 +110,22 @@ class Launcher:
                 callback=callback,
             )
 
+        except requests.exceptions.Timeout as error:
+            logger.exception("Minecraft download timeout")
+            raise _format_download_timeout_error(error) from error
+
         except requests.exceptions.ConnectTimeout as error:
             logger.exception("Minecraft download timeout")
-            raise RuntimeError(
-                "Скачивание Minecraft не успело завершиться.\n\n"
-                "Проверь интернет, VPN/прокси и попробуй снова.\n"
-                "Если версия новая, Mojang runtime может скачиваться долго."
-            ) from error
+            raise _format_download_timeout_error(error) from error
 
-        except Exception:
+        except requests.exceptions.ReadTimeout as error:
+            logger.exception("Minecraft download timeout")
+            raise _format_download_timeout_error(error) from error
+
+        except Exception as error:
+            if _is_timeout_error(error):
+                logger.exception("Minecraft download timeout")
+                raise _format_download_timeout_error(error) from error
             logger.exception("Minecraft base installation failed")
             raise
 
@@ -126,6 +141,7 @@ class Launcher:
                 minecraft_version=minecraft_version,
                 minecraft_dir=str(minecraft_dir),
                 callback=callback,
+                loader_version=loader_version,
             )
 
             logger.info("Loader launch version: %s", launch_version)

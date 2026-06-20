@@ -1,8 +1,8 @@
-﻿import os
+import os
 
 APP_NAME = "Nexus Launcher"
-APP_VERSION = "0.8.0"
-APP_CODENAME = "Modpack Direct Install"
+APP_VERSION = "1.0.1"
+APP_CODENAME = "Stable Release"
 
 APP_FULL_NAME = f"{APP_NAME} {APP_VERSION}"
 USER_AGENT = f"NexusLauncher/{APP_VERSION}"
@@ -22,4 +22,3 @@ WEBSITE_RELEASE_JSON_URL = os.environ.get(
     "NEXUS_WEBSITE_RELEASE_JSON_URL",
     f"https://{GITHUB_OWNER}.github.io/{GITHUB_REPO}/release.json",
 )
-

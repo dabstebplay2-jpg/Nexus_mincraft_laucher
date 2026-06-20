@@ -29,7 +29,10 @@ class LauncherSettings:
             "sync_ram_to_instances": True,
             "theme": "dark",
             "language": "ru",
+            "sidebar_collapsed": False,
             "mods_filters_collapsed": True,
+            "library_header_collapsed": False,
+            "downloads_header_collapsed": False,
             "minecraft_resolution_enabled": False,
             "minecraft_resolution_width": 1280,
             "minecraft_resolution_height": 720,
@@ -127,6 +130,33 @@ class LauncherSettings:
     def set_mods_filters_collapsed(self, collapsed):
         with self._lock:
             self.data["mods_filters_collapsed"] = bool(collapsed)
+            self.save()
+
+    def is_sidebar_collapsed(self):
+        with self._lock:
+            return bool(self.data.get("sidebar_collapsed", False))
+
+    def set_sidebar_collapsed(self, collapsed):
+        with self._lock:
+            self.data["sidebar_collapsed"] = bool(collapsed)
+            self.save()
+
+    def is_library_header_collapsed(self):
+        with self._lock:
+            return bool(self.data.get("library_header_collapsed", False))
+
+    def set_library_header_collapsed(self, collapsed):
+        with self._lock:
+            self.data["library_header_collapsed"] = bool(collapsed)
+            self.save()
+
+    def is_downloads_header_collapsed(self):
+        with self._lock:
+            return bool(self.data.get("downloads_header_collapsed", False))
+
+    def set_downloads_header_collapsed(self, collapsed):
+        with self._lock:
+            self.data["downloads_header_collapsed"] = bool(collapsed)
             self.save()
 
 

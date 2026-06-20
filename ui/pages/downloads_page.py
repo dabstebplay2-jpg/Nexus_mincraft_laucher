@@ -15,6 +15,8 @@ from PySide6.QtWidgets import (
 )
 
 from core.download_manager import DownloadManager
+from core.launcher_settings import get_launcher_settings
+from ui.components.collapsible_header import CollapsibleHeader
 from ui.utils.helpers import clear_layout
 
 
@@ -37,20 +39,15 @@ class DownloadsPage(QWidget):
         self.timer.start(1500)
 
     def build_ui(self):
+        settings = get_launcher_settings()
+        self.header_panel = CollapsibleHeader(
+            "Загрузки",
+            "Центр загрузок Nexus: Minecraft, моды, Java, скины и история операций.",
+            collapsed=settings.is_downloads_header_collapsed(),
+        )
+        self.header_panel.toggled.connect(settings.set_downloads_header_collapsed)
+
         header = QHBoxLayout()
-
-        title_box = QVBoxLayout()
-        title_box.setSpacing(4)
-
-        title = QLabel("Загрузки")
-        title.setObjectName("PageTitle")
-
-        subtitle = QLabel("Центр загрузок Nexus: Minecraft, моды, Java, скины и история операций.")
-        subtitle.setObjectName("PageDescription")
-        subtitle.setWordWrap(True)
-
-        title_box.addWidget(title)
-        title_box.addWidget(subtitle)
 
         refresh_btn = QPushButton("Обновить")
         refresh_btn.setObjectName("SecondaryButton")
@@ -64,12 +61,10 @@ class DownloadsPage(QWidget):
         clear_all_btn.setObjectName("DangerButton")
         clear_all_btn.clicked.connect(self.clear_all)
 
-        header.addLayout(title_box, 1)
+        header.addStretch(1)
         header.addWidget(refresh_btn)
         header.addWidget(clear_completed_btn)
         header.addWidget(clear_all_btn)
-
-        self.root.addLayout(header)
 
         stats = QHBoxLayout()
         stats.setSpacing(14)
@@ -84,7 +79,9 @@ class DownloadsPage(QWidget):
         stats.addWidget(self.failed_stat)
         stats.addWidget(self.total_stat)
 
-        self.root.addLayout(stats)
+        self.header_panel.add_layout(header)
+        self.header_panel.add_layout(stats)
+        self.root.addWidget(self.header_panel)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)

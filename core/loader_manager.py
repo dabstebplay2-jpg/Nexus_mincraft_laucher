@@ -1,9 +1,12 @@
 import json
 import logging
+import time
 import traceback
 from pathlib import Path
 
 import minecraft_launcher_lib
+
+from core.version_manager import _retry
 
 try:
     from minecraft_launcher_lib.exceptions import UnsupportedVersion
@@ -42,8 +45,11 @@ class LoaderManager:
         # Quilt также не подходит для старых версий вроде 1.12.2.
         "quilt": (1, 14, 0),
 
-        # NeoForge — современная ветка, старые версии Minecraft не поддерживает.
-        "neoforge": (1, 20, 1),
+        # NeoForge — современная ветка; maven API не содержит сборок для 1.20.1.
+        "neoforge": (1, 20, 2),
+
+        # Forge для очень новых снапшотов может отсутствовать — проверяем через API.
+        "forge": (1, 7, 10),
     }
 
     LOADER_LABELS = {
@@ -61,6 +67,8 @@ class LoaderManager:
         "quilt": ["quilt", "quilt-loader"],
     }
 
+    LOADER_VERSIONS_CACHE_TTL_SECONDS = 300
+
     def install_loader(
         self,
         loader_id: str,
@@ -68,6 +76,7 @@ class LoaderManager:
         minecraft_dir: str,
         callback=None,
         force_reinstall: bool = False,
+        loader_version: str | None = None,
     ):
         loader_id = self.normalize_loader_id(loader_id)
         minecraft_version = str(minecraft_version or "").strip()
@@ -108,6 +117,7 @@ class LoaderManager:
                 loader_id=loader_id,
                 minecraft_version=minecraft_version,
                 minecraft_dir=minecraft_path,
+                loader_version=loader_version,
             )
 
             if installed_version:
@@ -135,6 +145,7 @@ class LoaderManager:
                 minecraft_version=minecraft_version,
                 minecraft_path=minecraft_path,
                 callback=callback,
+                loader_version=loader_version,
             )
 
         except Exception as error:
@@ -151,6 +162,7 @@ class LoaderManager:
             loader_id=loader_id,
             minecraft_version=minecraft_version,
             minecraft_dir=minecraft_path,
+            loader_version=loader_version,
         )
 
         if not launch_version:
@@ -181,6 +193,121 @@ class LoaderManager:
         )
 
         return launch_version
+
+    def is_minecraft_supported_by_loader(self, loader_id: str, minecraft_version: str) -> bool:
+        loader_id = self.normalize_loader_id(loader_id)
+        minecraft_version = str(minecraft_version or "").strip()
+
+        if loader_id == "vanilla":
+            return True
+
+        if self.get_known_unsupported_message(loader_id, minecraft_version):
+            return False
+
+        try:
+            mod_loader = self.get_library_loader(loader_id)
+            return mod_loader.is_minecraft_version_supported(minecraft_version)
+        except Exception:
+            logger.debug("Loader support check failed", exc_info=True)
+            return False
+
+    def fetch_loader_versions(
+        self,
+        loader_id: str,
+        minecraft_version: str,
+        stable_only: bool = True,
+    ) -> list[str]:
+        loader_id = self.normalize_loader_id(loader_id)
+        minecraft_version = str(minecraft_version or "").strip()
+
+        if loader_id == "vanilla" or not minecraft_version:
+            return []
+
+        if not self.is_minecraft_supported_by_loader(loader_id, minecraft_version):
+            return []
+
+        cache_key = (loader_id, minecraft_version, bool(stable_only))
+        cached = getattr(self, "_loader_versions_cache", {}).get(cache_key)
+        now = time.time()
+        if cached and now - cached[0] <= self.LOADER_VERSIONS_CACHE_TTL_SECONDS:
+            return list(cached[1])
+
+        mod_loader = self.get_library_loader(loader_id)
+
+        def _fetch(stable: bool):
+            return mod_loader.get_loader_versions(minecraft_version, stable)
+
+        try:
+            versions = _retry(lambda: _fetch(stable_only), max_attempts=3, delay=1.0)
+        except Exception:
+            logger.warning(
+                "Loader version fetch failed: loader=%s mc=%s",
+                loader_id,
+                minecraft_version,
+                exc_info=True,
+            )
+            versions = []
+
+        if not versions and stable_only:
+            try:
+                versions = _retry(lambda: _fetch(False), max_attempts=2, delay=1.0)
+            except Exception:
+                logger.warning(
+                    "Loader version fetch (unstable) failed: loader=%s mc=%s",
+                    loader_id,
+                    minecraft_version,
+                    exc_info=True,
+                )
+                versions = []
+
+        result = list(versions or [])
+        if not hasattr(self, "_loader_versions_cache"):
+            self._loader_versions_cache = {}
+        self._loader_versions_cache[cache_key] = (now, result)
+
+        return result
+
+    def validate_loader_selection(
+        self,
+        loader_id: str,
+        minecraft_version: str,
+        loader_version: str | None = None,
+    ) -> str | None:
+        loader_id = self.normalize_loader_id(loader_id)
+        minecraft_version = str(minecraft_version or "").strip()
+
+        if not minecraft_version:
+            return "Не указана версия Minecraft."
+
+        known = self.get_known_unsupported_message(loader_id, minecraft_version)
+        if known:
+            return known
+
+        if loader_id == "vanilla":
+            return None
+
+        if not self.is_minecraft_supported_by_loader(loader_id, minecraft_version):
+            label = self.get_loader_label(loader_id)
+            return f"{label} не поддерживает Minecraft {minecraft_version}."
+
+        available = self.fetch_loader_versions(loader_id, minecraft_version)
+        if not available:
+            label = self.get_loader_label(loader_id)
+            return (
+                f"Не удалось получить список версий {label} для Minecraft {minecraft_version}.\n"
+                f"Проверь интернет и попробуй снова."
+            )
+
+        if loader_version:
+            loader_version = str(loader_version).strip()
+            if loader_version not in available:
+                label = self.get_loader_label(loader_id)
+                return (
+                    f"Версия {label} {loader_version} недоступна "
+                    f"для Minecraft {minecraft_version}."
+                )
+
+        return None
 
     def normalize_loader_id(self, loader_id: str):
         loader_id = str(loader_id or "vanilla").lower().strip()
@@ -325,13 +452,17 @@ class LoaderManager:
         minecraft_version: str,
         minecraft_path: Path,
         callback=None,
+        loader_version: str | None = None,
     ):
         try:
-            loader.install(
+            installed = loader.install(
                 minecraft_version,
                 str(minecraft_path),
+                loader_version=loader_version or None,
                 callback=callback,
             )
+            if installed:
+                return installed
 
         except Exception as error:
             if self.is_unsupported_version_error(error):
@@ -475,7 +606,20 @@ class LoaderManager:
         loader_id: str,
         minecraft_version: str,
         minecraft_dir: Path,
+        loader_version: str | None = None,
     ):
+        loader_id = self.normalize_loader_id(loader_id)
+
+        if loader_version and loader_id != "vanilla":
+            try:
+                mod_loader = self.get_library_loader(loader_id)
+                expected = mod_loader.get_installed_version(minecraft_version, loader_version)
+                json_path = Path(minecraft_dir) / "versions" / expected / f"{expected}.json"
+                if json_path.exists():
+                    return expected
+            except Exception:
+                logger.debug("Exact loader version lookup failed", exc_info=True)
+
         candidates = self.list_installed_loader_versions(
             loader_id=loader_id,
             minecraft_version=minecraft_version,

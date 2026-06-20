@@ -15,7 +15,9 @@ from PySide6.QtWidgets import (
 )
 
 from core.instance_manager import get_instance_manager
+from core.launcher_settings import get_launcher_settings
 from storage.json_store import load_json, save_json
+from ui.components.collapsible_header import CollapsibleHeader
 from ui.utils.helpers import clear_layout
 
 logger = logging.getLogger(__name__)
@@ -30,12 +32,13 @@ class LibraryPage(QWidget):
         root.setContentsMargins(36, 32, 36, 32)
         root.setSpacing(18)
 
-        title = QLabel("Библиотека")
-        title.setObjectName("PageTitle")
-
-        desc = QLabel("Все установленные проекты по сборкам: моды, ресурспаки и шейдеры. Быстрый просмотр, поиск и удаление.")
-        desc.setObjectName("PageDescription")
-        desc.setWordWrap(True)
+        settings = get_launcher_settings()
+        self.header_panel = CollapsibleHeader(
+            "Библиотека",
+            "Все установленные проекты по сборкам: моды, ресурспаки и шейдеры. Быстрый просмотр, поиск и удаление.",
+            collapsed=settings.is_library_header_collapsed(),
+        )
+        self.header_panel.toggled.connect(settings.set_library_header_collapsed)
 
         self.stats_row = QHBoxLayout()
         self.stats_row.setSpacing(14)
@@ -65,11 +68,10 @@ class LibraryPage(QWidget):
         self.mods_layout.setSpacing(12)
         scroll.setWidget(self.cards_container)
 
-        root.addWidget(title)
-        root.addWidget(desc)
-        root.addLayout(self.stats_row)
-        root.addWidget(self.stats_label)
-        root.addLayout(search_layout)
+        self.header_panel.add_layout(self.stats_row)
+        self.header_panel.add_widget(self.stats_label)
+        self.header_panel.add_layout(search_layout)
+        root.addWidget(self.header_panel)
         root.addWidget(scroll)
 
     def create_stat_card(self, title, value, desc):

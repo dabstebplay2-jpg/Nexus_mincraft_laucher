@@ -2,7 +2,7 @@ import os
 import traceback
 from pathlib import Path
 
-from PySide6.QtCore import Signal, QThread, Qt
+from PySide6.QtCore import Signal, QThread, Qt, QSize
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -34,8 +34,24 @@ except Exception:
 from core.launcher import Launcher
 from core.download_manager import DownloadManager
 from core.version_manager import VersionManager
-from ui.utils.helpers import clear_layout
+from core.loader_manager import get_loader_manager
+from ui.components.loader_version_selector import LoaderVersionSelector
+from ui.utils.helpers import clear_layout, elide_text, make_badge_label
 from storage.json_store import load_json
+
+try:
+    from ui.icon_utils import icon
+except Exception:
+    icon = None
+
+
+def qicon(name):
+    if not icon:
+        return None
+    try:
+        return icon(name)
+    except Exception:
+        return None
 
 
 class LaunchWorker(QThread):
@@ -136,12 +152,17 @@ class CreateInstanceDialog(QDialog):
 
         self.loader_combo = QComboBox()
         self.loader_combo.addItems(["fabric", "vanilla", "forge", "neoforge", "quilt"])
-        self.loader_combo.setToolTip("Для модов выбирай fabric/forge/neoforge/quilt. Vanilla не загружает .jar моды.")
+        self.loader_combo.setToolTip("Для модов: fabric, forge, neoforge или quilt.")
+
+        self.loader_version_selector = LoaderVersionSelector(self)
+        self.loader_version_selector.attach(self.loader_combo, self.version_combo)
+        self.loader_version_selector.compatibility_changed.connect(self._on_loader_compatibility_changed)
 
         form.addRow("Название:", self.name_input)
         form.addRow("", self.name_error)
         form.addRow("Версия:", self.version_combo)
         form.addRow("Loader:", self.loader_combo)
+        form.addRow("Версия loader:", self.loader_version_selector)
 
         buttons = QHBoxLayout()
 
@@ -160,6 +181,12 @@ class CreateInstanceDialog(QDialog):
 
         layout.addLayout(form)
         layout.addLayout(buttons)
+
+    def _on_loader_compatibility_changed(self, ok: bool, _message: str):
+        if not self.name_error.isVisible() and self.name_input.text().strip():
+            self.create_btn.setEnabled(ok)
+        elif not ok:
+            self.create_btn.setEnabled(False)
 
     def _validate_name(self):
         name = self.name_input.text().strip()
@@ -185,13 +212,28 @@ class CreateInstanceDialog(QDialog):
             self.create_btn.setEnabled(False)
         else:
             self.name_error.setVisible(False)
-            self.create_btn.setEnabled(True)
+            self.create_btn.setEnabled(self.loader_version_selector.is_compatible())
 
         return not errors
 
     def _on_create(self):
-        if self._validate_name():
-            self.accept()
+        if not self._validate_name():
+            return
+
+        loader = self.loader_combo.currentText().strip().lower()
+        mc_version = self.version_combo.currentText().strip()
+        loader_version = self.loader_version_selector.get_loader_version()
+
+        error = get_loader_manager().validate_loader_selection(
+            loader_id=loader,
+            minecraft_version=mc_version,
+            loader_version=loader_version,
+        )
+        if error:
+            self.loader_version_selector.compatibility_changed.emit(False, error)
+            return
+
+        self.accept()
 
     def _populate_versions(self):
         try:
@@ -213,11 +255,13 @@ class CreateInstanceDialog(QDialog):
 
     def get_data(self):
         name = self.name_input.text().strip() or f"Minecraft {self.version_combo.currentText()}"
+        loader = self.loader_combo.currentText().strip().lower()
 
         return {
             "name": name,
             "minecraft_version": self.version_combo.currentText(),
-            "loader": self.loader_combo.currentText(),
+            "loader": loader,
+            "loader_version": self.loader_version_selector.get_loader_version(),
         }
 
 
@@ -375,9 +419,13 @@ class InstancesPage(QWidget):
             )
 
         if latest:
-            self.last_instance_card.value_label.setText(latest.get("name", "—"))
+            self.last_instance_card.value_label.setText(elide_text(latest.get("name", "—"), 22))
+            loader_version = latest.get("loader_version")
+            loader_text = latest.get("loader", "vanilla")
+            if loader_version and loader_text != "vanilla":
+                loader_text = f"{loader_text} {loader_version}"
             self.last_instance_card.desc_label.setText(
-                f'{latest.get("minecraft_version", "unknown")} • {latest.get("loader", "vanilla")}'
+                f'{latest.get("minecraft_version", "unknown")} · {loader_text}'
             )
         else:
             self.last_instance_card.value_label.setText("—")
@@ -429,9 +477,7 @@ class InstancesPage(QWidget):
         self.cards_layout.addStretch()
 
     def create_badge(self, text):
-        badge = QLabel(str(text))
-        badge.setObjectName("SmallBadge")
-        return badge
+        return make_badge_label(text, "SmallBadge", max_len=20)
 
     def create_instance_card(self, instance):
         card = QFrame()
@@ -451,6 +497,9 @@ class InstancesPage(QWidget):
         icon_box.setObjectName("BlockIcon")
         icon_box.setFixedSize(58, 58)
         icon_box.setAlignment(Qt.AlignCenter)
+        icon_obj = qicon("nexus")
+        if icon_obj:
+            icon_box.setPixmap(icon_obj.pixmap(QSize(36, 36)))
 
         name_block = QVBoxLayout()
         name_block.setSpacing(6)
@@ -460,38 +509,19 @@ class InstancesPage(QWidget):
 
         ram = instance.get("ram_mb") or instance.get("ram") or 4096
         loader = instance.get("loader", "vanilla")
+        loader_version = instance.get("loader_version")
         version = instance.get("minecraft_version", "unknown")
         mod_count = self.count_instance_mods(instance)
 
-        meta = QLabel(f"Minecraft {version} • {loader} • {ram} MB • {mod_count} модов")
+        loader_label = loader
+        if loader_version and loader != "vanilla":
+            loader_label = f"{loader} {loader_version}"
+
+        meta = QLabel(f"{version} · {loader_label} · {ram} MB · {mod_count} мод.")
         meta.setObjectName("InstanceMeta")
-
-        badges = QHBoxLayout()
-        badges.setSpacing(8)
-        badges.addWidget(self.create_badge(version))
-        badges.addWidget(self.create_badge(loader))
-        badges.addWidget(self.create_badge(f"{mod_count} модов"))
-        badges.addStretch()
-
-        compat_badge = ""
-        try:
-            from mods.compatibility_analyzer import CompatibilityAnalyzer
-            result = CompatibilityAnalyzer().analyze(instance)
-            score = result.get("score", 100)
-            status = result.get("status", "Normal")
-            if score < 80:
-                compat_badge = f"[{score}] {status}"
-        except Exception:
-            pass
 
         name_block.addWidget(title)
         name_block.addWidget(meta)
-        name_block.addLayout(badges)
-
-        if compat_badge:
-            compat_label = QLabel(compat_badge)
-            compat_label.setStyleSheet("color: #f59e0b; font-size: 12px; font-weight: 800;")
-            name_block.addWidget(compat_label)
 
         top.addWidget(icon_box)
         top.addLayout(name_block)
@@ -546,6 +576,7 @@ class InstancesPage(QWidget):
                     data["name"],
                     data["minecraft_version"],
                     data["loader"],
+                    loader_version=data.get("loader_version"),
                 )
             except TypeError:
                 self.instance_manager.create_instance(data)

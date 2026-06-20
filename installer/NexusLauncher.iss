@@ -1,9 +1,9 @@
 ; Nexus Launcher installer
 ; Build with:
-;   ISCC.exe /DAppVersion=0.7.1 installer\NexusLauncher.iss
+;   ISCC.exe /DAppVersion=1.0.1 installer\NexusLauncher.iss
 
 #ifndef AppVersion
-#define AppVersion "0.7.1"
+#define AppVersion "1.0.1"
 #endif
 
 #define AppName "Nexus Launcher"
@@ -61,3 +61,75 @@ Filename: "{app}\{#AppExeName}"; Description: "Запустить Nexus Launcher
 [UninstallDelete]
 ; User data is intentionally kept in %APPDATA%\NexusLauncher.
 ; Do not delete instances, accounts, logs or downloaded packs automatically.
+
+[Code]
+const
+  AppUninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{B5D3C6F2-4C92-4F01-9E4F-41B0E3B85C47}_is1';
+
+function ExtractExeAndParams(CommandLine: string; var ExePath: string; var Params: string): Boolean;
+var
+  EndQuote: Integer;
+  SpacePos: Integer;
+begin
+  CommandLine := Trim(CommandLine);
+  ExePath := '';
+  Params := '';
+
+  if CommandLine = '' then
+  begin
+    Result := False;
+    Exit;
+  end;
+
+  if Copy(CommandLine, 1, 1) = '"' then
+  begin
+    EndQuote := Pos('"', Copy(CommandLine, 2, MaxInt));
+    if EndQuote > 0 then
+    begin
+      ExePath := Copy(CommandLine, 2, EndQuote - 1);
+      Params := Trim(Copy(CommandLine, EndQuote + 2, MaxInt));
+    end;
+  end
+  else
+  begin
+    SpacePos := Pos(' ', CommandLine);
+    if SpacePos > 0 then
+    begin
+      ExePath := Copy(CommandLine, 1, SpacePos - 1);
+      Params := Trim(Copy(CommandLine, SpacePos + 1, MaxInt));
+    end
+    else
+    begin
+      ExePath := CommandLine;
+    end;
+  end;
+
+  Result := ExePath <> '';
+end;
+
+procedure RunPreviousUninstaller(RootKey: Integer);
+var
+  UninstallCommand: string;
+  ExePath: string;
+  Params: string;
+  ResultCode: Integer;
+begin
+  if RegQueryStringValue(RootKey, AppUninstallKey, 'QuietUninstallString', UninstallCommand) or
+     RegQueryStringValue(RootKey, AppUninstallKey, 'UninstallString', UninstallCommand) then
+  begin
+    if ExtractExeAndParams(UninstallCommand, ExePath, Params) and FileExists(ExePath) then
+    begin
+      Log('Removing previous Nexus Launcher version: ' + ExePath);
+      Params := Trim(Params + ' /VERYSILENT /SUPPRESSMSGBOXES /NORESTART');
+      Exec(ExePath, Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      Log('Previous Nexus Launcher uninstaller exit code: ' + IntToStr(ResultCode));
+    end;
+  end;
+end;
+
+function InitializeSetup(): Boolean;
+begin
+  RunPreviousUninstaller(HKCU);
+  RunPreviousUninstaller(HKLM);
+  Result := True;
+end;

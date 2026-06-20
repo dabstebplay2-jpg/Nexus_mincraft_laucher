@@ -23,6 +23,8 @@ from PySide6.QtWidgets import (
 from mods.mod_installer import ModInstaller
 from storage.json_store import load_json
 from ui.utils.helpers import clear_layout
+from ui.components.loader_version_selector import LoaderVersionSelector
+from core.loader_manager import get_loader_manager
 
 
 class _ModUpdateCheckWorker(QThread):
@@ -1042,6 +1044,18 @@ class InstanceDetailPage(QWidget):
         loader_layout.addWidget(self.loader_combo, 1)
         layout.addWidget(loader_row)
 
+        loader_version_row = QFrame()
+        loader_version_layout = QHBoxLayout(loader_version_row)
+        loader_version_layout.setContentsMargins(0, 4, 0, 4)
+        loader_version_label = QLabel("Версия loader")
+        loader_version_label.setMinimumWidth(120)
+        self.loader_version_selector = LoaderVersionSelector(self)
+        self.loader_version_selector.set_saved_loader_version(self.instance.get("loader_version"))
+        self.loader_version_selector.attach(self.loader_combo, self.version_combo)
+        loader_version_layout.addWidget(loader_version_label)
+        loader_version_layout.addWidget(self.loader_version_selector, 1)
+        layout.addWidget(loader_version_row)
+
         ram_row = QFrame()
         ram_layout = QHBoxLayout(ram_row)
         ram_layout.setContentsMargins(0, 4, 0, 4)
@@ -1083,10 +1097,24 @@ class InstanceDetailPage(QWidget):
         from core.instance_manager import get_instance_manager
         manager = get_instance_manager()
 
+        loader = self.loader_combo.currentText().strip()
+        mc_version = self.version_combo.currentText().strip()
+        loader_version = self.loader_version_selector.get_loader_version()
+
+        error = get_loader_manager().validate_loader_selection(
+            loader_id=loader,
+            minecraft_version=mc_version,
+            loader_version=loader_version,
+        )
+        if error:
+            QMessageBox.warning(self, "Несовместимая связка", error)
+            return
+
         updates = {
             "name": self.name_edit.text().strip() or self.instance.get("name", "Minecraft"),
-            "minecraft_version": self.version_combo.currentText().strip(),
-            "loader": self.loader_combo.currentText().strip(),
+            "minecraft_version": mc_version,
+            "loader": loader,
+            "loader_version": loader_version,
             "ram_mb": self.ram_spin.value(),
         }
 

@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import json
 import shutil
+import tempfile
 import threading
 import time
 import uuid
 from pathlib import Path
 from typing import Any
 
+import requests
+
 from storage.paths import DATA_DIR
+from core.constants import USER_AGENT
 
 
 class SkinError(RuntimeError):
@@ -144,6 +148,39 @@ class SkinManager:
             data["skins"].insert(0, skin)
             self._save(data)
             return skin
+
+    def import_skin_from_url(self, url: str, name: str | None = None, model: str = "auto") -> dict[str, Any]:
+        url = str(url or "").strip()
+        if not url:
+            raise SkinError("URL скина не указан.")
+        if not (url.startswith("https://") or url.startswith("http://")):
+            raise SkinError("URL должен начинаться с http:// или https://.")
+
+        try:
+            response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=20)
+            response.raise_for_status()
+        except Exception as error:
+            raise SkinError(f"Не удалось скачать скин: {error}") from error
+
+        content_type = response.headers.get("content-type", "").lower()
+        if "image" not in content_type and "png" not in content_type:
+            raise SkinError("Ссылка должна вести на PNG-изображение скина.")
+
+        data = response.content or b""
+        if len(data) > 4 * 1024 * 1024:
+            raise SkinError("Скин слишком большой. Максимум 4 MB.")
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+            tmp.write(data)
+            tmp_path = Path(tmp.name)
+
+        try:
+            return self.import_skin(tmp_path, name=name or Path(url.split("?")[0]).stem or "URL skin", model=model)
+        finally:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except Exception:
+                pass
 
     def delete_skin(self, skin_id: str) -> None:
         with self._lock:

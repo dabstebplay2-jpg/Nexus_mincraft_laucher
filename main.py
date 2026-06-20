@@ -100,6 +100,8 @@ def main():
 
         from ui.styles import get_app_style
         theme = settings_data.get("theme", "dark")
+        if theme == "light":
+            theme = "dark"
         try:
             app.setStyleSheet(get_app_style(theme))
             logger.info("Applied theme: %s", theme)

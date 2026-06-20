@@ -1,5 +1,5 @@
-﻿const repo = "dabstebplay2-jpg/Nexus_mincraft_laucher";
-const fallbackVersion = "0.8.0";
+const repo = window.NEXUS_REPO || "dabstebplay2-jpg/Nexus_mincraft_laucher";
+const fallbackVersion = window.NEXUS_VERSION || "1.0.1";
 
 const menuBtn = document.getElementById("menuBtn");
 const nav = document.getElementById("nav");
@@ -26,6 +26,7 @@ const els = {
   releaseStatus: $("releaseStatus"),
   releaseDate: $("releaseDate"),
   releaseSize: $("releaseSize"),
+  consoleStatus: $("consoleStatus"),
 };
 
 let currentSetupUrl = "";
@@ -72,6 +73,12 @@ function fmtDate(value) {
   }
 }
 
+function setConsoleStatus(label) {
+  if (!els.consoleStatus) return;
+  els.consoleStatus.innerHTML =
+    '<span class="console-status__dot" aria-hidden="true"></span>' + label;
+}
+
 function setRelease(version, release = null) {
   const clean = cleanVersion(version);
   const files = fileNames(clean);
@@ -87,20 +94,29 @@ function setRelease(version, release = null) {
     if (el) el.href = setupUrl;
   });
 
-  if (els.portableBtn) els.portableBtn.href = portableUrl;
+  if (els.portableBtn) {
+    els.portableBtn.href = portableUrl;
+    const portableSmall = els.portableBtn.querySelector("small");
+    if (portableSmall) portableSmall.textContent = files.portable;
+  }
+
   if (els.fileName) els.fileName.textContent = files.setup;
 
   if (release) {
-    if (els.releaseStatus) els.releaseStatus.textContent = "Latest GitHub Release найден";
+    setConsoleStatus("LIVE");
+    if (els.releaseStatus) els.releaseStatus.textContent = "GitHub Release подключён";
     if (els.releaseDate) els.releaseDate.textContent = fmtDate(release.published_at || release.created_at);
 
     const setupAsset = Array.isArray(release.assets)
       ? release.assets.find((asset) => asset.name === files.setup)
       : null;
 
-    if (els.releaseSize) els.releaseSize.textContent = setupAsset ? fmtBytes(setupAsset.size) : "asset ожидается";
-  } else if (els.releaseStatus) {
-    els.releaseStatus.textContent = "Fallback-версия";
+    if (els.releaseSize) {
+      els.releaseSize.textContent = setupAsset ? fmtBytes(setupAsset.size) : "asset ожидается";
+    }
+  } else {
+    setConsoleStatus("STABLE");
+    if (els.releaseStatus) els.releaseStatus.textContent = "Стабильный релиз";
   }
 }
 
@@ -113,6 +129,7 @@ fetch(`https://api.github.com/repos/${repo}/releases/latest`, { cache: "no-store
     setRelease(release.tag_name, release);
   })
   .catch(() => {
+    setConsoleStatus("STABLE");
     if (els.releaseStatus) els.releaseStatus.textContent = "GitHub API недоступен";
   });
 
@@ -129,4 +146,3 @@ if (els.copyLinkBtn) {
     }
   });
 }
-

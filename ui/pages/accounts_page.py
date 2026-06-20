@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 
 from auth.account_manager import AccountManager
 from core.skin_manager import SkinError, SkinManager
-from ui.components.skin_preview import SkinFaceWidget
+from ui.components.skin_preview import Skin3DPreviewWidget, SkinFaceWidget
 from ui.utils.helpers import clear_layout
 
 
@@ -285,8 +285,13 @@ class AccountsPage(QWidget):
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(18)
 
-        self.preview = SkinFaceWidget(118)
-        layout.addWidget(self.preview, 0, Qt.AlignTop)
+        preview_box = QVBoxLayout()
+        preview_box.setSpacing(10)
+        self.preview = SkinFaceWidget(96)
+        self.preview_3d = Skin3DPreviewWidget(210, 250)
+        preview_box.addWidget(self.preview, 0, Qt.AlignHCenter)
+        preview_box.addWidget(self.preview_3d)
+        layout.addLayout(preview_box)
 
         info = QVBoxLayout()
         info.setSpacing(8)
@@ -319,6 +324,18 @@ class AccountsPage(QWidget):
         upload_btn.setObjectName("PrimaryButton")
         upload_btn.clicked.connect(self.upload_skin)
 
+        url_btn = QPushButton("Импорт по URL")
+        url_btn.setObjectName("SecondaryButton")
+        url_btn.clicked.connect(self.import_skin_url)
+
+        ely_skin_btn = QPushButton("С Ely.by")
+        ely_skin_btn.setObjectName("SecondaryButton")
+        ely_skin_btn.clicked.connect(self.import_ely_skin)
+
+        ely_page_btn = QPushButton("Настроить Ely.by")
+        ely_page_btn.setObjectName("SecondaryButton")
+        ely_page_btn.clicked.connect(self.open_ely_skin_page)
+
         clear_btn = QPushButton("Убрать с профиля")
         clear_btn.setObjectName("SecondaryButton")
         clear_btn.clicked.connect(self.clear_active_skin)
@@ -328,6 +345,9 @@ class AccountsPage(QWidget):
         folder_btn.clicked.connect(self.open_skins_folder)
 
         buttons.addWidget(upload_btn)
+        buttons.addWidget(url_btn)
+        buttons.addWidget(ely_skin_btn)
+        buttons.addWidget(ely_page_btn)
         buttons.addWidget(clear_btn)
         buttons.addWidget(folder_btn)
         buttons.addStretch(1)
@@ -537,6 +557,7 @@ class AccountsPage(QWidget):
 
         if not account:
             self.preview.set_skin(None, "OFF")
+            self.preview_3d.set_skin(None, "OFF")
             self.active_badge.setText("• OFFLINE")
             return
 
@@ -547,6 +568,7 @@ class AccountsPage(QWidget):
 
         if self.active_skin:
             self.preview.set_skin(self.active_skin.get("path"), username)
+            self.preview_3d.set_skin(self.active_skin.get("path"), username)
             self.skin_title.setText(f"Персонаж {username}")
 
             model = account.get("skin_model") or self.active_skin.get("model", "auto")
@@ -560,6 +582,7 @@ class AccountsPage(QWidget):
                 self.model_combo.setCurrentIndex(idx)
         else:
             self.preview.set_skin(None, username)
+            self.preview_3d.set_skin(None, username)
             self.skin_title.setText(f"Персонаж {username}")
             self.skin_subtitle.setText("Скин не выбран. Загрузи PNG-скин Minecraft и привяжи его к активному профилю.")
 
@@ -725,6 +748,84 @@ class AccountsPage(QWidget):
             QMessageBox.warning(self, "Не удалось загрузить скин", str(e))
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось загрузить скин:\n{e}")
+
+    def _attach_imported_skin(self, skin, success_text: str):
+        if self.active_account:
+            account = self.skins.set_account_skin(
+                self.active_account.get("id"),
+                skin.get("id"),
+                self.model_combo.currentData() or skin.get("model", "auto"),
+            )
+            self.account_changed.emit(account)
+        self.refresh_all()
+        QMessageBox.information(self, "Скин добавлен", success_text)
+
+    def import_skin_url(self):
+        url, ok = QInputDialog.getText(
+            self,
+            "Импорт скина по URL",
+            "Вставь прямую ссылку на PNG-скин Minecraft:",
+        )
+        if not ok or not str(url or "").strip():
+            return
+
+        name, ok = QInputDialog.getText(self, "Название скина", "Как назвать скин?", text="URL skin")
+        if not ok:
+            return
+
+        try:
+            skin = self.skins.import_skin_from_url(
+                str(url).strip(),
+                name=name,
+                model=self.model_combo.currentData() or "auto",
+            )
+            self._attach_imported_skin(skin, "Скин скачан по URL, добавлен в библиотеку и привязан к активному профилю.")
+        except SkinError as e:
+            QMessageBox.warning(self, "Не удалось импортировать скин", str(e))
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось импортировать скин:\n{e}")
+
+    def import_ely_skin(self):
+        username = ""
+        if self.active_account:
+            username = self.active_account.get("username") or self.active_account.get("display_name") or ""
+        username, ok = QInputDialog.getText(
+            self,
+            "Скин Ely.by",
+            "Никнейм Ely.by / Minecraft:",
+            text=username,
+        )
+        if not ok or not str(username or "").strip():
+            return
+
+        try:
+            from auth.ely_auth import ElyAuthService
+
+            url = ElyAuthService().get_skin_url(str(username).strip())
+            skin = self.skins.import_skin_from_url(
+                url,
+                name=f"Ely.by {str(username).strip()}",
+                model=self.model_combo.currentData() or "auto",
+            )
+            self._attach_imported_skin(skin, "Скин Ely.by загружен, добавлен в библиотеку и привязан к активному профилю.")
+        except SkinError as e:
+            QMessageBox.warning(self, "Не удалось загрузить Ely.by skin", str(e))
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось загрузить Ely.by skin:\n{e}")
+
+    def open_ely_skin_page(self):
+        try:
+            from auth.ely_auth import ElyAuthService
+
+            username = ""
+            if self.active_account:
+                username = self.active_account.get("username") or self.active_account.get("display_name") or ""
+            if username:
+                ElyAuthService().open_profile_page(username)
+            else:
+                ElyAuthService().open_skin_upload_page()
+        except Exception as e:
+            QMessageBox.warning(self, "Ely.by", str(e))
 
     def apply_skin(self, skin_id: str):
         if not self.active_account:

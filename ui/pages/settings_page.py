@@ -521,7 +521,6 @@ class SettingsPage(QWidget):
         theme_label.setMinimumWidth(140)
         self.theme_combo = QComboBox()
         self.theme_combo.addItem("Тёмная Minecraft", "dark")
-        self.theme_combo.addItem("Светлая чистая", "light")
         self.theme_combo.addItem("AMOLED / чёрная", "amoled")
         self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
         theme_row.addWidget(theme_label)
@@ -967,6 +966,8 @@ class SettingsPage(QWidget):
 
     def _on_theme_changed(self, index):
         theme = self.theme_combo.itemData(index)
+        if theme == "light":
+            theme = "dark"
         try:
             self._save_launcher_settings_value("theme", theme)
             self._apply_theme_live(theme)
@@ -1125,6 +1126,9 @@ class SettingsPage(QWidget):
 
         lang = data.get("language", "ru")
         theme = data.get("theme", "dark")
+        if theme == "light":
+            theme = "dark"
+            self._save_launcher_settings_value("theme", theme)
 
         lang_idx = self.lang_combo.findData(lang)
         if lang_idx >= 0 and self.lang_combo.currentIndex() != lang_idx:

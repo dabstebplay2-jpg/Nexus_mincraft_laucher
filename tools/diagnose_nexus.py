@@ -6,6 +6,10 @@ import sys
 import traceback
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 
 def _print(title: str, value=""):
     print(f"\n=== {title} ===")
@@ -36,7 +40,12 @@ def run_diagnostics():
 
     try:
         import minecraft_launcher_lib
-        print("minecraft-launcher-lib:", getattr(minecraft_launcher_lib, "__version__", "unknown"))
+        try:
+            from importlib.metadata import version as pkg_version
+            mcl_version = pkg_version("minecraft-launcher-lib")
+        except Exception:
+            mcl_version = getattr(minecraft_launcher_lib, "__version__", "unknown")
+        print("minecraft-launcher-lib:", mcl_version)
     except Exception as error:
         print("minecraft-launcher-lib import error:", error)
 

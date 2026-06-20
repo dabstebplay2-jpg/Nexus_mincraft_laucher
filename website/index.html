@@ -1,10 +1,10 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Nexus Launcher — Minecraft лаунчер для Windows</title>
-  <meta name="description" content="Nexus Launcher — Minecraft-лаунчер для Windows. Создание сборок, установка модов, шейдеров и ресурспаков, запуск Minecraft, Discord Rich Presence, installer и portable ZIP." />
+  <title>Nexus Launcher 1.0 — Minecraft лаунчер для Windows</title>
+  <meta name="description" content="Nexus Launcher 1.0 — стабильный Minecraft-лаунчер для Windows. Сборки, моды, шейдеры, ресурспаки, Discord Rich Presence, installer и portable ZIP." />
   <meta name="theme-color" content="#f4f7ee" />
   <meta name="color-scheme" content="light dark" />
   <meta property="og:type" content="website" />
@@ -14,6 +14,10 @@
   <link rel="icon" href="assets/favicon.png" type="image/png" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="styles.css" />
+  <script>
+    window.NEXUS_VERSION = "1.0.1";
+    window.NEXUS_REPO = "dabstebplay2-jpg/Nexus_mincraft_laucher";
+  </script>
 </head>
 <body>
   <header class="site-header">
@@ -38,9 +42,10 @@
   <main id="top">
     <section class="hero">
       <div class="hero-copy">
-        <div class="release-badge">
-          <span></span>
-          Последний релиз <b>v<span id="versionText">0.8.0</span></b>
+        <div class="release-badge" id="releaseBadge">
+          <span class="release-badge__dot" aria-hidden="true"></span>
+          <span class="release-badge__label">Последний релиз</span>
+          <strong class="release-badge__pill">v<span id="versionText">1.0.1</span></strong>
         </div>
 
         <h1>Nexus Launcher для Minecraft.</h1>
@@ -51,7 +56,7 @@
         </p>
 
         <div class="hero-actions">
-          <a class="btn btn-primary" id="downloadBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.8.0-win-x64.exe">
+          <a class="btn btn-primary" id="downloadBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-1.0.1-win-x64.exe">
             Скачать для Windows
           </a>
           <a class="btn btn-secondary" href="#features">Возможности лаунчера</a>
@@ -71,32 +76,44 @@
             <small>Центр загрузки</small>
             <b>Nexus Launcher</b>
           </div>
-          <span class="console-status">READY</span>
+          <span class="console-status" id="consoleStatus">
+            <span class="console-status__dot" aria-hidden="true"></span>
+            STABLE
+          </span>
         </div>
 
         <div class="release-row">
-          <span>Версия</span>
-          <b id="versionStat">0.8.0</b>
+          <div class="release-row__copy">
+            <span class="release-row__label">Версия</span>
+            <small class="release-row__hint">Windows · x64 · стабильный канал</small>
+          </div>
+          <strong class="release-row__value">v<span id="versionStat">1.0.1</span></strong>
         </div>
 
         <div class="asset-list">
-          <a class="asset-card recommended" id="setupBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-0.8.0-win-x64.exe">
-            <span>Рекомендуется</span>
+          <a class="asset-card recommended" id="setupBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncherSetup-1.0.1-win-x64.exe">
+            <div class="asset-card__head">
+              <span class="asset-card__tag">Рекомендуется</span>
+              <span class="asset-card__platform" aria-hidden="true">Win</span>
+            </div>
             <b>Windows installer</b>
-            <small id="fileName">NexusLauncherSetup-0.8.0-win-x64.exe</small>
+            <small id="fileName">NexusLauncherSetup-1.0.1-win-x64.exe</small>
           </a>
 
-          <a class="asset-card" id="portableBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncher-0.8.0-win-x64-portable.zip">
-            <span>Альтернатива</span>
+          <a class="asset-card" id="portableBtn" href="https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest/download/NexusLauncher-1.0.1-win-x64-portable.zip">
+            <div class="asset-card__head">
+              <span class="asset-card__tag">Альтернатива</span>
+              <span class="asset-card__platform asset-card__platform--muted" aria-hidden="true">ZIP</span>
+            </div>
             <b>Portable ZIP</b>
-            <small>Архив для запуска без установки</small>
+            <small>NexusLauncher-1.0.1-win-x64-portable.zip</small>
           </a>
         </div>
 
         <div class="release-meta">
           <div>
             <span>Статус</span>
-            <b id="releaseStatus">Проверка GitHub Release...</b>
+            <b id="releaseStatus">Стабильный релиз 1.0</b>
           </div>
           <div>
             <span>Дата</span>
@@ -235,20 +252,21 @@
       </div>
 
       <div class="roadmap-list">
-        <article>
+        <article class="roadmap-item roadmap-item--done">
           <time>v0.8</time>
           <b>Сайт и интерфейс</b>
           <p>Улучшение сайта, страниц загрузки, описания функций и визуальной структуры проекта.</p>
         </article>
-        <article>
+        <article class="roadmap-item roadmap-item--done">
           <time>v0.9</time>
-          <b>Диагностика Minecraft</b>
-          <p>Анализ логов, crash-отчётов, ошибок Java и проблем совместимости модов.</p>
+          <b>Диагностика и loaders</b>
+          <p>Deep QA, выбор версии loader, retry API, валидация сборок и headless-проверка UI.</p>
         </article>
-        <article>
+        <article class="roadmap-item roadmap-item--current">
           <time>v1.0</time>
           <b>Стабильный релиз</b>
           <p>Финальная полировка лаунчера, updater, релизных сборок и сайта проекта.</p>
+          <span class="roadmap-current">Текущая версия</span>
         </article>
       </div>
     </section>
@@ -257,7 +275,7 @@
   <footer class="footer">
     <div>
       <b>Nexus Launcher</b>
-      <span>v<span id="footerVersion">0.8.0</span> · Minecraft desktop app for Windows</span>
+      <span>v<span id="footerVersion">1.0.1</span> · Stable Release · Windows</span>
     </div>
     <nav>
       <a href="privacy.html">Privacy</a>
