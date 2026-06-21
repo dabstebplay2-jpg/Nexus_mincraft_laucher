@@ -91,9 +91,21 @@ class ProjectIntegrityTests(unittest.TestCase):
     def test_launcher_sidebar_compact_policy_is_explicit(self) -> None:
         from app.window import should_use_compact_sidebar
 
-        self.assertFalse(should_use_compact_sidebar(1180, user_collapsed=False))
-        self.assertTrue(should_use_compact_sidebar(1179, user_collapsed=False))
+        sidebar = read_text(ROOT / "ui" / "components" / "sidebar.py")
+        topbar = read_text(ROOT / "ui" / "components" / "topbar.py")
+        window = read_text(ROOT / "app" / "window.py")
+
+        self.assertFalse(should_use_compact_sidebar(1179, user_collapsed=False))
+        self.assertFalse(should_use_compact_sidebar(1400, user_collapsed=False))
         self.assertTrue(should_use_compact_sidebar(1400, user_collapsed=True))
+        self.assertIn("SidebarCollapseButton", sidebar)
+        self.assertIn("collapsed_changed", sidebar)
+        self.assertIn("_on_logo_clicked", sidebar)
+        self.assertNotIn("SidebarRailButton", sidebar)
+        self.assertIn("should_use_compact_topbar", window)
+        self.assertIn("THEME_LABELS", topbar)
+        self.assertNotIn("TopbarMenuButton", topbar)
+        self.assertIn("collapsed_changed.connect", window)
 
     def test_launcher_topbar_exposes_theme_toggle(self) -> None:
         topbar = read_text(ROOT / "ui" / "components" / "topbar.py")

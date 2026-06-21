@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QMessageBox,
     QProgressBar,
+    QSizePolicy,
 )
 
 from core.constants import APP_VERSION
@@ -35,10 +36,17 @@ from ui.pages.settings_page import SettingsPage
 
 
 COMPACT_SIDEBAR_WIDTH = 1180
+COMPACT_TOPBAR_WIDTH = 1080
 
 
 def should_use_compact_sidebar(window_width, user_collapsed=False):
-    return bool(user_collapsed or int(window_width) < COMPACT_SIDEBAR_WIDTH)
+    """Compact sidebar only when user chose to collapse it."""
+    _ = window_width
+    return bool(user_collapsed)
+
+
+def should_use_compact_topbar(window_width):
+    return int(window_width) < COMPACT_TOPBAR_WIDTH
 
 
 class PageIndex:
@@ -141,6 +149,7 @@ class MainWindow(QMainWindow):
 
         self.content = QWidget()
         self.content.setObjectName("AppContent")
+        self.content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         content_layout = QVBoxLayout(self.content)
         content_layout.setContentsMargins(0, 0, 0, 0)
@@ -149,8 +158,8 @@ class MainWindow(QMainWindow):
         self.topbar = Topbar()
         self.topbar.search_submitted.connect(self.handle_search)
         self.topbar.play_clicked.connect(self.handle_quick_play)
-        self.topbar.sidebar_toggle_clicked.connect(self.toggle_sidebar)
         self.topbar.theme_clicked.connect(self.toggle_theme)
+        self.sidebar.collapsed_changed.connect(self._on_sidebar_collapsed_changed)
 
         self.home_page = HomePage()
         self.home_page.navigate_requested.connect(self.change_page)
@@ -200,16 +209,14 @@ class MainWindow(QMainWindow):
         self.update_bar = self.create_update_bar()
         self.update_bar.setVisible(False)
 
-        initial_compact = should_use_compact_sidebar(
+        initial_collapsed = should_use_compact_sidebar(
             self.width(),
             get_launcher_settings().is_sidebar_collapsed(),
         )
         if hasattr(self.sidebar, "set_compact"):
-            self.sidebar.set_compact(initial_compact)
-        if hasattr(self.topbar, "set_sidebar_collapsed"):
-            self.topbar.set_sidebar_collapsed(initial_compact)
+            self.sidebar.set_compact(initial_collapsed)
         if hasattr(self.topbar, "set_compact"):
-            self.topbar.set_compact(initial_compact)
+            self.topbar.set_compact(should_use_compact_topbar(self.width()))
 
         self.change_page(0)
         self.apply_theme(self.current_theme())
@@ -343,16 +350,14 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        compact = should_use_compact_sidebar(
+        sidebar_compact = should_use_compact_sidebar(
             self.width(),
             get_launcher_settings().is_sidebar_collapsed(),
         )
         if hasattr(self.sidebar, "set_compact"):
-            self.sidebar.set_compact(compact)
-        if hasattr(self.topbar, "set_sidebar_collapsed"):
-            self.topbar.set_sidebar_collapsed(compact)
+            self.sidebar.set_compact(sidebar_compact)
         if hasattr(self.topbar, "set_compact"):
-            self.topbar.set_compact(compact)
+            self.topbar.set_compact(should_use_compact_topbar(self.width()))
 
     def current_theme(self):
         try:
@@ -394,11 +399,16 @@ class MainWindow(QMainWindow):
         if hasattr(self.settings_page, "sync_settings_combos"):
             self.settings_page.sync_settings_combos()
 
+    def _on_sidebar_collapsed_changed(self, collapsed: bool):
+        get_launcher_settings().set_sidebar_collapsed(bool(collapsed))
+        if hasattr(self, "content") and self.content is not None:
+            self.content.updateGeometry()
+        self.updateGeometry()
+
     def toggle_sidebar(self):
         collapsed = not bool(getattr(self.sidebar, "compact", False))
-        self.sidebar.set_compact(collapsed)
-        if hasattr(self.topbar, "set_sidebar_collapsed"):
-            self.topbar.set_sidebar_collapsed(collapsed)
+        if hasattr(self.sidebar, "set_compact"):
+            self.sidebar.set_compact(collapsed)
         get_launcher_settings().set_sidebar_collapsed(collapsed)
 
     def apply_theme(self, theme=None):

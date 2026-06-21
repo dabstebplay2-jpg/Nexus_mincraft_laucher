@@ -16,6 +16,9 @@ except Exception:
 
 from ui.components.skin_preview import SkinFaceWidget
 
+COMPACT_WIDTH = 76
+EXPANDED_WIDTH = 220
+
 
 def get_icon(name):
     if not icon:
@@ -45,6 +48,17 @@ class SidebarButton(QPushButton):
             self.setIconSize(QSize(18, 18))
 
 
+class ClickableLogoCard(QFrame):
+    clicked = Signal()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+
 class ClickableProfileCard(QFrame):
     clicked = Signal()
 
@@ -59,14 +73,14 @@ class ClickableProfileCard(QFrame):
 class Sidebar(QWidget):
     page_changed = Signal(int)
     profile_clicked = Signal()
+    collapsed_changed = Signal(bool)
 
     def __init__(self):
         super().__init__()
 
         self.setObjectName("Sidebar")
-        self.setFixedWidth(220)
+        self.setFixedWidth(EXPANDED_WIDTH)
         self.compact = False
-        self._nav_labels = []
         self._logo_text_widgets = []
         self._profile_text_widgets = []
         self._section_titles = []
@@ -79,7 +93,7 @@ class Sidebar(QWidget):
         root.setContentsMargins(12, 12, 12, 12)
         root.setSpacing(8)
 
-        root.addWidget(self.create_logo())
+        root.addWidget(self._create_logo_card())
         root.addSpacing(4)
 
         nav_title = QLabel("ОСНОВНОЕ")
@@ -94,7 +108,7 @@ class Sidebar(QWidget):
             ("library", "Библиотека", 3),
             ("downloads", "Загрузки", 4),
         ]:
-            root.addWidget(self.create_nav_button(icon_name, text, index))
+            root.addWidget(self._create_nav_button(icon_name, text, index))
 
         root.addSpacing(8)
 
@@ -107,27 +121,29 @@ class Sidebar(QWidget):
             ("settings", "Настройки", 6),
             ("logs", "Логи", 7),
         ]:
-            root.addWidget(self.create_nav_button(icon_name, text, index))
+            root.addWidget(self._create_nav_button(icon_name, text, index))
 
         root.addStretch()
-        root.addWidget(self.create_profile_card())
+        self.profile_card = self._create_profile_card()
+        root.addWidget(self.profile_card)
 
-    def create_logo(self):
-        card = QFrame()
+    def _create_logo_card(self):
+        card = ClickableLogoCard()
         card.setObjectName("SidebarLogoCard")
         card.setMinimumHeight(74)
+        card.clicked.connect(self._on_logo_clicked)
+        self.logo_card = card
 
         layout = QHBoxLayout(card)
         layout.setContentsMargins(12, 10, 12, 10)
-        layout.setSpacing(10)
+        layout.setSpacing(8)
 
-        mark = QLabel("×")
+        mark = QLabel()
         mark.setObjectName("NexusMark")
         mark.setAlignment(Qt.AlignCenter)
         mark.setFixedSize(48, 48)
         self.logo_mark = mark
-
-        self.apply_logo_icon()
+        self._apply_logo_icon()
 
         text = QVBoxLayout()
         text.setSpacing(0)
@@ -146,24 +162,49 @@ class Sidebar(QWidget):
         text.addWidget(title)
         text.addWidget(subtitle)
 
+        self.collapse_button = QPushButton()
+        self.collapse_button.setObjectName("SidebarCollapseButton")
+        self.collapse_button.setCursor(Qt.PointingHandCursor)
+        self.collapse_button.setToolTip("Свернуть панель")
+        self.collapse_button.setFixedSize(30, 30)
+        chevron = get_icon("chevron-left")
+        if chevron:
+            self.collapse_button.setIcon(chevron)
+            self.collapse_button.setIconSize(QSize(16, 16))
+        self.collapse_button.clicked.connect(self._collapse_sidebar)
+
         layout.addWidget(mark)
         layout.addLayout(text, 1)
+        layout.addWidget(self.collapse_button, 0, Qt.AlignTop)
         return card
 
-    def apply_logo_icon(self):
+    def _apply_logo_icon(self):
         if not hasattr(self, "logo_mark") or self.logo_mark is None:
             return
 
         qicon = get_icon("nexus")
         if qicon:
-            self.logo_mark.setPixmap(qicon.pixmap(QSize(48, 48)))
+            size = 40 if self.compact else 48
+            self.logo_mark.setPixmap(qicon.pixmap(QSize(size, size)))
 
-    def create_nav_button(self, icon_name, text, index):
+    def _create_nav_button(self, icon_name, text, index):
         button = SidebarButton(icon_name, text, index)
         button.full_text = text
         button.clicked.connect(lambda checked=False, i=index: self.page_changed.emit(i))
         self.buttons.append(button)
         return button
+
+    def _collapse_sidebar(self):
+        self.set_compact(True)
+        self.collapsed_changed.emit(True)
+
+    def _expand_sidebar(self):
+        self.set_compact(False)
+        self.collapsed_changed.emit(False)
+
+    def _on_logo_clicked(self):
+        if self.compact:
+            self._expand_sidebar()
 
     def set_compact(self, compact: bool):
         compact = bool(compact)
@@ -172,9 +213,11 @@ class Sidebar(QWidget):
 
         self.compact = compact
         self.setProperty("compact", compact)
+        self.setProperty("collapsed", compact)
         self.style().unpolish(self)
         self.style().polish(self)
-        self.setFixedWidth(76 if compact else 220)
+
+        self.setFixedWidth(COMPACT_WIDTH if compact else EXPANDED_WIDTH)
         self.root_layout.setContentsMargins(8 if compact else 12, 10, 8 if compact else 12, 10)
         self.root_layout.setSpacing(8)
 
@@ -186,6 +229,25 @@ class Sidebar(QWidget):
 
         for widget in self._logo_text_widgets + self._profile_text_widgets + self._section_titles:
             widget.setVisible(not compact)
+
+        self.collapse_button.setVisible(not compact)
+
+        if compact:
+            self.logo_card.setToolTip("Развернуть меню")
+            self.logo_card.setCursor(Qt.PointingHandCursor)
+        else:
+            self.logo_card.setToolTip("")
+            self.logo_card.setCursor(Qt.ArrowCursor)
+
+        self._apply_logo_icon()
+
+        parent = self.parentWidget()
+        if parent is not None:
+            parent.updateGeometry()
+        self.updateGeometry()
+
+    def set_collapsed(self, collapsed: bool):
+        self.set_compact(collapsed)
 
     def set_active(self, index):
         for button in self.buttons:
@@ -209,12 +271,11 @@ class Sidebar(QWidget):
             button.style().unpolish(button)
             button.style().polish(button)
 
-    def create_profile_card(self):
+    def _create_profile_card(self):
         card = ClickableProfileCard()
         card.setObjectName("SidebarProfileCard")
         card.setCursor(Qt.PointingHandCursor)
         card.clicked.connect(self.profile_clicked.emit)
-        self.profile_card = card
         card.setMinimumHeight(60)
 
         layout = QHBoxLayout(card)
@@ -261,8 +322,7 @@ class Sidebar(QWidget):
             else:
                 button.setIconSize(QSize(18, 18))
 
-        self.apply_logo_icon()
-
+        self._apply_logo_icon()
         self.update_profile()
 
     def update_profile(self):

@@ -1241,6 +1241,85 @@ QComboBox:focus {
     font-weight: 950;
 }
 
+#SidebarCollapseButton {
+    min-width: 28px;
+    max-width: 28px;
+    min-height: 28px;
+    max-height: 28px;
+    padding: 0;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: 900;
+    color: #B8C6B1;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+#SidebarCollapseButton:hover {
+    color: #F4F7EC;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(99, 155, 112, 0.35);
+}
+
+#SidebarCollapseFooter {
+    min-height: 38px;
+    max-height: 38px;
+    padding: 0 12px;
+    border-radius: 12px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 750;
+    color: #9AA78D;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(132, 149, 112, 0.14);
+}
+
+#SidebarCollapseFooter:hover {
+    color: #F4F7EC;
+    background: rgba(76, 121, 61, 0.12);
+    border-color: rgba(117, 150, 92, 0.28);
+}
+
+#SidebarRailButton {
+    min-width: 48px;
+    max-width: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    padding: 0;
+    border-radius: 14px;
+    background: qlineargradient(
+        x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(22, 37, 25, 0.98),
+        stop:1 rgba(17, 24, 22, 0.98)
+    );
+    border: 1px solid rgba(117, 150, 92, 0.32);
+}
+
+#SidebarRailButton:hover {
+    background: rgba(76, 121, 61, 0.22);
+    border-color: rgba(132, 168, 91, 0.44);
+}
+
+#Sidebar[collapsed="true"] {
+    border-right: 1px solid rgba(132, 149, 112, 0.12);
+}
+
+#TopbarThemeButton {
+    min-width: 88px;
+    max-width: 88px;
+    padding: 0 10px;
+}
+
+#SidebarLogoCard[collapsedLogo="true"] {
+    border-radius: 16px;
+    padding: 0;
+    margin: 0;
+}
+
+#SidebarLogoCard[collapsedLogo="true"] #NexusMark {
+    margin: 0 auto;
+}
+
 #Sidebar[compact="true"] #SidebarLogoCard,
 #Sidebar[compact="true"] #SidebarProfileCard {
     border-radius: 16px;

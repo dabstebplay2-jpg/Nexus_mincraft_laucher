@@ -17,8 +17,16 @@ except Exception:
 class Topbar(QWidget):
     search_submitted = Signal(str)
     play_clicked = Signal()
-    sidebar_toggle_clicked = Signal()
     theme_clicked = Signal()
+
+    THEME_LABELS = {
+        "dark": "Тёмная",
+        "amoled": "AMOLED",
+        "forest": "Лес",
+        "ocean": "Океан",
+        "purple": "Эндер",
+        "sunset": "Закат",
+    }
 
     def __init__(self):
         super().__init__()
@@ -60,23 +68,18 @@ class Topbar(QWidget):
 
         self.search_input.returnPressed.connect(self.submit_search)
 
-        self.sidebar_button = QPushButton("☰")
-        self.sidebar_button.setObjectName("TopbarMenuButton")
-        self.sidebar_button.setCursor(Qt.PointingHandCursor)
-        self.sidebar_button.setToolTip("Свернуть / развернуть меню")
-        self.sidebar_button.setFixedWidth(42)
-        self.sidebar_button.clicked.connect(self.sidebar_toggle_clicked.emit)
-
-        self.theme_button = QPushButton("AMOLED")
+        self.theme_button = QPushButton("Тёмная")
         self.theme_button.setObjectName("TopbarThemeButton")
         self.theme_button.setCursor(Qt.PointingHandCursor)
         self.theme_button.setToolTip("Переключить тему")
-        self.theme_button.setFixedWidth(78)
+        self.theme_button.setMinimumWidth(88)
+        self.theme_button.setFixedWidth(88)
         self.theme_button.clicked.connect(self.theme_clicked.emit)
 
         self.play_button = QPushButton("Играть")
         self.play_button.setObjectName("TopbarPlayButton")
         self.play_button.setCursor(Qt.PointingHandCursor)
+        self.play_button.setMinimumWidth(96)
         try:
             if icon:
                 self.play_button.setIcon(icon("play"))
@@ -87,7 +90,6 @@ class Topbar(QWidget):
 
         root.addLayout(title_block)
         root.addStretch()
-        root.addWidget(self.sidebar_button)
         root.addWidget(self.search_input)
         root.addWidget(self.theme_button)
         root.addWidget(self.play_button)
@@ -119,25 +121,11 @@ class Topbar(QWidget):
         self.subtitle_label.setVisible(not compact)
         self.search_input.setMinimumWidth(120 if compact else 180)
         self.search_input.setMaximumWidth(220 if compact else 330)
-        self.sidebar_button.setFixedWidth(38 if compact else 42)
-        self.theme_button.setFixedWidth(46 if compact else 78)
         self.play_button.setText("▶" if compact else "Играть")
         self.set_theme(self.current_theme)
 
-    def set_sidebar_collapsed(self, collapsed: bool):
-        self.sidebar_button.setText("☰" if collapsed else "‹")
-        self.sidebar_button.setToolTip("Развернуть меню" if collapsed else "Свернуть меню")
-
     def set_theme(self, theme: str | None):
         self.current_theme = str(theme or "dark").lower()
-        labels = {
-            "dark": ("ТМ", "Тёмная"),
-            "amoled": ("AM", "AMOLED"),
-            "forest": ("ЛС", "Лес"),
-            "ocean": ("ОК", "Океан"),
-            "purple": ("ЭН", "Эндер"),
-            "sunset": ("ЗК", "Закат"),
-        }
-        compact_text, full_text = labels.get(self.current_theme, labels["dark"])
-        self.theme_button.setText(compact_text if self.compact else full_text)
+        full_text = self.THEME_LABELS.get(self.current_theme, self.THEME_LABELS["dark"])
+        self.theme_button.setText(full_text)
         self.theme_button.setToolTip(f"Тема: {full_text}. Нажми для следующей темы")

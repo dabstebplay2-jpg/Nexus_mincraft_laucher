@@ -18,11 +18,15 @@ SETTINGS_FILE = DATA_DIR / "launcher_settings.json"
 DEFAULT_DISCORD_CLIENT_ID = os.environ.get("NEXUS_DISCORD_CLIENT_ID", "").strip()
 
 
+UI_LAYOUT_VERSION = 2
+
+
 class LauncherSettings:
     def __init__(self):
         self._lock = threading.RLock()
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         self.data = self.load()
+        self._migrate_layout()
 
     def default_settings(self):
         return {
@@ -40,7 +44,17 @@ class LauncherSettings:
             "minecraft_resolution_height": 720,
             "discord_presence_enabled": True,
             "discord_client_id": DEFAULT_DISCORD_CLIENT_ID,
+            "ui_layout_version": UI_LAYOUT_VERSION,
         }
+
+    def _migrate_layout(self):
+        with self._lock:
+            current = int(self.data.get("ui_layout_version", 0) or 0)
+            if current >= UI_LAYOUT_VERSION:
+                return
+            self.data["sidebar_collapsed"] = False
+            self.data["ui_layout_version"] = UI_LAYOUT_VERSION
+            self.save()
 
     def load(self):
         with self._lock:
