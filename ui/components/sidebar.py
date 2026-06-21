@@ -16,7 +16,7 @@ except Exception:
 
 from ui.components.skin_preview import SkinFaceWidget
 
-COMPACT_WIDTH = 76
+COMPACT_WIDTH = 66
 EXPANDED_WIDTH = 220
 
 
@@ -217,20 +217,41 @@ class Sidebar(QWidget):
         self.style().unpolish(self)
         self.style().polish(self)
 
-        self.setFixedWidth(COMPACT_WIDTH if compact else EXPANDED_WIDTH)
-        self.root_layout.setContentsMargins(8 if compact else 12, 10, 8 if compact else 12, 10)
+        width = COMPACT_WIDTH if compact else EXPANDED_WIDTH
+        self.setFixedWidth(width)
+        self.setMinimumWidth(width)
+        self.setMaximumWidth(width)
+        self.root_layout.setContentsMargins(4 if compact else 12, 10 if compact else 12, 4 if compact else 12, 10 if compact else 12)
         self.root_layout.setSpacing(8)
 
         for button in self.buttons:
             button.setText("" if compact else getattr(button, "full_text", button.text()))
+            button.setProperty("compact", compact)
             button.setMinimumHeight(40 if compact else 44)
+            button.setFixedWidth(48 if compact else 196)
             button.setIconSize(QSize(20, 20) if compact else QSize(18, 18))
             button.setToolTip(getattr(button, "full_text", ""))
+            button.setSizePolicy(QSizePolicy.Fixed if compact else QSizePolicy.Expanding, QSizePolicy.Fixed)
+            button.style().unpolish(button)
+            button.style().polish(button)
 
         for widget in self._logo_text_widgets + self._profile_text_widgets + self._section_titles:
             widget.setVisible(not compact)
 
         self.collapse_button.setVisible(not compact)
+        self.logo_card.setProperty("compact", compact)
+        self.logo_card.setProperty("collapsedLogo", compact)
+        self.profile_card.setProperty("compact", compact)
+        self.logo_card.setFixedSize(58 if compact else 196, 76 if compact else 74)
+        self.profile_card.setFixedSize(58 if compact else 196, 58 if compact else 60)
+        self.logo_mark.setFixedSize(44 if compact else 48, 44 if compact else 48)
+        for card in (self.logo_card, self.profile_card):
+            layout = card.layout()
+            if layout:
+                layout.setContentsMargins(6 if compact else 10, 7 if compact else 9, 6 if compact else 10, 7 if compact else 9)
+                layout.setSpacing(0 if compact else 10)
+            card.style().unpolish(card)
+            card.style().polish(card)
 
         if compact:
             self.logo_card.setToolTip("Развернуть меню")

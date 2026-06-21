@@ -101,6 +101,8 @@ class ProjectIntegrityTests(unittest.TestCase):
         self.assertIn("SidebarCollapseButton", sidebar)
         self.assertIn("collapsed_changed", sidebar)
         self.assertIn("_on_logo_clicked", sidebar)
+        self.assertIn('button.setProperty("compact", compact)', sidebar)
+        self.assertIn('self.logo_card.setFixedSize(58 if compact else 196', sidebar)
         self.assertNotIn("SidebarRailButton", sidebar)
         self.assertIn("should_use_compact_topbar", window)
         self.assertIn("THEME_LABELS", topbar)
@@ -131,6 +133,7 @@ class ProjectIntegrityTests(unittest.TestCase):
         instances_page = read_text(ROOT / "ui" / "pages" / "instances_page.py")
         styles = read_text(ROOT / "ui" / "styles.py")
         custom_skin_loader = read_text(ROOT / "core" / "custom_skin_loader.py")
+        skin_preview = read_text(ROOT / "ui" / "components" / "skin_preview.py")
         i18n = read_text(ROOT / "core" / "i18n.py")
 
         self.assertIn("collapsed = self.advanced_filters_widget.isVisible()", mods)
@@ -162,6 +165,12 @@ class ProjectIntegrityTests(unittest.TestCase):
         self.assertIn("CUSTOM_SKIN_LOADER_PROJECT = \"customskinloader\"", custom_skin_loader)
         self.assertIn('"type": "LocalSkin"', custom_skin_loader)
         self.assertIn("api.modrinth.com", custom_skin_loader)
+        self.assertIn("def mouseMoveEvent", skin_preview)
+        self.assertIn("def wheelEvent", skin_preview)
+        self.assertIn("def _visible_faces_for_box", skin_preview)
+        self.assertIn("def _project_point", skin_preview)
+        self.assertIn("def _transform_vector", skin_preview)
+        self.assertIn("sorted(faces, key=lambda item: item[\"depth\"])", skin_preview)
 
     def test_ely_by_oauth_is_launch_ready(self) -> None:
         ely_auth = read_text(ROOT / "auth" / "ely_auth.py")

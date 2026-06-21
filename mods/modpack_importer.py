@@ -3,9 +3,11 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import time
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from urllib.parse import urlparse
 
 import requests
 
@@ -22,6 +24,14 @@ LOADER_DEPENDENCIES = {
     "quilt-loader": "quilt",
     "forge": "forge",
     "neoforge": "neoforge",
+}
+
+ALLOWED_DOWNLOAD_HOSTS = {
+    "cdn.modrinth.com",
+    "github.com",
+    "raw.githubusercontent.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com",
 }
 
 
@@ -128,10 +138,7 @@ class ModpackImporter:
             else:
                 continue
 
-            if not relative or relative.startswith("../") or "/../" in relative:
-                continue
-
-            target = minecraft_dir / relative
+            target = self.safe_target_path(minecraft_dir, relative)
             target.parent.mkdir(parents=True, exist_ok=True)
             with package.open(member, "r") as src, open(target, "wb") as dst:
                 dst.write(src.read())
@@ -149,7 +156,9 @@ class ModpackImporter:
             if not rel_path or not downloads:
                 continue
 
-            target = minecraft_dir / rel_path
+            self.require_sha512(file_entry)
+            target = self.safe_target_path(minecraft_dir, rel_path)
+            download_url = self.safe_download_url(downloads[0])
             target.parent.mkdir(parents=True, exist_ok=True)
 
             if target.exists() and self.file_matches(target, file_entry):
@@ -159,7 +168,7 @@ class ModpackImporter:
                 continue
 
             self.status_callback(f"Скачивание: {Path(rel_path).name}")
-            self.download_one(downloads[0], target, file_entry)
+            self.download_one(download_url, target, file_entry)
             downloaded.append(str(target))
             self.progress_callback(int((index + 1) / total_files * 100))
 
@@ -203,6 +212,10 @@ class ModpackImporter:
                 tmp.replace(target)
 
                 if not self.file_matches(target, file_entry):
+                    try:
+                        target.unlink()
+                    except Exception:
+                        pass
                     raise ModpackImportError(f"Хеш файла не совпал: {target.name}")
 
                 return
@@ -221,20 +234,59 @@ class ModpackImporter:
         raise ModpackImportError(f"Не удалось скачать файл после 3 попыток: {last_error}")
 
     def file_matches(self, path: Path, file_entry: dict) -> bool:
+        expected = self.require_sha512(file_entry)
+        return self.file_hash(path, "sha512").lower() == expected.lower()
+
+    def require_sha512(self, file_entry: dict) -> str:
         hashes = file_entry.get("hashes") or {}
-        if hashes.get("sha512"):
-            return self.file_hash(path, "sha512") == hashes["sha512"]
-        if hashes.get("sha1"):
-            return self.file_hash(path, "sha1") == hashes["sha1"]
+        expected = str(hashes.get("sha512") or "").strip()
+        if not expected:
+            raise ModpackImportError("В modrinth.index.json нет обязательного SHA-512 для файла.")
+        return expected
 
-        expected_size = file_entry.get("fileSize")
-        if expected_size:
-            try:
-                return path.stat().st_size == int(expected_size)
-            except Exception:
-                return False
+    def safe_download_url(self, url: str) -> str:
+        parsed = urlparse(str(url or ""))
+        host = (parsed.hostname or "").lower()
 
-        return True
+        if parsed.scheme.lower() != "https":
+            raise ModpackImportError(f"Небезопасный URL модпака: {url}")
+        if host not in ALLOWED_DOWNLOAD_HOSTS:
+            raise ModpackImportError(f"Хост загрузки не разрешён: {host}")
+
+        return parsed.geturl()
+
+    def safe_target_path(self, base_dir: Path, relative_path: str) -> Path:
+        safe_relative = self.safe_relative_path(relative_path)
+        base = Path(base_dir).resolve()
+        target = (base / safe_relative).resolve()
+
+        try:
+            common = os.path.commonpath([str(base), str(target)])
+        except ValueError as error:
+            raise ModpackImportError(f"Небезопасный путь модпака: {relative_path}") from error
+
+        if common != str(base):
+            raise ModpackImportError(f"Путь модпака выходит за пределы сборки: {relative_path}")
+
+        return target
+
+    def safe_relative_path(self, relative_path: str) -> str:
+        raw = str(relative_path or "").strip()
+        normalized = raw.replace("\\", "/")
+        windows_path = PureWindowsPath(raw)
+
+        if not normalized:
+            raise ModpackImportError("Пустой путь в modpack.")
+        if normalized.startswith("/") or normalized.startswith("//"):
+            raise ModpackImportError(f"Абсолютный путь в modpack запрещён: {relative_path}")
+        if windows_path.drive or windows_path.is_absolute():
+            raise ModpackImportError(f"Windows-путь в modpack запрещён: {relative_path}")
+
+        parts = PurePosixPath(normalized).parts
+        if not parts or any(part in {"", ".."} for part in parts):
+            raise ModpackImportError(f"Небезопасный путь в modpack: {relative_path}")
+
+        return "/".join(parts)
 
     def file_hash(self, path: Path, algorithm: str):
         hasher = hashlib.new(algorithm)

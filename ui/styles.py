@@ -1325,7 +1325,24 @@ QComboBox:focus {
     border-radius: 16px;
 }
 
+#SidebarLogoCard[compact="true"],
+#SidebarProfileCard[compact="true"] {
+    border-radius: 16px;
+    padding: 0;
+    margin: 0;
+}
+
 #Sidebar[compact="true"] #SidebarNavButton {
+    padding: 0;
+    text-align: center;
+}
+
+#SidebarNavButton[compact="true"],
+#Sidebar[compact="true"] #SidebarNavButton {
+    min-width: 48px;
+    max-width: 48px;
+    min-height: 40px;
+    max-height: 40px;
     padding: 0;
     text-align: center;
 }

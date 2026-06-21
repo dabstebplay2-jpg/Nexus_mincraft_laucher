@@ -98,7 +98,7 @@ class _ModUpdateCheckWorker(QThread):
 
 class _ModAllUpdateWorker(QThread):
     progress = Signal(str)
-    finished = Signal(list, list, list)
+    completed = Signal(list, list, list)
     failed = Signal(str)
 
     def __init__(self, instance, records):
@@ -128,7 +128,7 @@ class _ModAllUpdateWorker(QThread):
                 except Exception as error:
                     failed.append(f'{record.get("title") or record.get("slug") or "project"}: {error}')
 
-            self.finished.emit(updated, skipped, failed)
+            self.completed.emit(updated, skipped, failed)
         except Exception as e:
             self.failed.emit(str(e))
 
@@ -141,6 +141,8 @@ class InstanceDetailPage(QWidget):
         super().__init__()
 
         self.instance = None
+        self._mod_update_worker = None
+        self._mod_all_update_worker = None
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -524,11 +526,17 @@ class InstanceDetailPage(QWidget):
         if not indexed_mods:
             return
 
-        self._mod_update_worker = _ModUpdateCheckWorker(self.instance, indexed_mods)
-        self._mod_update_worker.results_ready.connect(self._on_mod_updates_checked)
-        self._mod_update_worker.failed.connect(lambda e: QMessageBox.critical(self, "Ошибка проверки обновлений", e))
-        self._mod_update_worker.finished.connect(self._mod_update_worker.deleteLater)
-        self._mod_update_worker.start()
+        if self._mod_update_worker and self._mod_update_worker.isRunning():
+            QMessageBox.information(self, "Проверка уже идёт", "Nexus уже проверяет обновления модов.")
+            return
+
+        worker = _ModUpdateCheckWorker(self.instance, indexed_mods)
+        self._mod_update_worker = worker
+        worker.results_ready.connect(self._on_mod_updates_checked)
+        worker.failed.connect(lambda e: QMessageBox.critical(self, "Ошибка проверки обновлений", e))
+        worker.finished.connect(worker.deleteLater)
+        worker.finished.connect(lambda: setattr(self, "_mod_update_worker", None))
+        worker.start()
 
     def _on_mod_updates_checked(self, results, has_updates):
         if has_updates:
@@ -543,6 +551,10 @@ class InstanceDetailPage(QWidget):
         if not indexed_mods:
             return
 
+        if self._mod_all_update_worker and self._mod_all_update_worker.isRunning():
+            QMessageBox.information(self, "Обновление уже идёт", "Nexus уже обновляет моды.")
+            return
+
         result = QMessageBox.question(
             self,
             "Обновить все проекты?",
@@ -552,11 +564,13 @@ class InstanceDetailPage(QWidget):
         if result != QMessageBox.Yes:
             return
 
-        self._mod_all_update_worker = _ModAllUpdateWorker(self.instance, indexed_mods)
-        self._mod_all_update_worker.finished.connect(self._on_mod_all_updated)
-        self._mod_all_update_worker.failed.connect(lambda e: QMessageBox.critical(self, "Ошибка обновления", e))
-        self._mod_all_update_worker.finished.connect(self._mod_all_update_worker.deleteLater)
-        self._mod_all_update_worker.start()
+        worker = _ModAllUpdateWorker(self.instance, indexed_mods)
+        self._mod_all_update_worker = worker
+        worker.completed.connect(self._on_mod_all_updated)
+        worker.failed.connect(lambda e: QMessageBox.critical(self, "Ошибка обновления", e))
+        worker.finished.connect(worker.deleteLater)
+        worker.finished.connect(lambda: setattr(self, "_mod_all_update_worker", None))
+        worker.start()
 
     def _on_mod_all_updated(self, updated, skipped, failed):
         message = (
