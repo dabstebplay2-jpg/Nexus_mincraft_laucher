@@ -53,12 +53,12 @@ def patch_index(version: str, repo: str):
     text = re.sub(r'(id="footerVersion">)[^<]+', rf"\g<1>{display_version}", text)
 
     text = re.sub(
-        r'NexusLauncherSetup-\d+\.\d+\.\d+-win-x64\.exe',
+        r'NexusLauncherSetup-\d+\.\d+\.\d+(?:\.\d+)?-win-x64\.exe',
         f"NexusLauncherSetup-{version}-win-x64.exe",
         text,
     )
     text = re.sub(
-        r'NexusLauncher-\d+\.\d+\.\d+-win-x64-portable\.zip',
+        r'NexusLauncher-\d+\.\d+\.\d+(?:\.\d+)?-win-x64-portable\.zip',
         f"NexusLauncher-{version}-win-x64-portable.zip",
         text,
     )

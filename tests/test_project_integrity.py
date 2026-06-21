@@ -127,6 +127,7 @@ class ProjectIntegrityTests(unittest.TestCase):
         main = read_text(ROOT / "main.py")
         settings = read_text(ROOT / "core" / "launcher_settings.py")
         launcher = read_text(ROOT / "core" / "launcher.py")
+        discord_presence = read_text(ROOT / "core" / "discord_presence.py")
         ely_authlib = read_text(ROOT / "core" / "ely_authlib.py")
         wheel_guard = read_text(ROOT / "ui" / "wheel_guard.py")
         settings_page = read_text(ROOT / "ui" / "pages" / "settings_page.py")
@@ -147,7 +148,12 @@ class ProjectIntegrityTests(unittest.TestCase):
         self.assertIn('lang = "ru"', main)
         self.assertNotIn("detect_os_language", main)
         self.assertIn("DEFAULT_DISCORD_CLIENT_ID", settings)
+        self.assertIn("set_launching", discord_presence)
+        self.assertIn("set_minecraft_closed", discord_presence)
+        self.assertIn("_game_active", discord_presence)
         self.assertIn("ensure_authlib_injector()", launcher)
+        self.assertIn("set_launching(instance)", launcher)
+        self.assertIn("set_minecraft_closed", launcher)
         self.assertIn("prepare_custom_skin_loader", launcher)
         self.assertIn("build_ely_javaagent_argument", ely_authlib)
         self.assertIn("_nearest_scroll_area", wheel_guard)
@@ -171,6 +177,18 @@ class ProjectIntegrityTests(unittest.TestCase):
         self.assertIn("def _project_point", skin_preview)
         self.assertIn("def _transform_vector", skin_preview)
         self.assertIn("sorted(faces, key=lambda item: item[\"depth\"])", skin_preview)
+
+    def test_discord_presence_is_packaged_and_configurable(self) -> None:
+        settings_page = read_text(ROOT / "ui" / "pages" / "settings_page.py")
+        one_file_spec = read_text(ROOT / "build" / "NexusLauncher-OneFile.spec")
+        portable_spec = read_text(ROOT / "build" / "NexusLauncher-Portable.spec")
+
+        self.assertIn("Вставь Discord Application Client ID", settings_page)
+        self.assertIn("self.discord_client_id_input.text().strip()", settings_page)
+        self.assertIn("setClearButtonEnabled(True)", settings_page)
+        self.assertNotIn("self.discord_client_id_input.setReadOnly(True)", settings_page)
+        self.assertIn('"pypresence"', one_file_spec)
+        self.assertIn('"pypresence"', portable_spec)
 
     def test_ely_by_oauth_is_launch_ready(self) -> None:
         ely_auth = read_text(ROOT / "auth" / "ely_auth.py")

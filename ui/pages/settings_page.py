@@ -535,8 +535,7 @@ class SettingsPage(QWidget):
         title.setObjectName("PanelTitle")
 
         desc = QLabel(
-            "Показывает в Discord, что ты находишься в Nexus Launcher или играешь в Minecraft через Nexus. "
-            "Nexus использует встроенный Discord Application Client ID из сборки или переменной NEXUS_DISCORD_CLIENT_ID."
+            "Показывает в Discord, что ты находишься в Nexus Launcher, запускаешь сборку или играешь в Minecraft через Nexus."
         )
         desc.setObjectName("PanelText")
         desc.setWordWrap(True)
@@ -550,16 +549,18 @@ class SettingsPage(QWidget):
         client_label.setMinimumWidth(140)
 
         self.discord_client_id_input = QLineEdit()
-        self.discord_client_id_input.setPlaceholderText("Автоматически")
+        self.discord_client_id_input.setPlaceholderText("Вставь Discord Application Client ID")
         self.discord_client_id_input.setText(self.settings.get_discord_client_id())
-        self.discord_client_id_input.setReadOnly(True)
+        self.discord_client_id_input.setClearButtonEnabled(True)
+        self.discord_client_id_input.setToolTip(
+            "Client ID берётся из Discord Developer Portal. Можно оставить пустым, если он задан через NEXUS_DISCORD_CLIENT_ID."
+        )
 
         client_row.addWidget(client_label)
         client_row.addWidget(self.discord_client_id_input, 1)
 
         help_text = QLabel(
-            "Discord должен быть запущен. Если встроенный Client ID не задан в сборке, статус мягко отключится, "
-            "а лаунчер продолжит работать без ручной настройки."
+            "Discord должен быть запущен. Для Rich Presence нужен Discord Application Client ID: вставь его сюда, сохрани и нажми проверку."
         )
         help_text.setObjectName("PanelText")
         help_text.setWordWrap(True)
@@ -665,7 +666,12 @@ class SettingsPage(QWidget):
 
     def save_discord_presence_settings(self):
         enabled = self.discord_enabled_checkbox.isChecked()
-        client_id = self.settings.get_discord_client_id()
+        client_id = self.discord_client_id_input.text().strip()
+
+        if enabled and client_id and not client_id.isdigit():
+            self.discord_status_label.setText("Статус: Client ID должен состоять только из цифр.")
+            QMessageBox.warning(self, "Discord Client ID", "Discord Application Client ID должен состоять только из цифр.")
+            return
 
         self.settings.set_discord_presence_settings(enabled, client_id)
         self.discord_client_id_input.setText(self.settings.get_discord_client_id())
@@ -678,7 +684,7 @@ class SettingsPage(QWidget):
                     self.discord_status_label.setText("Статус: Discord Rich Presence подключён.")
                 else:
                     self.discord_status_label.setText(
-                        "Статус: не подключилось. Проверь, что Discord запущен и в сборке задан Discord Client ID. "
+                        "Статус: не подключилось. Проверь, что Discord запущен и указан Discord Client ID. "
                         f"Ошибка: {discord_presence().last_error()}"
                     )
             else:

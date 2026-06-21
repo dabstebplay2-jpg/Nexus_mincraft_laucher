@@ -88,6 +88,12 @@ class Launcher:
         minecraft_dir = Path(instance["minecraft_dir"])
         ram_mb = int(instance.get("ram_mb", 4096))
 
+        try:
+            from core.discord_presence import discord_presence
+            discord_presence().set_launching(instance)
+        except Exception:
+            logger.debug("Discord presence launch status skipped", exc_info=True)
+
         minecraft_dir.mkdir(parents=True, exist_ok=True)
 
         self._check_disk_space(minecraft_dir)
@@ -279,7 +285,7 @@ class Launcher:
                     logger.info("Minecraft process exited with code %s", process.returncode)
                 finally:
                     try:
-                        discord_presence().set_launcher_idle("Minecraft закрыт")
+                        discord_presence().set_minecraft_closed("Minecraft закрыт")
                     except Exception:
                         pass
 

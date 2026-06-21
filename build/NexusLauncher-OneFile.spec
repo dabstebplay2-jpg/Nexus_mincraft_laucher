@@ -55,7 +55,7 @@ for local_package in LOCAL_PACKAGES:
         datas.append((str(package_dir), local_package))
     hiddenimports += collect_local_modules(local_package)
 
-for package in ["minecraft_launcher_lib", "keyring"]:
+for package in ["minecraft_launcher_lib", "keyring", "pypresence"]:
     collected = collect_all(package)
     datas += collected[0]
     binaries += collected[1]
