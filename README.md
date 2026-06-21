@@ -1,8 +1,23 @@
 # Nexus Launcher
 
-**Nexus Launcher** — desktop-лаунчер для Minecraft на Python/PySide6 для Windows. Он управляет отдельными сборками, версиями Minecraft, loader-ами, Java/RAM, контентом Modrinth, аккаунтами, загрузками, обновлениями и релизным сайтом.
+**Nexus Launcher** — открытый desktop-лаунчер для Minecraft на Python/PySide6 для Windows. Он управляет отдельными сборками, версиями Minecraft, loader-ами, Java/RAM, контентом Modrinth, аккаунтами, загрузками, обновлениями и релизным сайтом.
+
+- **Репозиторий:** https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher
+- **Сайт:** https://dabstebplay2-jpg.github.io/Nexus_mincraft_laucher/
+- **Последний релиз:** https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/releases/latest
+- **Лицензия:** MIT — проект можно свободно форкать, изменять и распространять
 
 Текущая версия задаётся в `core/app_info.py` и автоматически синхронизируется с сайтом через `tools/generate_website_release.py`.
+
+## Участие в разработке
+
+Проект полностью открыт. Чтобы начать:
+
+1. Сделайте [fork](https://github.com/dabstebplay2-jpg/Nexus_mincraft_laucher/fork).
+2. Клонируйте репозиторий и установите зависимости (см. раздел «Разработка» ниже).
+3. Внесите изменения и откройте Pull Request.
+
+Подробнее: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
@@ -160,4 +175,6 @@ Python-запуск и `.exe` используют разные хранилищ
 
 ## Важно
 
-Nexus Launcher — неофициальный проект. Он не связан с Mojang, Microsoft, Fabric, Forge, NeoForge, Quilt, Modrinth или Discord. Minecraft является товарным знаком Mojang/Microsoft.
+Nexus Launcher — неофициальный open-source проект под лицензией MIT. Он не связан с Mojang, Microsoft, Fabric, Forge, NeoForge, Quilt, Modrinth или Discord. Minecraft является товарным знаком Mojang/Microsoft.
+
+Исходный код, CI, сайт, скрипты сборки и документация находятся в этом репозитории. Собранные `.exe` и installer публикуются в GitHub Releases, а не хранятся в git — это сделано специально, чтобы репозиторий оставался лёгким для клонирования и форков.
