@@ -1,5 +1,4 @@
 import json
-import locale
 import logging
 from pathlib import Path
 
@@ -13,14 +12,6 @@ _fallback: dict[str, str] = {}
 
 
 def detect_os_language() -> str:
-    try:
-        code, _ = locale.getdefaultlocale()
-        if code:
-            lang = code.split("_")[0].lower()
-            if lang in ("en", "ru"):
-                return lang
-    except Exception:
-        pass
     return "ru"
 
 
@@ -37,11 +28,9 @@ def _load_locale(lang: str) -> dict[str, str]:
 
 def set_language(lang: str):
     global _current_language, _translations
-    _current_language = lang
-    _translations = _load_locale(lang)
+    _current_language = "ru"
+    _translations = _load_locale("ru")
     _fallback.clear()
-    if lang != "ru":
-        _fallback.update(_load_locale("ru"))
 
 
 def get_language() -> str:

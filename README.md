@@ -1,376 +1,163 @@
 # Nexus Launcher
 
-**Nexus Launcher** — это desktop-лаунчер для Minecraft на Python/PySide6 с поддержкой отдельных сборок, Fabric, Modrinth-модов, логов, настроек Java и локального сайта для скачивания лаунчера.
+**Nexus Launcher** — desktop-лаунчер для Minecraft на Python/PySide6 для Windows. Он управляет отдельными сборками, версиями Minecraft, loader-ами, Java/RAM, контентом Modrinth, аккаунтами, загрузками, обновлениями и релизным сайтом.
 
-Проект находится в стадии рабочего MVP: базовый запуск Minecraft, создание сборок, установка модов и сборка `.exe` уже работают.
+Текущая версия задаётся в `core/app_info.py` и автоматически синхронизируется с сайтом через `tools/generate_website_release.py`.
 
 ---
 
 ## Возможности
 
-* Создание отдельных Minecraft-сборок
-* Поддержка Vanilla и Fabric
-* Запуск Minecraft из выбранной сборки
-* Поиск и установка модов через Modrinth
-* Удаление модов из сборки
-* Просмотр логов лаунчера
-* Проверка установленной Java
-* Автоматический выбор подходящей версии Java
-* Поддержка запуска из `.exe`
-* Хранение пользовательских данных в AppData для `.exe`
-* Локальный сайт для скачивания архива лаунчера
+- Создание и запуск отдельных Minecraft-сборок.
+- Поддержка Vanilla, Fabric, Forge, NeoForge и Quilt через общий loader manager.
+- Поиск и установка модов, шейдеров, ресурспаков и модпаков из Modrinth.
+- Импорт `.mrpack`, история загрузок и локальная библиотека контента.
+- Настройки Java, RAM, разрешения окна и папок данных.
+- Offline, Microsoft и Ely.by аккаунты.
+- Discord Rich Presence.
+- Проверка обновлений лаунчера через GitHub Releases и `website/release.json`.
+- Статический сайт для скачивания installer и portable ZIP.
 
 ---
 
-## Структура проекта
+## Структура
 
 ```text
-Nexus_minecraft_launcher/
-├─ app/                 # Главное окно приложения
-├─ auth/                # Авторизация
-├─ core/                # Основная логика лаунчера
-├─ mods/                # Modrinth API и установка модов
-├─ storage/             # Пути, файлы данных, настройки хранения
-├─ ui/                  # Интерфейс PySide6
-├─ website/             # Сайт для скачивания лаунчера
-├─ logs/                # Логи лаунчера
-├─ instances/           # Minecraft-сборки
-├─ data/                # JSON-данные приложения
-├─ main.py              # Точка входа
-├─ requirements.txt     # Python-зависимости
-└─ README.md
+C:\Nexus
+├─ app/                 # Главное окно и маршрутизация страниц
+├─ auth/                # Аккаунты и авторизация
+├─ core/                # Запуск Minecraft, updater, Java, loader-ы, настройки
+├─ mods/                # Modrinth, установка контента, совместимость
+├─ storage/             # Пути и JSON-хранилище
+├─ ui/                  # PySide6-компоненты, страницы и стили
+├─ website/             # Продакшен-сайт GitHub Pages
+├─ website-next/        # Черновой React/Vite scaffold, не используется в деплое
+├─ installer/           # Inno Setup installer
+├─ scripts/             # Build/release PowerShell scripts
+├─ tools/               # Диагностика, QA и генерация metadata
+├─ tests/               # Базовые unittest-проверки проекта
+├─ main.py              # Точка входа GUI
+└─ requirements.txt     # Python-зависимости
 ```
 
 ---
 
 ## Требования
 
-* Windows 10/11
-* Python 3.14+
-* Java 17+ для старых версий Minecraft
-* Java 21+ для новых версий Minecraft
-* Java 25+ для Minecraft 26.x
-* Интернет для загрузки Minecraft, Fabric и модов
+- Windows 10/11.
+- Python 3.12+.
+- Интернет для загрузки Minecraft, loader-ов, модов и релизов.
+- Java 17+ для старых версий Minecraft, Java 21+ для новых версий.
+- Inno Setup требуется только для сборки installer.
 
 ---
 
-## Установка зависимостей
-
-В PowerShell:
+## Разработка
 
 ```powershell
-cd C:\Nexus_minecraft_launcher
+cd C:\Nexus
 python -m venv .venv
-.venv\Scripts\activate
+.\.venv\Scripts\activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
----
-
-## Запуск лаунчера в режиме разработки
+Запуск лаунчера:
 
 ```powershell
-cd C:\Nexus_minecraft_launcher
-.venv\Scripts\python.exe main.py
+.\.venv\Scripts\python.exe main.py
 ```
 
-После запуска откроется окно Nexus Launcher.
+Диагностика окружения:
 
-Логи сохраняются в:
-
-```text
-C:\Nexus_minecraft_launcher\logs
+```powershell
+.\.venv\Scripts\python.exe main.py --diagnose
+.\.venv\Scripts\python.exe tools\diagnose_nexus.py
 ```
 
-Основной актуальный лог:
-
-```text
-C:\Nexus_minecraft_launcher\logs\latest.log
-```
+Локальные данные при запуске из Python хранятся в проекте: `data/`, `instances/`, `logs/`. Собранный `.exe` использует `%APPDATA%\NexusLauncher`.
 
 ---
 
-## Запуск локального сайта
+## Проверки
 
-Сайт находится в папке:
-
-```text
-C:\Nexus_minecraft_launcher\website
-```
-
-Запуск:
+Перед релизом запускай:
 
 ```powershell
-cd C:\Nexus_minecraft_launcher\website
+.\.venv\Scripts\python.exe -m unittest discover -s tests
+.\.venv\Scripts\python.exe tools\deep_qa.py
+.\.venv\Scripts\python.exe tools\full_audit.py
+```
+
+`deep_qa.py` проверяет обязательные файлы, синтаксис Python, `.gitignore`, `core/app_info.py`, release metadata сайта и базовый full audit без UI smoke. `full_audit.py` дополнительно проверяет импорты, темы, loader API, локальные сборки и headless UI.
+
+CI на GitHub Actions использует Python 3.12, устанавливает `requirements.txt`, компилирует Python-файлы, запускает `unittest` и `deep_qa.py`.
+
+---
+
+## Сайт
+
+Продакшен-сайт находится в `website/` и деплоится как статический GitHub Pages artifact. Активные ассеты:
+
+- `website/index.html`
+- `website/styles.css`
+- `website/script.js`
+- `website/release.json`
+- `website/downloads/release.json`
+
+Локальный preview:
+
+```powershell
+cd C:\Nexus\website
 ..\.venv\Scripts\python.exe -m http.server 8080
 ```
 
-После этого сайт будет доступен в браузере:
-
-```text
-http://localhost:8080
-```
-
-или:
-
-```text
-http://127.0.0.1:8080
-```
-
-Чтобы остановить сайт, нажмите в PowerShell:
-
-```text
-Ctrl + C
-```
-
----
-
-## Сборка `.exe`
-
-Для сборки используется PyInstaller.
-
-Установка:
+Обновить release metadata:
 
 ```powershell
-cd C:\Nexus_minecraft_launcher
-.venv\Scripts\activate
-python -m pip install pyinstaller
+cd C:\Nexus
+.\.venv\Scripts\python.exe tools\generate_website_release.py --version 1.0.2 --repo dabstebplay2-jpg/Nexus_mincraft_laucher
 ```
 
-Сборка папочной версии:
+`website-next/` пока остаётся черновиком будущей React-миграции. Не переключай Pages на него, пока Vite-проект не будет доведён до полноценной сборки и проверки.
+
+---
+
+## Сборка релиза
+
+Основные команды:
 
 ```powershell
-python -m PyInstaller `
-  --noconfirm `
-  --clean `
-  --windowed `
-  --name "Nexus Launcher" `
-  --collect-all PySide6 `
-  --collect-all minecraft_launcher_lib `
-  main.py
+cd C:\Nexus
+.\scripts\build_release.ps1
+.\scripts\build_installer.ps1
+.\scripts\build_full_release.ps1
 ```
 
-Готовый `.exe` будет находиться здесь:
-
-```text
-C:\Nexus_minecraft_launcher\dist\Nexus Launcher\Nexus Launcher.exe
-```
-
-Для распространения лучше архивировать всю папку:
-
-```text
-C:\Nexus_minecraft_launcher\dist\Nexus Launcher
-```
-
-а не только один `.exe`, потому что рядом с ним находятся нужные библиотеки.
-
----
-
-## Создание архива для сайта
-
-После сборки `.exe` можно создать архив для скачивания с сайта:
-
-```powershell
-Compress-Archive `
-  -Path "C:\Nexus_minecraft_launcher\dist\Nexus Launcher\*" `
-  -DestinationPath "C:\Nexus_minecraft_launcher\website\NexusLauncher_Windows.zip" `
-  -Force
-```
-
-Файл должен лежать рядом с `index.html`:
-
-```text
-website/
-├─ index.html
-├─ style.css
-├─ script.js
-└─ NexusLauncher_Windows.zip
-```
-
----
-
-## Где хранятся данные
-
-При запуске через Python данные хранятся внутри проекта:
-
-```text
-C:\Nexus_minecraft_launcher\data
-C:\Nexus_minecraft_launcher\instances
-C:\Nexus_minecraft_launcher\logs
-```
-
-При запуске через `.exe` данные хранятся в AppData:
-
-```text
-C:\Users\<USERNAME>\AppData\Roaming\NexusLauncher
-```
-
-Там находятся:
-
-```text
-data/
-instances/
-logs/
-mods/
-storage/
-```
-
-Это сделано для того, чтобы `.exe` мог нормально работать вне папки разработки.
-
----
-
-## Работа с модами
-
-Nexus Launcher использует Modrinth API.
-
-Поддерживается:
-
-* поиск модов
-* установка `.jar` в выбранную сборку
-* установка зависимостей
-* удаление модов
-* отображение информации о модах
-
-Для корректной работы модов сборка должна использовать совместимый loader, например Fabric.
-
----
-
-## Java
-
-Лаунчер ищет установленные версии Java и выбирает подходящую.
-
-Пример:
-
-```text
-Java 17 — подходит для Minecraft 1.20.1
-Java 21 — подходит для Minecraft 1.21.x
-Java 25 — подходит для Minecraft 26.x
-```
-
-Если нужная Java не найдена, лаунчер показывает сообщение и предлагает установить подходящую версию.
+Результаты попадают в `release/`: installer, portable ZIP и SHA256-файлы. Публикация GitHub Release выполняется через `scripts\publish_release.ps1` или tag workflow `v*`.
 
 ---
 
 ## Частые проблемы
 
-### Лаунчер запускается, но сборки не отображаются в `.exe`
+### Сборки не видны в `.exe`
 
-Причина: `.exe` использует AppData, а запуск через Python использует папку проекта.
-
-Проверь файл:
-
-```text
-C:\Users\<USERNAME>\AppData\Roaming\NexusLauncher\data\instances.json
-```
-
----
+Python-запуск и `.exe` используют разные хранилища. Проверь `%APPDATA%\NexusLauncher\data\instances.json`.
 
 ### Моды не устанавливаются
 
-Проверь:
-
-* выбрана ли сборка
-* установлен ли Fabric
-* подходит ли версия Minecraft
-* есть ли интернет
-* есть ли ошибка в `logs/latest.log`
-
----
+Проверь выбранную сборку, loader, совместимость версии Minecraft, интернет и `logs/latest.log`.
 
 ### Minecraft не запускается из-за Java
 
-Проверь установленную Java:
+Проверь `java -version`, выбранный путь Java в настройках и `logs/latest.log`.
 
-```powershell
-java -version
-```
+### Сайт показывает старую ссылку
 
-Также проверь логи лаунчера:
-
-```text
-logs/latest.log
-```
-
----
-
-### Сайт не открывается
-
-Проверь, что сервер запущен:
-
-```powershell
-cd C:\Nexus_minecraft_launcher\website
-..\.venv\Scripts\python.exe -m http.server 8080
-```
-
-Открой:
-
-```text
-http://localhost:8080
-```
-
----
-
-## Git
-
-Перед коммитом не нужно добавлять тяжёлые папки:
-
-```text
-.venv/
-dist/
-build/
-instances/
-logs/
-__pycache__/
-```
-
-Проверить статус:
-
-```powershell
-git status --short --untracked-files=all
-```
-
-Сделать коммит:
-
-```powershell
-git add .
-git commit -m "Update Nexus Launcher"
-```
-
----
-
-## Текущий статус проекта
-
-Работает:
-
-* запуск лаунчера
-* создание сборок
-* запуск Minecraft
-* установка Fabric
-* поиск модов через Modrinth
-* установка модов
-* удаление модов
-* логи
-* запуск сайта
-* сборка `.exe`
-
-В планах:
-
-* Microsoft-авторизация
-* полноценный Download Manager
-* улучшенная библиотека модов
-* проверка совместимости модов
-* обновление модов
-* красивый экран настроек сборки
-* автопроверка обновлений лаунчера
-* публикация сайта
-* релизная версия 1.0
+Перегенерируй release metadata через `tools\generate_website_release.py`, проверь `website/release.json` и убедись, что GitHub Release содержит файлы с текущей версией.
 
 ---
 
 ## Важно
 
-Nexus Launcher — неофициальный проект.
-
-Проект не связан с Mojang, Microsoft, Fabric или Modrinth.
-Minecraft является товарным знаком Mojang/Microsoft.
+Nexus Launcher — неофициальный проект. Он не связан с Mojang, Microsoft, Fabric, Forge, NeoForge, Quilt, Modrinth или Discord. Minecraft является товарным знаком Mojang/Microsoft.

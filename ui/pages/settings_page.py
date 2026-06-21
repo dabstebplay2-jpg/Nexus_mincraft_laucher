@@ -29,6 +29,7 @@ from core.system_info import (
 )
 from core.launcher_settings import get_launcher_settings
 from core.constants import APP_VERSION
+from ui.styles import THEME_OPTIONS
 
 try:
     from storage.paths import DATA_DIR, INSTANCES_FILE
@@ -504,26 +505,16 @@ class SettingsPage(QWidget):
         title = QLabel("Язык и оформление")
         title.setObjectName("PanelTitle")
         layout.addWidget(title)
-
-        lang_row = QHBoxLayout()
-        lang_label = QLabel("Язык / Language:")
-        lang_label.setMinimumWidth(140)
-        self.lang_combo = QComboBox()
-        self.lang_combo.addItem("Русский", "ru")
-        self.lang_combo.addItem("English", "en")
-        self.lang_combo.currentIndexChanged.connect(self._on_language_changed)
-        lang_row.addWidget(lang_label)
-        lang_row.addWidget(self.lang_combo, 1)
-        layout.addLayout(lang_row)
+        self._save_launcher_settings_value("language", "ru")
 
         theme_row = QHBoxLayout()
-        theme_label = QLabel("Тема:")
-        theme_label.setMinimumWidth(140)
+        theme_label_widget = QLabel("Тема:")
+        theme_label_widget.setMinimumWidth(140)
         self.theme_combo = QComboBox()
-        self.theme_combo.addItem("Тёмная Minecraft", "dark")
-        self.theme_combo.addItem("AMOLED / чёрная", "amoled")
+        for theme_id, theme_label in THEME_OPTIONS:
+            self.theme_combo.addItem(theme_label, theme_id)
         self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
-        theme_row.addWidget(theme_label)
+        theme_row.addWidget(theme_label_widget)
         theme_row.addWidget(self.theme_combo, 1)
         layout.addLayout(theme_row)
 
@@ -545,7 +536,7 @@ class SettingsPage(QWidget):
 
         desc = QLabel(
             "Показывает в Discord, что ты находишься в Nexus Launcher или играешь в Minecraft через Nexus. "
-            "Для работы нужен Discord Application Client ID. Без него лаунчер не ломается, просто статус не включится."
+            "Nexus использует встроенный Discord Application Client ID из сборки или переменной NEXUS_DISCORD_CLIENT_ID."
         )
         desc.setObjectName("PanelText")
         desc.setWordWrap(True)
@@ -559,15 +550,16 @@ class SettingsPage(QWidget):
         client_label.setMinimumWidth(140)
 
         self.discord_client_id_input = QLineEdit()
-        self.discord_client_id_input.setPlaceholderText("Вставь Discord Application Client ID")
+        self.discord_client_id_input.setPlaceholderText("Автоматически")
         self.discord_client_id_input.setText(self.settings.get_discord_client_id())
+        self.discord_client_id_input.setReadOnly(True)
 
         client_row.addWidget(client_label)
         client_row.addWidget(self.discord_client_id_input, 1)
 
         help_text = QLabel(
-            "Discord должен быть запущен. В Discord Developer Portal создай Application, скопируй Client ID, "
-            "и при желании добавь asset с ключом nexus для красивой картинки."
+            "Discord должен быть запущен. Если встроенный Client ID не задан в сборке, статус мягко отключится, "
+            "а лаунчер продолжит работать без ручной настройки."
         )
         help_text.setObjectName("PanelText")
         help_text.setWordWrap(True)
@@ -673,9 +665,10 @@ class SettingsPage(QWidget):
 
     def save_discord_presence_settings(self):
         enabled = self.discord_enabled_checkbox.isChecked()
-        client_id = self.discord_client_id_input.text().strip()
+        client_id = self.settings.get_discord_client_id()
 
         self.settings.set_discord_presence_settings(enabled, client_id)
+        self.discord_client_id_input.setText(self.settings.get_discord_client_id())
 
         try:
             from core.discord_presence import discord_presence
@@ -685,7 +678,7 @@ class SettingsPage(QWidget):
                     self.discord_status_label.setText("Статус: Discord Rich Presence подключён.")
                 else:
                     self.discord_status_label.setText(
-                        "Статус: не подключилось. Проверь, что Discord запущен и Client ID указан правильно. "
+                        "Статус: не подключилось. Проверь, что Discord запущен и в сборке задан Discord Client ID. "
                         f"Ошибка: {discord_presence().last_error()}"
                     )
             else:
@@ -954,16 +947,6 @@ class SettingsPage(QWidget):
         if hasattr(window, "apply_theme"):
             window.apply_theme(theme)
 
-    def _on_language_changed(self, index):
-        lang = self.lang_combo.itemData(index)
-        try:
-            from core.i18n import set_language
-            set_language(lang)
-            self._save_launcher_settings_value("language", lang)
-            QMessageBox.information(self, "Готово", "Язык сохранён. Некоторые тексты обновятся после перезапуска.")
-        except Exception as e:
-            QMessageBox.warning(self, "Ошибка", str(e))
-
     def _on_theme_changed(self, index):
         theme = self.theme_combo.itemData(index)
         if theme == "light":
@@ -1124,17 +1107,14 @@ class SettingsPage(QWidget):
         except Exception:
             data = {}
 
-        lang = data.get("language", "ru")
+        lang = "ru"
         theme = data.get("theme", "dark")
         if theme == "light":
             theme = "dark"
             self._save_launcher_settings_value("theme", theme)
 
-        lang_idx = self.lang_combo.findData(lang)
-        if lang_idx >= 0 and self.lang_combo.currentIndex() != lang_idx:
-            self.lang_combo.blockSignals(True)
-            self.lang_combo.setCurrentIndex(lang_idx)
-            self.lang_combo.blockSignals(False)
+        if data.get("language") != lang:
+            self._save_launcher_settings_value("language", lang)
 
         theme_idx = self.theme_combo.findData(theme)
         if theme_idx >= 0 and self.theme_combo.currentIndex() != theme_idx:

@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QComboBox,
-    QProgressDialog,
+    QProgressBar,
     QDialogButtonBox,
     QGridLayout,
     QSizePolicy,
@@ -121,6 +121,51 @@ class LaunchWorker(QThread):
         except Exception as error:
             self._safe_download_update("fail_task", self.download_task_id, str(error), status="Ошибка запуска")
             self.failed.emit(str(error), traceback.format_exc())
+
+
+class MinecraftLaunchProgressDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Запуск Minecraft")
+        self.setMinimumSize(560, 150)
+        self.setWindowModality(Qt.NonModal)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 16, 18, 14)
+        layout.setSpacing(12)
+
+        self.status_label = QLabel("Подготовка запуска...")
+        self.status_label.setObjectName("PanelText")
+        self.status_label.setWordWrap(True)
+        self.status_label.setMinimumHeight(38)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setObjectName("BigProgress")
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(True)
+        self.progress_bar.setMinimumHeight(18)
+
+        actions = QHBoxLayout()
+        hide_button = QPushButton("Скрыть")
+        hide_button.setObjectName("SecondaryButton")
+        hide_button.clicked.connect(self.hide)
+
+        actions.addStretch()
+        actions.addWidget(hide_button)
+
+        layout.addWidget(self.status_label)
+        layout.addWidget(self.progress_bar)
+        layout.addLayout(actions)
+
+    def setLabelText(self, text):
+        self.status_label.setText(str(text))
+
+    def setRange(self, minimum, maximum):
+        self.progress_bar.setRange(int(minimum), int(maximum))
+
+    def setValue(self, value):
+        self.progress_bar.setValue(int(value or 0))
 
 
 INVALID_NAME_CHARS = set('\\/:*?"<>|')
@@ -593,18 +638,7 @@ class InstancesPage(QWidget):
 
         self.last_launched = instance
 
-        self.progress_dialog = QProgressDialog(
-            "Подготовка запуска...",
-            "Скрыть",
-            0,
-            100,
-            self,
-        )
-        self.progress_dialog.setWindowTitle("Запуск Minecraft")
-        self.progress_dialog.setMinimumWidth(520)
-        self.progress_dialog.setAutoClose(False)
-        self.progress_dialog.setAutoReset(False)
-        self.progress_dialog.setWindowModality(Qt.NonModal)
+        self.progress_dialog = MinecraftLaunchProgressDialog(self)
         self.progress_dialog.setValue(0)
         self.progress_dialog.show()
 

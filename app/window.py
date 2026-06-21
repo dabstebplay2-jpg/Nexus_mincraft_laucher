@@ -17,20 +17,9 @@ from PySide6.QtWidgets import (
 )
 
 from core.constants import APP_VERSION
-
-
-class PageIndex:
-    HOME = 0
-    INSTANCES = 1
-    MODS = 2
-    LIBRARY = 3
-    DOWNLOADS = 4
-    ACCOUNTS = 5
-    SETTINGS = 6
-    LOGS = 7
 from storage.paths import DATA_DIR
 from core.launcher_settings import get_launcher_settings
-from ui.styles import get_app_style
+from ui.styles import THEME_OPTIONS, get_app_style
 from ui.components.sidebar import Sidebar
 from ui.components.topbar import Topbar
 from ui.components.toast import Toast
@@ -44,6 +33,23 @@ from ui.pages.accounts_page import AccountsPage
 from ui.pages.logs_page import LogsPage
 from ui.pages.settings_page import SettingsPage
 
+
+COMPACT_SIDEBAR_WIDTH = 1180
+
+
+def should_use_compact_sidebar(window_width, user_collapsed=False):
+    return bool(user_collapsed or int(window_width) < COMPACT_SIDEBAR_WIDTH)
+
+
+class PageIndex:
+    HOME = 0
+    INSTANCES = 1
+    MODS = 2
+    LIBRARY = 3
+    DOWNLOADS = 4
+    ACCOUNTS = 5
+    SETTINGS = 6
+    LOGS = 7
 
 
 class WindowUpdateWorker(QThread):
@@ -144,6 +150,7 @@ class MainWindow(QMainWindow):
         self.topbar.search_submitted.connect(self.handle_search)
         self.topbar.play_clicked.connect(self.handle_quick_play)
         self.topbar.sidebar_toggle_clicked.connect(self.toggle_sidebar)
+        self.topbar.theme_clicked.connect(self.toggle_theme)
 
         self.home_page = HomePage()
         self.home_page.navigate_requested.connect(self.change_page)
@@ -160,6 +167,7 @@ class MainWindow(QMainWindow):
         self.library_page = LibraryPage()
         self.downloads_page = DownloadsPage()
         self.accounts_page = AccountsPage()
+        self.accounts_page.account_changed.connect(lambda _account: self.sidebar.update_profile())
         self.settings_page = SettingsPage()
         self.logs_page = LogsPage()
 
@@ -192,7 +200,10 @@ class MainWindow(QMainWindow):
         self.update_bar = self.create_update_bar()
         self.update_bar.setVisible(False)
 
-        initial_compact = get_launcher_settings().is_sidebar_collapsed() or self.width() < 1180
+        initial_compact = should_use_compact_sidebar(
+            self.width(),
+            get_launcher_settings().is_sidebar_collapsed(),
+        )
         if hasattr(self.sidebar, "set_compact"):
             self.sidebar.set_compact(initial_compact)
         if hasattr(self.topbar, "set_sidebar_collapsed"):
@@ -332,9 +343,14 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        compact = self.width() < 1180
+        compact = should_use_compact_sidebar(
+            self.width(),
+            get_launcher_settings().is_sidebar_collapsed(),
+        )
         if hasattr(self.sidebar, "set_compact"):
             self.sidebar.set_compact(compact)
+        if hasattr(self.topbar, "set_sidebar_collapsed"):
+            self.topbar.set_sidebar_collapsed(compact)
         if hasattr(self.topbar, "set_compact"):
             self.topbar.set_compact(compact)
 
@@ -343,7 +359,9 @@ class MainWindow(QMainWindow):
             settings_file = DATA_DIR / "launcher_settings.json"
             if settings_file.exists():
                 data = json.loads(settings_file.read_text(encoding="utf-8"))
-                return str(data.get("theme", "dark"))
+                theme = str(data.get("theme", "dark")).lower()
+                valid = {theme_id for theme_id, _label in THEME_OPTIONS}
+                return theme if theme in valid else "dark"
         except Exception:
             pass
         return "dark"
@@ -366,7 +384,11 @@ class MainWindow(QMainWindow):
         current = self.current_theme().lower()
         if current == "light":
             current = "dark"
-        next_theme = "amoled" if current == "dark" else "dark"
+        theme_ids = [theme_id for theme_id, _label in THEME_OPTIONS]
+        try:
+            next_theme = theme_ids[(theme_ids.index(current) + 1) % len(theme_ids)]
+        except ValueError:
+            next_theme = "dark"
         self.save_theme(next_theme)
         self.apply_theme(next_theme)
         if hasattr(self.settings_page, "sync_settings_combos"):

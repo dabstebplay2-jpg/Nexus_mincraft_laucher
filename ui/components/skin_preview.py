@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, QRect, Qt
-from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPixmap, QPolygon
+from PySide6.QtCore import QRect, Qt
+from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 
 
@@ -52,24 +52,22 @@ class SkinFaceWidget(QWidget):
         painter.drawRect(1, 1, self.width() - 3, self.height() - 3)
 
     def _draw_default_face(self, painter: QPainter) -> None:
-        cell = max(7, self.width() // 9)
+        cell = max(3, min(self.width(), self.height()) // 9)
         start_x = (self.width() - cell * 7) // 2
         start_y = (self.height() - cell * 7) // 2
 
-        green = QColor("#69d316")
-        dark = QColor("#0c2516")
-        shadow = QColor("#1d8f37")
+        base = QColor("#6f8d66")
+        dark = QColor("#18251c")
+        shadow = QColor("#405d45")
 
-        painter.fillRect(start_x, start_y, cell * 7, cell * 7, green)
+        painter.fillRect(start_x, start_y, cell * 7, cell * 7, base)
 
         for x, y, c in [
-            (1, 1, dark),
-            (5, 1, dark),
+            (1, 1, shadow),
+            (5, 1, shadow),
             (2, 3, dark),
+            (3, 3, dark),
             (4, 3, dark),
-            (1, 4, dark),
-            (3, 4, dark),
-            (5, 4, dark),
             (0, 6, shadow),
             (6, 6, shadow),
         ]:
@@ -97,66 +95,84 @@ class Skin3DPreviewWidget(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setRenderHint(QPainter.Antialiasing, False)
         painter.fillRect(self.rect(), QColor("#07100c"))
 
         skin = QPixmap(self._skin_path) if self._skin_path and Path(self._skin_path).exists() else QPixmap()
         scale = max(1, skin.width() // 64) if not skin.isNull() and skin.width() >= 64 else 1
 
-        def part(rect, fallback):
-            if skin.isNull() or skin.width() < 64 or skin.height() < 32:
-                return QColor(fallback)
+        if skin.isNull() or skin.width() < 64 or skin.height() < 32:
+            self._draw_empty_model(painter)
+            return
+
+        def part(rect):
             x, y, w, h = rect
-            pix = skin.copy(QRect(x * scale, y * scale, w * scale, h * scale))
-            return pix
+            return skin.copy(QRect(x * scale, y * scale, w * scale, h * scale))
+
+        def draw_part(rect: QRect, base_rect, overlay_rect=None):
+            base = part(base_rect)
+            painter.drawPixmap(rect, base)
+            if overlay_rect and skin.height() >= 64 * scale:
+                overlay = part(overlay_rect)
+                painter.drawPixmap(rect, overlay)
 
         cx = self.width() // 2
-        top = 34
-        self._draw_box(painter, cx - 34, top, 68, 68, part((8, 8, 8, 8), "#79c86a"))
-        self._draw_box(painter, cx - 28, top + 72, 56, 82, part((20, 20, 8, 12), "#3f7b42"))
-        self._draw_box(painter, cx - 84, top + 78, 44, 78, part((44, 20, 4, 12), "#5a9b50"))
-        self._draw_box(painter, cx + 40, top + 78, 44, 78, part((36, 52, 4, 12), "#5a9b50"))
-        self._draw_box(painter, cx - 32, top + 158, 28, 70, part((4, 20, 4, 12), "#315d36"))
-        self._draw_box(painter, cx + 4, top + 158, 28, 70, part((20, 52, 4, 12), "#315d36"))
+        px = max(4, min(8, (self.width() - 24) // 16, (self.height() - 42) // 32))
+        model_height = 32 * px
+        top = max(10, (self.height() - model_height - 22) // 2)
+
+        head = QRect(cx - 4 * px, top, 8 * px, 8 * px)
+        body = QRect(cx - 4 * px, top + 8 * px, 8 * px, 12 * px)
+        left_arm = QRect(cx - 8 * px, top + 8 * px, 4 * px, 12 * px)
+        right_arm = QRect(cx + 4 * px, top + 8 * px, 4 * px, 12 * px)
+        left_leg = QRect(cx - 4 * px, top + 20 * px, 4 * px, 12 * px)
+        right_leg = QRect(cx, top + 20 * px, 4 * px, 12 * px)
+
+        draw_part(head, (8, 8, 8, 8), (40, 8, 8, 8))
+        draw_part(body, (20, 20, 8, 12), (20, 36, 8, 12))
+        draw_part(left_arm, (44, 20, 4, 12), (44, 36, 4, 12))
+        draw_part(right_arm, (36, 52, 4, 12), (52, 52, 4, 12))
+        draw_part(left_leg, (4, 20, 4, 12), (4, 36, 4, 12))
+        draw_part(right_leg, (20, 52, 4, 12), (4, 52, 4, 12))
+
+        pen = QPen(QColor("#1c2a20"))
+        pen.setWidth(1)
+        painter.setPen(pen)
+        for rect in (head, body, left_arm, right_arm, left_leg, right_leg):
+            painter.drawRect(rect.adjusted(0, 0, -1, -1))
 
         painter.setPen(QColor("#dff5d7"))
         font = QFont()
         font.setBold(True)
         font.setPointSize(9)
         painter.setFont(font)
-        painter.drawText(0, self.height() - 24, self.width(), 18, Qt.AlignCenter, self._label[:18])
+        painter.drawText(0, self.height() - 22, self.width(), 18, Qt.AlignCenter, self._label[:18])
 
-    def _draw_box(self, painter: QPainter, x: int, y: int, w: int, h: int, fill):
-        depth = max(8, min(w, h) // 5)
-        front = QRect(x, y + depth, w, h)
-        top_poly = QPolygon([
-            front.topLeft(),
-            front.topRight(),
-            front.topRight() + QPoint(depth, -depth),
-            front.topLeft() + QPoint(depth, -depth),
-        ])
-        side_poly = QPolygon([
-            front.topRight(),
-            front.bottomRight(),
-            front.bottomRight() + QPoint(depth, -depth),
-            front.topRight() + QPoint(depth, -depth),
-        ])
+    def _draw_empty_model(self, painter: QPainter) -> None:
+        cx = self.width() // 2
+        px = max(4, min(8, (self.width() - 24) // 16, (self.height() - 42) // 32))
+        model_height = 32 * px
+        top = max(10, (self.height() - model_height - 22) // 2)
+        colors = {
+            "head": QColor("#6f8d66"),
+            "body": QColor("#405d45"),
+            "limb": QColor("#33483a"),
+        }
+        for rect, color in [
+            (QRect(cx - 4 * px, top, 8 * px, 8 * px), colors["head"]),
+            (QRect(cx - 4 * px, top + 8 * px, 8 * px, 12 * px), colors["body"]),
+            (QRect(cx - 8 * px, top + 8 * px, 4 * px, 12 * px), colors["limb"]),
+            (QRect(cx + 4 * px, top + 8 * px, 4 * px, 12 * px), colors["limb"]),
+            (QRect(cx - 4 * px, top + 20 * px, 4 * px, 12 * px), colors["limb"]),
+            (QRect(cx, top + 20 * px, 4 * px, 12 * px), colors["limb"]),
+        ]:
+            painter.fillRect(rect, color)
+            painter.setPen(QPen(QColor("#18251c"), 1))
+            painter.drawRect(rect.adjusted(0, 0, -1, -1))
 
-        if isinstance(fill, QPixmap):
-            painter.drawPixmap(front, fill)
-            base = QColor("#6fc35d")
-        else:
-            base = QColor(fill)
-            painter.fillRect(front, base)
-
-        top_color = QColor(base)
-        top_color = top_color.lighter(118)
-        side_color = QColor(base)
-        side_color = side_color.darker(130)
-        painter.setPen(QPen(QColor("#132018"), 1))
-        painter.setBrush(top_color)
-        painter.drawPolygon(top_poly)
-        painter.setBrush(side_color)
-        painter.drawPolygon(side_poly)
-        painter.setBrush(Qt.NoBrush)
-        painter.drawRect(front)
+        painter.setPen(QColor("#dff5d7"))
+        font = QFont()
+        font.setBold(True)
+        font.setPointSize(9)
+        painter.setFont(font)
+        painter.drawText(0, self.height() - 22, self.width(), 18, Qt.AlignCenter, "Скин не выбран")

@@ -14,6 +14,8 @@ try:
 except Exception:
     icon = None
 
+from ui.components.skin_preview import SkinFaceWidget
+
 
 def get_icon(name):
     if not icon:
@@ -219,14 +221,9 @@ class Sidebar(QWidget):
         layout.setContentsMargins(10, 9, 10, 9)
         layout.setSpacing(10)
 
-        avatar = QLabel("▣")
+        avatar = SkinFaceWidget(38)
         avatar.setObjectName("SidebarAvatar")
-        avatar.setAlignment(Qt.AlignCenter)
-        avatar.setFixedSize(38, 38)
-
-        qicon = get_icon("creeper")
-        if qicon:
-            avatar.setPixmap(qicon.pixmap(QSize(38, 38)))
+        self.profile_avatar = avatar
 
         info = QVBoxLayout()
         info.setSpacing(1)
@@ -266,22 +263,16 @@ class Sidebar(QWidget):
 
         self.apply_logo_icon()
 
-        avatar = self.findChild(QLabel, "SidebarAvatar")
-        if avatar is None and hasattr(self, "profile_card"):
-            avatar = self.profile_card.findChild(QLabel, "SidebarAvatar")
-
-        creeper_icon = get_icon("creeper")
-        if creeper_icon and avatar is not None:
-            avatar.setPixmap(creeper_icon.pixmap(QSize(38, 38)))
-
         self.update_profile()
 
     def update_profile(self):
         username = "NexusPlayer"
         status = "Offline"
+        skin_path = None
 
         try:
             from auth.account_manager import AccountManager
+            from core.skin_manager import SkinManager
 
             account = AccountManager().get_active_account()
             if account:
@@ -295,9 +286,14 @@ class Sidebar(QWidget):
                     status = provider.capitalize()
                 elif account.get("token"):
                     status = "Online"
+                skin = SkinManager().get_account_skin(account)
+                if skin:
+                    skin_path = skin.get("path")
         except Exception:
             pass
 
+        if hasattr(self, "profile_avatar") and self.profile_avatar:
+            self.profile_avatar.set_skin(skin_path, username)
         if hasattr(self, "profile_name_label") and self.profile_name_label:
             self.profile_name_label.setText(username)
         if hasattr(self, "profile_status_label") and self.profile_status_label:

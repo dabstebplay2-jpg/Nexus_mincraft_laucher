@@ -1,5 +1,5 @@
 const repo = window.NEXUS_REPO || "dabstebplay2-jpg/Nexus_mincraft_laucher";
-const fallbackVersion = window.NEXUS_VERSION || "1.0.2";
+const fallbackVersion = window.NEXUS_VERSION || "1.1.0";
 
 const menuBtn = document.getElementById("menuBtn");
 const nav = document.getElementById("nav");
@@ -120,7 +120,52 @@ function setRelease(version, release = null) {
   }
 }
 
+function applyReleaseMetadata(metadata) {
+  if (!metadata) return;
+
+  const clean = cleanVersion(metadata.version);
+  const files = fileNames(clean);
+  const setupUrl =
+    metadata.direct_download ||
+    metadata.download_url ||
+    metadata.installer ||
+    downloadUrl(files.setup);
+  const portableUrl =
+    metadata.portable_download ||
+    metadata.portable_download_url ||
+    metadata.portable ||
+    downloadUrl(files.portable);
+
+  currentSetupUrl = setupUrl;
+
+  [els.versionText, els.versionStat, els.releaseVersion, els.footerVersion].forEach((el) => {
+    if (el) el.textContent = clean;
+  });
+
+  [els.downloadBtn, els.setupBtn].forEach((el) => {
+    if (el) el.href = setupUrl;
+  });
+
+  if (els.portableBtn) {
+    els.portableBtn.href = portableUrl;
+    const portableSmall = els.portableBtn.querySelector("small");
+    if (portableSmall) portableSmall.textContent = metadata.portable_filename || files.portable;
+  }
+
+  if (els.fileName) {
+    els.fileName.textContent = metadata.installer_filename || metadata.filename || files.setup;
+  }
+
+  setConsoleStatus("STABLE");
+  if (els.releaseStatus) els.releaseStatus.textContent = "Стабильный релиз";
+}
+
 setRelease(fallbackVersion);
+
+fetch("release.json", { cache: "no-store" })
+  .then((res) => (res.ok ? res.json() : null))
+  .then(applyReleaseMetadata)
+  .catch(() => {});
 
 fetch(`https://api.github.com/repos/${repo}/releases/latest`, { cache: "no-store" })
   .then((res) => (res.ok ? res.json() : null))

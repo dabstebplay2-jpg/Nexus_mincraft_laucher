@@ -9,6 +9,7 @@ except Exception:
 
 
 DEFAULT_MICROSOFT_REDIRECT_URI = "http://localhost:8089/auth/microsoft/callback"
+DEFAULT_ELY_CLIENT_ID = "nexus-launcher"
 DEFAULT_ELY_REDIRECT_URI = "http://localhost:8089/auth/ely/callback"
 OAUTH_SETTINGS_FILE = DATA_DIR / "oauth_settings.json"
 
@@ -63,7 +64,7 @@ def get_microsoft_redirect_uri():
 
 
 def get_ely_client_id():
-    return _setting_or_env("ely_client_id", "NEXUS_ELY_CLIENT_ID", "")
+    return _setting_or_env("ely_client_id", "NEXUS_ELY_CLIENT_ID", DEFAULT_ELY_CLIENT_ID)
 
 
 def get_ely_client_secret():
@@ -82,8 +83,12 @@ def microsoft_is_configured():
     return bool(get_microsoft_client_id() and get_microsoft_redirect_uri())
 
 
+def ely_is_public_client():
+    return not bool(get_ely_client_secret())
+
+
 def ely_is_configured():
-    return bool(get_ely_client_id() and get_ely_client_secret() and get_ely_redirect_uri())
+    return bool(get_ely_client_id() and get_ely_redirect_uri())
 
 
 # Backward-compatible names for older code paths. New code should use getters above.

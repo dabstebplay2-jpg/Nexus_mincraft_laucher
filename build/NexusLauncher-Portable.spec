@@ -2,7 +2,7 @@
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_all
 
-project_root = Path(SPECPATH).resolve().parent
+project_root = Path.cwd().resolve()
 
 datas = [
     (str(project_root / "assets"), "assets"),

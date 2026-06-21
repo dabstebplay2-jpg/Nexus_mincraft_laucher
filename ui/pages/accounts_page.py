@@ -197,6 +197,15 @@ class AccountsPage(QWidget):
 
         self.reflow_stat_cards()
         self.reflow_provider_cards()
+        self.reflow_skin_action_buttons()
+
+        if hasattr(self, "skin_studio_layout"):
+            self.skin_studio_layout.setDirection(
+                QBoxLayout.Direction.TopToBottom if narrow else QBoxLayout.Direction.LeftToRight
+            )
+
+        if hasattr(self, "accounts_panel"):
+            self.accounts_panel.setMinimumWidth(0 if narrow else 330)
 
         if hasattr(self, "content_layout"):
             while self.content_layout.count():
@@ -216,6 +225,20 @@ class AccountsPage(QWidget):
 
         if hasattr(self, "stats"):
             pass
+
+    def reflow_skin_action_buttons(self):
+        if not hasattr(self, "skin_buttons_grid"):
+            return
+
+        while self.skin_buttons_grid.count():
+            item = self.skin_buttons_grid.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.setParent(None)
+
+        columns = 2 if self.width() < self.responsive_breakpoint else 3
+        for index, button in enumerate(getattr(self, "skin_action_buttons", [])):
+            self.skin_buttons_grid.addWidget(button, index // columns, index % columns)
 
 
     def reflow_stat_cards(self):
@@ -282,15 +305,16 @@ class AccountsPage(QWidget):
         panel.setObjectName("Card")
 
         layout = QHBoxLayout(panel)
+        self.skin_studio_layout = layout
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(18)
 
         preview_box = QVBoxLayout()
         preview_box.setSpacing(10)
-        self.preview = SkinFaceWidget(96)
-        self.preview_3d = Skin3DPreviewWidget(210, 250)
+        self.preview = SkinFaceWidget(82)
+        self.preview_3d = Skin3DPreviewWidget(190, 270)
         preview_box.addWidget(self.preview, 0, Qt.AlignHCenter)
-        preview_box.addWidget(self.preview_3d)
+        preview_box.addWidget(self.preview_3d, 0, Qt.AlignHCenter)
         layout.addLayout(preview_box)
 
         info = QVBoxLayout()
@@ -318,7 +342,10 @@ class AccountsPage(QWidget):
         model_row.addWidget(self.model_combo)
         model_row.addStretch(1)
 
-        buttons = QHBoxLayout()
+        buttons = QGridLayout()
+        buttons.setHorizontalSpacing(8)
+        buttons.setVerticalSpacing(8)
+        self.skin_buttons_grid = buttons
 
         upload_btn = QPushButton("+ Загрузить PNG-скин")
         upload_btn.setObjectName("PrimaryButton")
@@ -344,15 +371,17 @@ class AccountsPage(QWidget):
         folder_btn.setObjectName("SecondaryButton")
         folder_btn.clicked.connect(self.open_skins_folder)
 
-        buttons.addWidget(upload_btn)
-        buttons.addWidget(url_btn)
-        buttons.addWidget(ely_skin_btn)
-        buttons.addWidget(ely_page_btn)
-        buttons.addWidget(clear_btn)
-        buttons.addWidget(folder_btn)
-        buttons.addStretch(1)
+        self.skin_action_buttons = [
+            upload_btn,
+            url_btn,
+            ely_skin_btn,
+            ely_page_btn,
+            clear_btn,
+            folder_btn,
+        ]
+        self.reflow_skin_action_buttons()
 
-        note = QLabel("Важно: сейчас скин хранится и показывается внутри лаунчера. Для отображения в самой игре через Offline-профиль нужен отдельный skin-server/authlib или вход Ely.by/Microsoft.")
+        note = QLabel("Важно: локальный PNG сразу используется в Nexus preview. В самой игре скин появится через Microsoft/Ely.by-профиль; для Offline-профиля ванильный Minecraft не умеет принимать локальный PNG без skin-server/mod.")
         note.setObjectName("MutedText")
         note.setWordWrap(True)
 
@@ -453,6 +482,7 @@ class AccountsPage(QWidget):
     def create_accounts_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("Card")
+        panel.setMinimumWidth(0)
 
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(18, 18, 18, 18)
@@ -475,6 +505,7 @@ class AccountsPage(QWidget):
         self.accounts_scroll = QScrollArea()
         self.accounts_scroll.setWidgetResizable(True)
         self.accounts_scroll.setFrameShape(QFrame.NoFrame)
+        self.accounts_scroll.setMinimumHeight(156)
 
         self.accounts_container = QWidget()
         self.accounts_layout = QVBoxLayout(self.accounts_container)
@@ -612,26 +643,29 @@ class AccountsPage(QWidget):
             self.skins_grid.addWidget(empty, 0, 0)
             return
 
+        columns = 1 if self.width() < self.responsive_breakpoint else 2
         for i, skin in enumerate(skins):
-            self.skins_grid.addWidget(self.skin_card(skin), i // 2, i % 2)
+            self.skins_grid.addWidget(self.skin_card(skin), i // columns, i % columns)
 
     def account_row(self, account: dict, active_id: str | None) -> QWidget:
         row = QFrame()
         row.setObjectName("AccountRowActive" if account.get("id") == active_id else "AccountRow")
+        row.setMinimumHeight(76)
 
         layout = QHBoxLayout(row)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 9, 10, 9)
+        layout.setSpacing(10)
 
         skin = self.skins.get_account_skin(account)
 
-        avatar = SkinFaceWidget(72)
+        avatar = SkinFaceWidget(56)
         avatar.set_skin(skin.get("path") if skin else None, account.get("username", "OFF"))
 
         info = QVBoxLayout()
 
         name = QLabel(account.get("display_name") or account.get("username") or "NexusPlayer")
         name.setObjectName("CardTitle")
+        name.setWordWrap(False)
 
         meta = QLabel(self.manager.status_text(account))
         meta.setObjectName("MutedText")
@@ -645,12 +679,17 @@ class AccountsPage(QWidget):
 
         set_btn = QPushButton("Активировать")
         set_btn.setObjectName("SecondaryButton")
-        set_btn.setEnabled(account.get("id") != active_id)
+        if account.get("id") == active_id:
+            set_btn.setText("Активен")
+            set_btn.setEnabled(False)
+        else:
+            set_btn.setEnabled(True)
         set_btn.clicked.connect(lambda checked=False, account_id=account.get("id"): self.set_active(account_id))
 
         del_btn = QPushButton("Удалить")
         del_btn.setObjectName("DangerButton")
         del_btn.clicked.connect(lambda checked=False, account_id=account.get("id"): self.delete_account(account_id))
+        del_btn.setVisible(len(self.manager.list_accounts()) > 1)
 
         layout.addWidget(avatar)
         layout.addLayout(info, 1)
@@ -928,6 +967,61 @@ class AccountsPage(QWidget):
         account = self.manager.set_active_account(account_id)
         self.refresh_all()
         self.account_changed.emit(account)
+
+    def start_auth_worker(self, provider: str):
+        if self.auth_worker and self.auth_worker.isRunning():
+            QMessageBox.information(self, "Вход уже идёт", "Дождись завершения текущего входа.")
+            return
+
+        self.auth_worker = AuthLoginWorker(provider)
+        self.auth_worker.status.connect(lambda text: self.active_badge.setText(str(text)))
+        self.auth_worker.success.connect(self.on_auth_success)
+        self.auth_worker.failed.connect(self.on_auth_failed)
+        self.auth_worker.start()
+
+    def on_auth_success(self, account: dict):
+        self.auth_worker = None
+        if account and account.get("provider") == "ely":
+            self._try_import_ely_skin_for_account(account)
+
+        self.refresh_all()
+        active = self.manager.get_active_account()
+        if active:
+            self.account_changed.emit(active)
+        QMessageBox.information(self, "Вход выполнен", "Профиль подключён и активирован.")
+
+    def on_auth_failed(self, error_text: str, details: str):
+        self.auth_worker = None
+        self.refresh_all()
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Warning)
+        box.setWindowTitle("Вход не выполнен")
+        box.setText(str(error_text))
+        box.setDetailedText(str(details))
+        box.exec()
+
+    def _try_import_ely_skin_for_account(self, account: dict):
+        username = account.get("username") or account.get("display_name")
+        if not username:
+            return
+
+        try:
+            from auth.ely_auth import ElyAuthService
+
+            url = ElyAuthService().get_skin_url(username)
+            skin = self.skins.import_skin_from_url(
+                url,
+                name=f"Ely.by {username}",
+                model=account.get("skin_model") or "auto",
+            )
+            self.skins.set_account_skin(
+                account.get("id"),
+                skin.get("id"),
+                account.get("skin_model") or skin.get("model", "auto"),
+            )
+        except Exception:
+            # У пользователя может ещё не быть скина на Ely.by. Вход всё равно успешен.
+            pass
 
     def delete_account(self, account_id: str):
         accounts = self.manager.list_accounts()

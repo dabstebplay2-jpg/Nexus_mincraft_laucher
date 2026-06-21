@@ -64,7 +64,7 @@ def main():
         logger.info("Checking proxy environment after cleanup")
         log_proxy_environment()
 
-        from core.i18n import set_language, detect_os_language
+        from core.i18n import set_language
         from storage.paths import DATA_DIR
         import json
 
@@ -76,7 +76,14 @@ def main():
             except Exception:
                 pass
 
-        lang = settings_data.get("language") or detect_os_language()
+        lang = "ru"
+        if settings_data.get("language") != lang:
+            try:
+                settings_data["language"] = lang
+                settings_file.parent.mkdir(parents=True, exist_ok=True)
+                settings_file.write_text(json.dumps(settings_data, ensure_ascii=False, indent=2), encoding="utf-8")
+            except Exception:
+                logger.debug("Could not persist forced launcher language", exc_info=True)
         set_language(lang)
         logger.info("Loaded language: %s", lang)
 
@@ -84,6 +91,11 @@ def main():
 
         logger.info("Creating QApplication")
         app = QApplication(sys.argv)
+        try:
+            from ui.wheel_guard import install_no_wheel_value_changes
+            install_no_wheel_value_changes(app)
+        except Exception:
+            logger.debug("Wheel guard setup skipped", exc_info=True)
         try:
             app.setApplicationName("Nexus Launcher")
             app.setApplicationDisplayName("Nexus Launcher")

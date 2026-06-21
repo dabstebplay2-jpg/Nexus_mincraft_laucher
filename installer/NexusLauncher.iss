@@ -1,9 +1,9 @@
 ; Nexus Launcher installer
 ; Build with:
-;   ISCC.exe /DAppVersion=1.0.2 installer\NexusLauncher.iss
+;   ISCC.exe /DAppVersion=1.1.0 installer\NexusLauncher.iss
 
 #ifndef AppVersion
-#define AppVersion "1.0.2"
+#define AppVersion "1.1.0"
 #endif
 
 #define AppName "Nexus Launcher"

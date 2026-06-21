@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import threading
 
 from core.system_info import clamp_ram_mb, get_recommended_ram_mb
@@ -14,6 +15,7 @@ except Exception:
 logger = logging.getLogger(__name__)
 
 SETTINGS_FILE = DATA_DIR / "launcher_settings.json"
+DEFAULT_DISCORD_CLIENT_ID = os.environ.get("NEXUS_DISCORD_CLIENT_ID", "").strip()
 
 
 class LauncherSettings:
@@ -36,8 +38,8 @@ class LauncherSettings:
             "minecraft_resolution_enabled": False,
             "minecraft_resolution_width": 1280,
             "minecraft_resolution_height": 720,
-            "discord_presence_enabled": False,
-            "discord_client_id": "",
+            "discord_presence_enabled": True,
+            "discord_client_id": DEFAULT_DISCORD_CLIENT_ID,
         }
 
     def load(self):
@@ -231,7 +233,7 @@ class LauncherSettings:
 
     def get_discord_client_id(self):
         with self._lock:
-            return str(self.data.get("discord_client_id", "") or "").strip()
+            return str(self.data.get("discord_client_id", "") or DEFAULT_DISCORD_CLIENT_ID).strip()
 
     def set_discord_client_id(self, client_id):
         with self._lock:
@@ -242,7 +244,7 @@ class LauncherSettings:
     def set_discord_presence_settings(self, enabled, client_id):
         with self._lock:
             self.data["discord_presence_enabled"] = bool(enabled)
-            self.data["discord_client_id"] = str(client_id or "").strip()
+            self.data["discord_client_id"] = str(client_id or DEFAULT_DISCORD_CLIENT_ID).strip()
             self.save()
             return {
                 "enabled": self.data["discord_presence_enabled"],

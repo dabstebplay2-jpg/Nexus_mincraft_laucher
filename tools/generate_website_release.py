@@ -75,6 +75,25 @@ def patch_index(version: str, repo: str):
     path.write_text(text, encoding="utf-8")
 
 
+def patch_script(version: str, repo: str):
+    path = WEBSITE_DIR / "script.js"
+    if not path.exists():
+        return
+
+    text = path.read_text(encoding="utf-8")
+    text = re.sub(
+        r'const repo\s*=\s*window\.NEXUS_REPO\s*\|\|\s*"[^"]+";',
+        f'const repo = window.NEXUS_REPO || "{repo}";',
+        text,
+    )
+    text = re.sub(
+        r'const fallbackVersion\s*=\s*window\.NEXUS_VERSION\s*\|\|\s*"[^"]+";',
+        f'const fallbackVersion = window.NEXUS_VERSION || "{version}";',
+        text,
+    )
+    path.write_text(text, encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", default=os.environ.get("NEXUS_VERSION") or os.environ.get("GITHUB_REF_NAME"))
@@ -123,6 +142,7 @@ def main() -> int:
         },
     )
     patch_index(version, repo)
+    patch_script(version, repo)
 
     print(f"Generated website release metadata for {repo} v{version}")
     return 0

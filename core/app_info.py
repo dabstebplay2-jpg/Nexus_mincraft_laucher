@@ -1,7 +1,7 @@
 import os
 
 APP_NAME = "Nexus Launcher"
-APP_VERSION = "1.0.2"
+APP_VERSION = "1.1.0"
 APP_CODENAME = "Stable Release"
 
 APP_FULL_NAME = f"{APP_NAME} {APP_VERSION}"

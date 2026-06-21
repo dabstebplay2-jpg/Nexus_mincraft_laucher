@@ -57,7 +57,7 @@ def check_required_files():
         "installer/NexusLauncher.iss",
         "website/index.html",
         "website/styles.css",
-        "website/app.js",
+        "website/script.js",
         ".github/workflows/release.yml",
     ]
 
@@ -129,7 +129,7 @@ def check_full_audit():
         fail(f"full_audit import failed: {error}")
         return False
 
-    issues = collect_issues(include_ui=False)
+    issues = collect_issues(include_ui=False, include_network=False)
     if issues:
         fail(f"Full audit found {len(issues)} issue(s):")
         for item in issues[:12]:
@@ -138,7 +138,7 @@ def check_full_audit():
             print(f"  ... and {len(issues) - 12} more")
         return False
 
-    ok("Full audit: imports, theme, loaders, instances")
+    ok("Full audit: imports, theme, local loader rules, instances")
     return True
 
 

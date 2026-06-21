@@ -18,6 +18,7 @@ class Topbar(QWidget):
     search_submitted = Signal(str)
     play_clicked = Signal()
     sidebar_toggle_clicked = Signal()
+    theme_clicked = Signal()
 
     def __init__(self):
         super().__init__()
@@ -25,6 +26,7 @@ class Topbar(QWidget):
         self.setObjectName("Topbar")
         self.setFixedHeight(60)
         self.compact = False
+        self.current_theme = "dark"
 
         root = QHBoxLayout(self)
         root.setContentsMargins(16, 8, 16, 8)
@@ -65,6 +67,13 @@ class Topbar(QWidget):
         self.sidebar_button.setFixedWidth(42)
         self.sidebar_button.clicked.connect(self.sidebar_toggle_clicked.emit)
 
+        self.theme_button = QPushButton("AMOLED")
+        self.theme_button.setObjectName("TopbarThemeButton")
+        self.theme_button.setCursor(Qt.PointingHandCursor)
+        self.theme_button.setToolTip("Переключить тему")
+        self.theme_button.setFixedWidth(78)
+        self.theme_button.clicked.connect(self.theme_clicked.emit)
+
         self.play_button = QPushButton("Играть")
         self.play_button.setObjectName("TopbarPlayButton")
         self.play_button.setCursor(Qt.PointingHandCursor)
@@ -80,6 +89,7 @@ class Topbar(QWidget):
         root.addStretch()
         root.addWidget(self.sidebar_button)
         root.addWidget(self.search_input)
+        root.addWidget(self.theme_button)
         root.addWidget(self.play_button)
 
     def refresh_theme(self, theme: str | None = None):
@@ -110,8 +120,24 @@ class Topbar(QWidget):
         self.search_input.setMinimumWidth(120 if compact else 180)
         self.search_input.setMaximumWidth(220 if compact else 330)
         self.sidebar_button.setFixedWidth(38 if compact else 42)
+        self.theme_button.setFixedWidth(46 if compact else 78)
         self.play_button.setText("▶" if compact else "Играть")
+        self.set_theme(self.current_theme)
 
     def set_sidebar_collapsed(self, collapsed: bool):
         self.sidebar_button.setText("☰" if collapsed else "‹")
         self.sidebar_button.setToolTip("Развернуть меню" if collapsed else "Свернуть меню")
+
+    def set_theme(self, theme: str | None):
+        self.current_theme = str(theme or "dark").lower()
+        labels = {
+            "dark": ("ТМ", "Тёмная"),
+            "amoled": ("AM", "AMOLED"),
+            "forest": ("ЛС", "Лес"),
+            "ocean": ("ОК", "Океан"),
+            "purple": ("ЭН", "Эндер"),
+            "sunset": ("ЗК", "Закат"),
+        }
+        compact_text, full_text = labels.get(self.current_theme, labels["dark"])
+        self.theme_button.setText(compact_text if self.compact else full_text)
+        self.theme_button.setToolTip(f"Тема: {full_text}. Нажми для следующей темы")

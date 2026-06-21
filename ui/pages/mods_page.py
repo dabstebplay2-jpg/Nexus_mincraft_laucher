@@ -692,13 +692,13 @@ class ModsPage(QWidget):
         self.load_instances()
 
     def toggle_advanced_filters(self):
-        collapsed = not self.advanced_filters_widget.isVisible()
+        collapsed = self.advanced_filters_widget.isVisible()
         self.set_advanced_filters_collapsed(collapsed)
         get_launcher_settings().set_mods_filters_collapsed(collapsed)
 
     def set_advanced_filters_collapsed(self, collapsed):
         self.advanced_filters_widget.setVisible(not collapsed)
-        self.toggle_filters_btn.setText("Показать каталог" if collapsed else "Скрыть каталог")
+        self.toggle_filters_btn.setText("Показать фильтры" if collapsed else "Скрыть фильтры")
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -749,7 +749,7 @@ class ModsPage(QWidget):
 
         settings = get_launcher_settings()
         default_collapsed = settings.get_mods_filters_collapsed()
-        self.toggle_filters_btn = QPushButton("Показать каталог" if default_collapsed else "Скрыть каталог")
+        self.toggle_filters_btn = QPushButton("Показать фильтры" if default_collapsed else "Скрыть фильтры")
         self.toggle_filters_btn.setObjectName("ToggleFiltersButton")
         self.toggle_filters_btn.setCursor(Qt.PointingHandCursor)
         self.toggle_filters_btn.clicked.connect(self.toggle_advanced_filters)

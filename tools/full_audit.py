@@ -1,6 +1,7 @@
 """Full project audit — imports, themes, loaders, instances, UI smoke test."""
 from __future__ import annotations
 
+import argparse
 import importlib
 import json
 import sys
@@ -56,6 +57,34 @@ def audit_loader_api() -> list[str]:
     return issues
 
 
+def audit_loader_rules() -> list[str]:
+    issues = []
+    from core.loader_manager import get_loader_manager
+
+    mgr = get_loader_manager()
+    local_cases = [
+        ("fabric", "1.12.2"),
+        ("quilt", "1.12.2"),
+        ("neoforge", "1.20.1"),
+    ]
+
+    for loader, mc in local_cases:
+        if not mgr.get_known_unsupported_message(loader, mc):
+            issues.append(f"{loader}: {mc} should be blocked locally")
+
+    for loader in ("vanilla", "fabric-loader", "neo forge", "neo-forge", "quilt-loader"):
+        try:
+            normalized = mgr.normalize_loader_id(loader)
+        except Exception as exc:
+            issues.append(f"{loader}: normalize failed: {exc}")
+            continue
+
+        if not normalized:
+            issues.append(f"{loader}: normalize returned empty value")
+
+    return issues
+
+
 def audit_instances() -> list[str]:
     issues = []
     from core.loader_manager import get_loader_manager
@@ -81,7 +110,7 @@ def audit_instances() -> list[str]:
 def audit_theme() -> list[str]:
     issues = []
     from storage.paths import DATA_DIR
-    from ui.styles import get_app_style
+    from ui.styles import THEME_OPTIONS, get_app_style
 
     settings_file = DATA_DIR / "launcher_settings.json"
     if settings_file.exists():
@@ -90,7 +119,7 @@ def audit_theme() -> list[str]:
         except Exception as exc:
             issues.append(f"launcher_settings.json parse error: {exc}")
 
-    for theme in ("dark", "amoled", "light"):
+    for theme in tuple(theme_id for theme_id, _label in THEME_OPTIONS) + ("light",):
         try:
             css = get_app_style(theme)
             if len(css) < 1000:
@@ -124,12 +153,12 @@ def audit_ui_headless() -> list[str]:
     return issues
 
 
-def collect_issues(*, include_ui: bool = True) -> list[str]:
+def collect_issues(*, include_ui: bool = True, include_network: bool = True) -> list[str]:
     all_issues: list[str] = []
     checks = [
         ("imports", audit_imports),
         ("theme", audit_theme),
-        ("loader_api", audit_loader_api),
+        ("loader_api", audit_loader_api if include_network else audit_loader_rules),
         ("instances", audit_instances),
     ]
     if include_ui:
@@ -143,14 +172,14 @@ def collect_issues(*, include_ui: bool = True) -> list[str]:
     return all_issues
 
 
-def run_audit(*, include_ui: bool = True, verbose: bool = True) -> int:
+def run_audit(*, include_ui: bool = True, include_network: bool = True, verbose: bool = True) -> int:
     if verbose:
         print("=== Nexus Full Audit ===")
 
     checks = [
         ("imports", audit_imports),
         ("theme", audit_theme),
-        ("loader_api", audit_loader_api),
+        ("loader_api", audit_loader_api if include_network else audit_loader_rules),
         ("instances", audit_instances),
     ]
     if include_ui:
@@ -181,5 +210,25 @@ def run_audit(*, include_ui: bool = True, verbose: bool = True) -> int:
     return 1 if all_issues else 0
 
 
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--skip-network",
+        action="store_true",
+        help="Skip external loader API checks and run only local loader rules.",
+    )
+    parser.add_argument(
+        "--skip-ui",
+        action="store_true",
+        help="Skip the PySide6 headless UI smoke test.",
+    )
+    args = parser.parse_args()
+
+    return run_audit(
+        include_ui=not args.skip_ui,
+        include_network=not args.skip_network,
+    )
+
+
 if __name__ == "__main__":
-    raise SystemExit(run_audit())
+    raise SystemExit(main())

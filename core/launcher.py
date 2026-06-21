@@ -175,10 +175,17 @@ class Launcher:
         self.set_status("Подготовка команды запуска...")
 
         account_manager = AccountManager()
+        active_account = account_manager.get_active_account()
+        if str((active_account or {}).get("provider") or "").lower() == "ely":
+            self.set_status("Проверка Ely.by токена...")
+            from auth.ely_auth import ElyAuthService
+
+            active_account = ElyAuthService().ensure_fresh_launch_token(active_account)
         profile = account_manager.get_launch_profile()
         username = profile.get("username", "NexusPlayer")
         uuid_str = profile.get("uuid", "")
         token = profile.get("token", "0")
+        provider = str(profile.get("provider") or "offline").lower()
 
         options = minecraft_launcher_lib.utils.generate_test_options()
 
@@ -194,6 +201,32 @@ class Launcher:
             f"-Xmx{ram_mb}M",
             "-Xms1024M",
         ]
+
+        if provider == "ely":
+            self.set_status("Подготовка Ely.by скинов для Minecraft...")
+            from core.ely_authlib import build_ely_javaagent_argument, ensure_authlib_injector
+
+            authlib_jar = ensure_authlib_injector()
+            options["jvmArguments"].insert(0, build_ely_javaagent_argument(authlib_jar))
+            logger.info("Ely.by authlib-injector enabled: %s", authlib_jar)
+
+        from core.custom_skin_loader import prepare_custom_skin_loader
+        from core.skin_manager import SkinManager
+
+        active_skin = SkinManager().get_account_skin(active_account)
+        try:
+            skin_result = prepare_custom_skin_loader(
+                instance=instance,
+                account=active_account,
+                skin=active_skin,
+                set_status=self.set_status,
+            )
+            logger.info("CustomSkinLoader preparation: %s", skin_result.message)
+            if active_skin and not skin_result.prepared:
+                self.set_status(skin_result.message)
+        except Exception as error:
+            logger.exception("CustomSkinLoader preparation failed")
+            self.set_status(f"CustomSkinLoader не установлен: {error}")
 
         launcher_settings = get_launcher_settings()
         if launcher_settings.is_minecraft_resolution_enabled():
