@@ -64,6 +64,40 @@ def patch_index(version: str, repo: str):
     )
     text = re.sub(r'window\.NEXUS_VERSION\s*=\s*"[^"]+";', f'window.NEXUS_VERSION = "{version}";', text)
 
+    text = re.sub(
+        r"<title>Nexus Launcher [^<]+</title>",
+        f"<title>Nexus Launcher {version} — Minecraft лаунчер для Windows</title>",
+        text,
+    )
+    text = re.sub(
+        r'<meta name="description" content="Nexus Launcher [^"]+"',
+        (
+            f'<meta name="description" content="Nexus Launcher {version} — стабильный '
+            "Minecraft-лаунчер для Windows. Сборки, моды, шейдеры, ресурспаки, Ely.by, "
+            'Discord Rich Presence, installer и portable ZIP."'
+        ),
+        text,
+    )
+    text = re.sub(
+        r'(<b id="releaseStatus">)[^<]+(</b>)',
+        rf"\g<1>Стабильный релиз {version}\g<2>",
+        text,
+    )
+
+    if "roadmap-item--current" in text:
+        text = re.sub(
+            r'(<article class="roadmap-item roadmap-item--current">\s*<time>)[^<]+(</time>)',
+            rf"\g<1>v{version}\g<2>",
+            text,
+            count=1,
+        )
+        text = re.sub(
+            r'(<article class="roadmap-item roadmap-item--current">[\s\S]*?<b>)[^<]+(</b>)',
+            rf"\g<1>v{version} — полировка UX\g<2>",
+            text,
+            count=1,
+        )
+
     if "window.NEXUS_REPO" in text:
         text = re.sub(r'window\.NEXUS_REPO\s*=\s*"[^"]+";', f'window.NEXUS_REPO = "{repo}";', text)
     else:

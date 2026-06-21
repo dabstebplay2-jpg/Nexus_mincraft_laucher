@@ -1,5 +1,5 @@
 const repo = window.NEXUS_REPO || "dabstebplay2-jpg/Nexus_mincraft_laucher";
-const fallbackVersion = window.NEXUS_VERSION || "1.1.0";
+const fallbackVersion = window.NEXUS_VERSION || "1.1.1";
 
 const menuBtn = document.getElementById("menuBtn");
 const nav = document.getElementById("nav");
@@ -116,7 +116,7 @@ function setRelease(version, release = null) {
     }
   } else {
     setConsoleStatus("STABLE");
-    if (els.releaseStatus) els.releaseStatus.textContent = "Стабильный релиз";
+    if (els.releaseStatus) els.releaseStatus.textContent = `Стабильный релиз ${clean}`;
   }
 }
 
