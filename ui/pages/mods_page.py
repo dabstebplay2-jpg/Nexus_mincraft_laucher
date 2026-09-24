@@ -663,6 +663,7 @@ class ModpackDirectInstallWorker(QThread):
 
 
 class ModsPage(QWidget):
+    library_requested = Signal()
     def __init__(self):
         super().__init__()
 
@@ -732,6 +733,10 @@ class ModsPage(QWidget):
             self.type_tabs_row.addWidget(btn)
 
         self.type_tabs_row.addStretch()
+        library_button = QPushButton("Моя библиотека")
+        library_button.setObjectName("SmallGhostButton")
+        library_button.clicked.connect(self.library_requested.emit)
+        self.type_tabs_row.addWidget(library_button)
 
         # ── Compact top bar (always visible) ──
         compact_bar = QHBoxLayout()

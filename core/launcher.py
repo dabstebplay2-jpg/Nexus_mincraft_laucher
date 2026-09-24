@@ -42,10 +42,11 @@ def _is_timeout_error(error: Exception) -> bool:
 
 
 class Launcher:
-    def __init__(self, set_status=None, set_progress=None, set_max=None):
+    def __init__(self, set_status=None, set_progress=None, set_max=None, on_game_closed=None):
         self.set_status = set_status or (lambda text: None)
         self.set_progress = set_progress or (lambda value: None)
         self.set_max = set_max or (lambda value: None)
+        self.on_game_closed = on_game_closed
 
     def _check_disk_space(self, minecraft_dir: Path):
         try:
@@ -135,6 +136,21 @@ class Launcher:
             logger.exception("Minecraft base installation failed")
             raise
 
+        # Mod loader installers launch a Java subprocess too. Resolve Java before
+        # entering the installer so a missing executable becomes a useful error.
+        required_java = get_required_java_major(
+            minecraft_dir=str(minecraft_dir),
+            launch_version=minecraft_version,
+            fallback_version=minecraft_version,
+        )
+        self.set_status(f"Поиск Java {required_java}+...")
+        java_path = find_java_executable(min_major=required_java)
+        if not java_path:
+            from core.java_manager import build_java_required_message
+
+            raise RuntimeError(build_java_required_message(required_java))
+        actual_java = ensure_java_is_compatible(java_path, required_java)
+
         launch_version = minecraft_version
 
         if loader != "vanilla":
@@ -148,6 +164,7 @@ class Launcher:
                 minecraft_dir=str(minecraft_dir),
                 callback=callback,
                 loader_version=loader_version,
+                java_path=java_path,
             )
 
             logger.info("Loader launch version: %s", launch_version)
@@ -158,16 +175,14 @@ class Launcher:
             fallback_version=minecraft_version,
         )
 
-        self.set_status(f"Поиск Java {required_java}+...")
+        # Loader metadata can request a newer runtime than the base version.
+        if actual_java < required_java:
+            self.set_status(f"Поиск Java {required_java}+...")
+            java_path = find_java_executable(min_major=required_java)
+            if not java_path:
+                from core.java_manager import build_java_required_message
 
-        java_path = find_java_executable(min_major=required_java)
-
-        if not java_path:
-            from core.java_manager import build_java_required_message
-
-            raise RuntimeError(
-                build_java_required_message(required_java)
-            )
+                raise RuntimeError(build_java_required_message(required_java))
 
         actual_java = ensure_java_is_compatible(java_path, required_java)
 
@@ -278,24 +293,33 @@ class Launcher:
         try:
             from core.discord_presence import discord_presence
             discord_presence().set_playing(instance)
+        except Exception:
+            logger.debug("Discord playing status skipped", exc_info=True)
 
-            def _watch_minecraft_process():
+        def _watch_minecraft_process():
+            try:
+                process.wait()
+                logger.info("Minecraft process exited with code %s", process.returncode)
+            finally:
                 try:
-                    process.wait()
-                    logger.info("Minecraft process exited with code %s", process.returncode)
-                finally:
+                    from core.discord_presence import discord_presence
+                    discord_presence().set_minecraft_closed("Minecraft закрыт")
+                except Exception:
+                    logger.debug("Discord close status skipped", exc_info=True)
+                if self.on_game_closed:
                     try:
-                        discord_presence().set_minecraft_closed("Minecraft закрыт")
-                    except Exception:
-                        pass
+                        self.on_game_closed()
+                    except RuntimeError:
+                        logger.debug("Game close UI listener is no longer available", exc_info=True)
 
+        try:
             threading.Thread(
                 target=_watch_minecraft_process,
                 name="MinecraftProcessWatcher",
                 daemon=True,
             ).start()
-        except Exception:
-            logger.debug("Discord presence process watch skipped", exc_info=True)
+        except RuntimeError:
+            logger.warning("Could not start Minecraft process watcher", exc_info=True)
 
         get_instance_manager().mark_played(instance["id"])
 

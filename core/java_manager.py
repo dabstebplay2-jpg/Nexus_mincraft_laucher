@@ -95,6 +95,15 @@ def find_java_candidates():
             for candidate in found:
                 logger.info("Java candidate from Program Files: %s", candidate)
 
+    local_appdata = os.environ.get("LOCALAPPDATA")
+    if local_appdata:
+        nexus_java = Path(local_appdata) / "Nexus" / "java"
+        if nexus_java.exists():
+            found = list(nexus_java.glob("*/bin/java.exe"))
+            candidates.extend(found)
+            for candidate in found:
+                logger.info("Java candidate from Nexus user runtime: %s", candidate)
+
     appdata = os.environ.get("APPDATA")
     if appdata:
         minecraft_runtime = Path(appdata) / ".minecraft" / "runtime"

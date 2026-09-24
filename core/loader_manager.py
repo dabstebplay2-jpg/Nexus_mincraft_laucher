@@ -7,6 +7,12 @@ from pathlib import Path
 import minecraft_launcher_lib
 
 from core.version_manager import _retry
+from core.java_manager import (
+    build_java_required_message,
+    ensure_java_is_compatible,
+    find_java_executable,
+    get_required_java_major,
+)
 
 try:
     from minecraft_launcher_lib.exceptions import UnsupportedVersion
@@ -77,6 +83,7 @@ class LoaderManager:
         callback=None,
         force_reinstall: bool = False,
         loader_version: str | None = None,
+        java_path: str | None = None,
     ):
         loader_id = self.normalize_loader_id(loader_id)
         minecraft_version = str(minecraft_version or "").strip()
@@ -146,6 +153,7 @@ class LoaderManager:
                 minecraft_path=minecraft_path,
                 callback=callback,
                 loader_version=loader_version,
+                java_path=java_path,
             )
 
         except Exception as error:
@@ -453,13 +461,25 @@ class LoaderManager:
         minecraft_path: Path,
         callback=None,
         loader_version: str | None = None,
+        java_path: str | None = None,
     ):
         try:
+            required_java = get_required_java_major(
+                str(minecraft_path), minecraft_version, minecraft_version,
+            )
+            java_path = java_path or find_java_executable(min_major=required_java)
+            if not java_path:
+                raise RuntimeError(build_java_required_message(required_java))
+            if not Path(java_path).is_file():
+                raise RuntimeError(f"Указанный файл Java не найден: {java_path}")
+            ensure_java_is_compatible(str(java_path), required_java)
+
             installed = loader.install(
                 minecraft_version,
                 str(minecraft_path),
                 loader_version=loader_version or None,
                 callback=callback,
+                java=str(java_path),
             )
             if installed:
                 return installed

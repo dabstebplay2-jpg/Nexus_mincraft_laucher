@@ -60,12 +60,18 @@ class LaunchWorker(QThread):
     maximum = Signal(int)
     finished_ok = Signal()
     failed = Signal(str, str)
+    game_closed = Signal()
 
     def __init__(self, instance):
         super().__init__()
         self.instance = instance
         self.download_manager = DownloadManager()
         self.download_task_id = None
+        self.game_is_closed = False
+
+    def _game_closed(self):
+        self.game_is_closed = True
+        self.game_closed.emit()
 
     def _safe_download_update(self, method_name, *args, **kwargs):
         """Запись в downloads.json не должна ломать сам запуск Minecraft."""
@@ -112,6 +118,7 @@ class LaunchWorker(QThread):
                 set_status=emit_status,
                 set_progress=emit_progress,
                 set_max=emit_maximum,
+                on_game_closed=self._game_closed,
             )
             launcher.launch_instance(self.instance)
 
@@ -312,6 +319,8 @@ class CreateInstanceDialog(QDialog):
 
 class InstancesPage(QWidget):
     instance_details_requested = Signal(dict)
+    instance_launching = Signal(dict)
+    launch_state_changed = Signal(str, str)
 
     def __init__(self):
         super().__init__()
@@ -637,6 +646,8 @@ class InstancesPage(QWidget):
             return
 
         self.last_launched = instance
+        self.instance_launching.emit(instance)
+        self.launch_state_changed.emit("preparing", "")
 
         self.progress_dialog = MinecraftLaunchProgressDialog(self)
         self.progress_dialog.setValue(0)
@@ -648,11 +659,25 @@ class InstancesPage(QWidget):
         self.launch_worker.maximum.connect(self.on_launch_maximum)
         self.launch_worker.finished_ok.connect(self.on_launch_finished)
         self.launch_worker.failed.connect(self.on_launch_error)
+        self.launch_worker.game_closed.connect(self.on_game_closed)
         self.launch_worker.start()
 
     def on_launch_status(self, text):
+        if self.launch_worker and self.launch_worker.game_is_closed:
+            return
+        status = str(text)
+        lower = status.lower()
+        if "запуск" in lower or "starting" in lower:
+            phase = "launching"
+        elif "установ" in lower or "скачив" in lower or "download" in lower:
+            phase = "installing"
+        elif "проверк" in lower or "check" in lower:
+            phase = "checking"
+        else:
+            phase = "preparing"
+        self.launch_state_changed.emit(phase, status)
         if self.progress_dialog:
-            self.progress_dialog.setLabelText(str(text))
+            self.progress_dialog.setLabelText(status)
 
     def on_launch_maximum(self, value):
         if not self.progress_dialog:
@@ -670,6 +695,10 @@ class InstancesPage(QWidget):
             self.progress_dialog.setValue(int(value or 0))
 
     def on_launch_finished(self):
+        if self.launch_worker.game_is_closed:
+            self.launch_state_changed.emit("ready", "Minecraft закрыт — можно играть снова")
+        else:
+            self.launch_state_changed.emit("running", "Minecraft запущен")
         if self.progress_dialog:
             self.progress_dialog.setRange(0, 100)
             self.progress_dialog.setValue(100)
@@ -680,6 +709,7 @@ class InstancesPage(QWidget):
         self.refresh_instances()
 
     def on_launch_error(self, error_text, details):
+        self.launch_state_changed.emit("error", str(error_text))
         if self.progress_dialog:
             self.progress_dialog.close()
             self.progress_dialog = None
@@ -691,6 +721,10 @@ class InstancesPage(QWidget):
         box.setInformativeText(str(error_text))
         box.setDetailedText(str(details))
         box.exec()
+
+    def on_game_closed(self):
+        if self.sender() is self.launch_worker:
+            self.launch_state_changed.emit("ready", "Minecraft закрыт — можно играть снова")
 
     def open_instance_folder(self, instance):
         path = Path(instance.get("path") or instance.get("instance_dir") or "")

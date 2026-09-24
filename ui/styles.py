@@ -2298,6 +2298,144 @@ QProgressBar::chunk {
 
 
 
+DESIGN_TOKENS = {
+    "background": "#101411",
+    "surface": "#171D19",
+    "elevated_surface": "#202923",
+    "border": "#303B32",
+    "subtle_border": "#273129",
+    "primary_text": "#F2F5F0",
+    "secondary_text": "#B9C3B8",
+    "muted_text": "#88968A",
+    "accent": "#A2C894",
+    "success": "#87BF81",
+    "warning": "#D7B474",
+    "error": "#E59A91",
+    "hover": "#29362C",
+    "pressed": "#334537",
+    "disabled": "#536055",
+}
+
+DESIGN_METRICS = {
+    "radius_small": 8, "radius_medium": 12, "radius_large": 20,
+    "space_small": 8, "space_medium": 16, "space_large": 28,
+    "control_height": 38, "body_size": 13, "section_size": 18, "page_size": 27,
+}
+
+THEME_TOKEN_OVERRIDES = {
+    "amoled": {"background": "#080A09", "surface": "#111613", "accent": "#A9CE9D",
+               "hero_start": "#1C2B20", "hero_end": "#101913", "hero_border": "#345038"},
+    "forest": {"accent": "#A9CC91", "hero_start": "#293A29",
+               "hero_end": "#18241B", "hero_border": "#435A3C"},
+    "ocean": {"accent": "#91C6D0", "hero_start": "#213A42",
+              "hero_end": "#17262C", "hero_border": "#3D5D67"},
+    "purple": {"accent": "#C4ADDF", "hero_start": "#342A42",
+               "hero_end": "#201B2C", "hero_border": "#5C4B70"},
+    "sunset": {"accent": "#DEBA96", "hero_start": "#433229",
+               "hero_end": "#2A211D", "hero_border": "#705443"},
+}
+
+NEXUS_2_STYLE = r"""
+/* Nexus 2.0 shell and shared desktop foundations */
+QMainWindow, #AppContent, #HomeContent { background-color: @background@; }
+#Sidebar { background-color: #111713; border-right: 1px solid @subtle_border@; }
+#SidebarLogoCard, #SidebarProfileCard {
+    background: transparent; border: none; border-radius: 0;
+}
+#NexusLogoTitle { color: @primary_text@; font-size: 17px; font-weight: 800; letter-spacing: 1px; }
+#NexusLogoSubtitle { color: @muted_text@; font-size: 11px; }
+#SidebarNavButton {
+    background: transparent; border: none; border-radius: 10px;
+    color: @secondary_text@; font-size: 13px; font-weight: 600;
+    text-align: left; padding-left: 16px; min-height: 42px;
+}
+#SidebarNavButton:hover { background: @hover@; color: @primary_text@; }
+#SidebarNavButton[active="true"] {
+    background: @pressed@; border: none; color: @primary_text@;
+}
+#SidebarNavButton[compact="true"] { padding-left: 0; text-align: center; }
+#SidebarCollapseButton { background: transparent; border: none; border-radius: 8px; }
+#SidebarCollapseButton:hover { background: @hover@; }
+#Topbar {
+    background-color: @background@; border-bottom: 1px solid @subtle_border@;
+}
+#TopbarTitle { color: @primary_text@; font-size: 15px; font-weight: 700; }
+#TopbarDownloadsButton, #TopbarThemeButton, #TopbarAccountButton {
+    background: transparent; border: none; border-radius: 9px;
+    color: @secondary_text@; font-size: 12px; padding: 7px 10px;
+}
+#TopbarDownloadsButton:hover, #TopbarThemeButton:hover, #TopbarAccountButton:hover {
+    background: @hover@; color: @primary_text@;
+}
+#PageTitle { color: @primary_text@; font-size: @page_size@px; font-weight: 700; }
+#PageDescription, #PanelText, #MutedText { color: @secondary_text@; font-size: 13px; }
+#PanelTitle { font-size: 18px; font-weight: 700; }
+QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QPlainTextEdit {
+    background: @surface@; border: 1px solid @border@; border-radius: 10px;
+    color: @primary_text@; padding: 8px 11px; font-size: 13px;
+}
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
+    border-color: @accent@;
+}
+#PrimaryButton, #HeroPlayButton {
+    background: @accent@; border: none; border-radius: @radius_medium@px;
+    color: #142017; font-size: @body_size@px; font-weight: 800; padding: 10px 18px;
+}
+#PrimaryButton:hover, #HeroPlayButton:hover { background: #B5D7A9; }
+#PrimaryButton:pressed, #HeroPlayButton:pressed { background: #89B77D; }
+#HeroPlayButton:disabled { background: @disabled@; color: @secondary_text@; }
+#SecondaryButton, #SmallGhostButton, #GhostButton, #WideGhostButton {
+    background: @elevated_surface@; border: 1px solid @subtle_border@;
+    border-radius: 10px; color: @primary_text@; padding: 9px 13px; font-size: 12px;
+}
+#SecondaryButton:hover, #SmallGhostButton:hover, #GhostButton:hover, #WideGhostButton:hover {
+    background: @hover@; border-color: @border@;
+}
+QFrame#DashboardPanel, QFrame#Panel, QFrame#Card, QFrame#MiniCard,
+QFrame#DownloadSummaryCard, QFrame#InstanceCard, QFrame#ModResultCard,
+QFrame#DownloadTaskCard, QFrame#HeroStatCard, QFrame#SettingsStatCard {
+    background: @surface@; border: 1px solid @subtle_border@; border-radius: 14px;
+}
+QFrame#DashboardPanel:hover, QFrame#Panel:hover, QFrame#Card:hover,
+QFrame#InstanceCard:hover, QFrame#ModResultCard:hover {
+    background: @elevated_surface@; border-color: @border@;
+}
+#HomeEyebrow { color: @muted_text@; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+#HomeHeading { color: @primary_text@; font-size: 27px; font-weight: 700; }
+#HomeEmpty { background: @surface@; border: 1px solid @subtle_border@; border-radius: 20px; }
+#HomeEmptyTitle { color: @primary_text@; font-size: 24px; font-weight: 700; }
+#HomeMuted { color: @secondary_text@; font-size: 13px; }
+#HomeInstancePicker { min-height: 36px; }
+#LaunchHero {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 @hero_start@, stop:0.52 @hero_mid@, stop:1 @hero_end@);
+    border: 1px solid @hero_border@; border-radius: 22px; min-height: 330px;
+}
+#HeroKicker { color: @accent@; font-size: 11px; font-weight: 800; letter-spacing: 1px; }
+#LaunchHeroTitle { color: @primary_text@; font-size: 35px; font-weight: 800; }
+#LaunchHeroMeta { color: #C8D8C8; font-size: 15px; }
+#LaunchStateTitle { color: @primary_text@; font-size: 14px; font-weight: 700; }
+#HomeDetails { background: @surface@; border: none; border-radius: 12px; }
+#HomeDetailValue { color: @primary_text@; font-size: 14px; font-weight: 600; }
+QScrollBar:vertical { background: transparent; width: 8px; border: none; }
+QScrollBar::handle:vertical { background: @border@; border-radius: 4px; min-height: 32px; }
+"""
+
+
+def _nexus_2_style(theme):
+    style = NEXUS_2_STYLE
+    tokens = {
+        **DESIGN_TOKENS,
+        "hero_start": "#26372A", "hero_mid": "#1E2C24",
+        "hero_end": "#17211D", "hero_border": "#3B5340",
+    }
+    tokens.update(THEME_TOKEN_OVERRIDES.get(theme, {}))
+    tokens.update(DESIGN_METRICS)
+    for name, value in tokens.items():
+        style = style.replace(f"@{name}@", str(value))
+    return style
+
+
 def get_app_style(theme=None):
     theme = (theme or _read_saved_theme() or "dark").lower()
 
@@ -2306,15 +2444,9 @@ def get_app_style(theme=None):
 
     base = APP_STYLE + COMFORT_STYLE + MINECRAFT_CLEAN_STYLE + LAUNCHER_SITE_MATCH_STYLE + CONTENT_SPLIT_AND_DARK_ONLY_STYLE + SIDEBAR_LOGO_SAFE_STYLE + NEXUS_OVERHAUL_POLISH_STYLE + NEXUS_CALM_COMPACT_STYLE
 
-    if theme == "amoled":
-        return base + AMOLED_STYLE
-    if theme == "forest":
-        return base + FOREST_STYLE
-    if theme == "ocean":
-        return base + OCEAN_STYLE
-    if theme == "purple":
-        return base + PURPLE_STYLE
-    if theme == "sunset":
-        return base + SUNSET_STYLE
-
-    return base + DARK_STYLE
+    themes = {
+        "amoled": AMOLED_STYLE, "forest": FOREST_STYLE,
+        "ocean": OCEAN_STYLE, "purple": PURPLE_STYLE,
+        "sunset": SUNSET_STYLE,
+    }
+    return base + themes.get(theme, DARK_STYLE) + _nexus_2_style(theme)

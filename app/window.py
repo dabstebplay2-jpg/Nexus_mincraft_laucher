@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 from core.constants import APP_VERSION
 from storage.paths import DATA_DIR
 from core.launcher_settings import get_launcher_settings
+from core.download_manager import DownloadManager
 from ui.styles import THEME_OPTIONS, get_app_style
 from ui.components.sidebar import Sidebar
 from ui.components.topbar import Topbar
@@ -35,7 +36,6 @@ from ui.pages.logs_page import LogsPage
 from ui.pages.settings_page import SettingsPage
 
 
-COMPACT_SIDEBAR_WIDTH = 1180
 COMPACT_TOPBAR_WIDTH = 1080
 
 
@@ -142,7 +142,6 @@ class MainWindow(QMainWindow):
 
         self.sidebar = Sidebar()
         self.sidebar.page_changed.connect(self.change_page)
-        self.sidebar.profile_clicked.connect(lambda: self.change_page(PageIndex.ACCOUNTS))
 
         if hasattr(self.sidebar, "set_disabled_pages"):
             self.sidebar.set_disabled_pages(set())
@@ -156,28 +155,34 @@ class MainWindow(QMainWindow):
         content_layout.setSpacing(0)
 
         self.topbar = Topbar()
-        self.topbar.search_submitted.connect(self.handle_search)
-        self.topbar.play_clicked.connect(self.handle_quick_play)
+        self.topbar.downloads_clicked.connect(lambda: self.change_page(PageIndex.DOWNLOADS))
+        self.topbar.account_clicked.connect(lambda: self.change_page(PageIndex.ACCOUNTS))
         self.topbar.theme_clicked.connect(self.toggle_theme)
         self.sidebar.collapsed_changed.connect(self._on_sidebar_collapsed_changed)
 
         self.home_page = HomePage()
         self.home_page.navigate_requested.connect(self.change_page)
         self.home_page.create_instance_requested.connect(self.open_create_instance)
+        self.home_page.import_instance_requested.connect(self.open_import_instance)
 
         self.instances_page = InstancesPage()
         self.instances_page.instance_details_requested.connect(self.open_instance_details)
+        self.instances_page.instance_launching.connect(self.home_page.set_active_instance)
+        self.home_page.play_requested.connect(self.instances_page.launch_instance)
+        self.instances_page.launch_state_changed.connect(self.home_page.set_launch_state)
 
         self.instance_detail_page = InstanceDetailPage()
         self.instance_detail_page.back_clicked.connect(lambda checked=False: self.change_page(PageIndex.INSTANCES))
         self.instance_detail_page.play_clicked.connect(self.instances_page.launch_instance)
 
         self.mods_page = ModsPage()
+        self.mods_page.library_requested.connect(lambda: self.change_page(PageIndex.LIBRARY))
         self.library_page = LibraryPage()
         self.downloads_page = DownloadsPage()
         self.accounts_page = AccountsPage()
-        self.accounts_page.account_changed.connect(lambda _account: self.sidebar.update_profile())
+        self.accounts_page.account_changed.connect(lambda _account: self.topbar.update_profile())
         self.settings_page = SettingsPage()
+        self.settings_page.logs_requested.connect(lambda: self.change_page(PageIndex.LOGS))
         self.logs_page = LogsPage()
 
         self.pages = QStackedWidget()
@@ -192,6 +197,7 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(self.instance_detail_page)
 
         self.status_bar = self.create_status_bar()
+        self.status_bar.hide()
 
         content_layout.addWidget(self.topbar)
         content_layout.addWidget(self.pages)
@@ -220,6 +226,11 @@ class MainWindow(QMainWindow):
 
         self.change_page(0)
         self.apply_theme(self.current_theme())
+        self.download_manager = DownloadManager()
+        self.download_indicator_timer = QTimer(self)
+        self.download_indicator_timer.timeout.connect(self.refresh_download_indicator)
+        self.download_indicator_timer.start(3000)
+        self.refresh_download_indicator()
         QTimer.singleShot(3000, self.check_updates_on_startup)
 
 
@@ -421,8 +432,7 @@ class MainWindow(QMainWindow):
             self.topbar.set_theme(theme)
         if hasattr(self.sidebar, "refresh_theme"):
             self.sidebar.refresh_theme(theme)
-        if hasattr(self.sidebar, "update_profile"):
-            self.sidebar.update_profile()
+        self.topbar.update_profile()
 
     def change_page(self, index):
         if index == PageIndex.HOME and hasattr(self.home_page, "refresh"):
@@ -439,8 +449,7 @@ class MainWindow(QMainWindow):
 
         if index == PageIndex.ACCOUNTS and hasattr(self.accounts_page, "refresh"):
             self.accounts_page.refresh()
-            if hasattr(self.sidebar, "update_profile"):
-                self.sidebar.update_profile()
+            self.topbar.update_profile()
 
         if index == PageIndex.SETTINGS and hasattr(self.settings_page, "refresh"):
             self.settings_page.refresh()
@@ -454,7 +463,11 @@ class MainWindow(QMainWindow):
             title, subtitle = self.page_meta[index]
             self.topbar.set_page(title, subtitle)
             self.status_label.setText(f"Готово • {title}")
-            self.sidebar.set_active(index)
+            parent_section = {
+                PageIndex.LIBRARY: PageIndex.MODS,
+                PageIndex.LOGS: PageIndex.SETTINGS,
+            }.get(index, index)
+            self.sidebar.set_active(parent_section)
 
             try:
                 from core.discord_presence import discord_presence
@@ -469,55 +482,20 @@ class MainWindow(QMainWindow):
         self.change_page(PageIndex.INSTANCES)
         self.instances_page.open_create_dialog()
 
-    def handle_search(self, query):
-        query = query.strip().lower()
+    def open_import_instance(self):
+        self.change_page(PageIndex.INSTANCES)
+        self.instances_page.import_instance()
 
-        if not query:
-            return
-
-        instances = self.instances_page.instance_manager.get_instances()
-        matches = [
-            item for item in instances
-            if query in item.get("name", "").lower()
-        ]
-
-        if matches:
-            self.change_page(PageIndex.INSTANCES)
-            if hasattr(self.instances_page, "search_input"):
-                self.instances_page.search_input.setText(query)
-                self.instances_page.refresh_instances()
-            return
-
-        self.change_page(PageIndex.MODS)
-
-        if hasattr(self.mods_page, "query_input"):
-            self.mods_page.query_input.setText(query)
-
-        if hasattr(self.mods_page, "search_clicked"):
-            self.mods_page.search_clicked()
-
-    def handle_quick_play(self):
-        instances = self.instances_page.instance_manager.get_instances()
-
-        if not instances:
-            QMessageBox.information(
-                self,
-                "Нет сборок",
-                "Сначала создай сборку на вкладке «Сборки».",
-            )
-            self.change_page(PageIndex.INSTANCES)
-            return
-
-        latest = max(
-            instances,
-            key=lambda item: item.get("last_played_at") or item.get("created_at") or "",
-        )
-        self.instances_page.launch_instance(latest)
+    def refresh_download_indicator(self):
+        tasks = self.download_manager.list_tasks()
+        active = sum(1 for task in tasks if str(task.get("state", "")).lower() == "active")
+        self.topbar.set_download_count(active)
 
     def open_instance_details(self, instance):
         try:
             instance = instance or {}
             self.last_play_instance = instance
+            self.home_page.set_active_instance(instance)
             self.instance_detail_page.set_instance(instance)
 
             detail_index = self.pages.indexOf(self.instance_detail_page)

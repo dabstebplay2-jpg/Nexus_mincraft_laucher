@@ -107,6 +107,7 @@ class UpdateDownloadWorker(QThread):
 
 
 class SettingsPage(QWidget):
+    logs_requested = Signal()
     def __init__(self):
         super().__init__()
 
@@ -900,9 +901,9 @@ class SettingsPage(QWidget):
         instances_btn.setObjectName("SecondaryButton")
         instances_btn.clicked.connect(lambda checked=False: self.open_folder(DATA_DIR / "instances"))
 
-        logs_btn = QPushButton("Открыть логи")
+        logs_btn = QPushButton("Диагностика и логи")
         logs_btn.setObjectName("SecondaryButton")
-        logs_btn.clicked.connect(lambda checked=False: self.open_folder(DATA_DIR / "logs"))
+        logs_btn.clicked.connect(self.logs_requested.emit)
 
         reset_btn = QPushButton("Проверить RAM ещё раз")
         reset_btn.setObjectName("PrimaryButton")
