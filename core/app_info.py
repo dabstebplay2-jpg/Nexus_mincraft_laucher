@@ -1,8 +1,8 @@
 import os
 
 APP_NAME = "Nexus Launcher"
-APP_VERSION = "1.1.4.2"
-APP_CODENAME = "fix"
+APP_VERSION = "1.2.0"
+APP_CODENAME = "refresh"
 
 APP_FULL_NAME = f"{APP_NAME} {APP_VERSION}"
 USER_AGENT = f"NexusLauncher/{APP_VERSION}"

@@ -93,7 +93,13 @@ def patch_index(version: str, repo: str):
         )
         text = re.sub(
             r'(<article class="roadmap-item roadmap-item--current">[\s\S]*?<b>)[^<]+(</b>)',
-            rf"\g<1>v{version} — полировка UX\g<2>",
+            rf"\g<1>v{version} — новая главная и оболочка\g<2>",
+            text,
+            count=1,
+        )
+        text = re.sub(
+            r'(<article class="roadmap-item roadmap-item--current">[\s\S]*?<p>)[^<]+(</p>)',
+            r"\g<1>Главный экран для запуска активной сборки, компактная навигация и исправление установки Fabric.\g<2>",
             text,
             count=1,
         )
