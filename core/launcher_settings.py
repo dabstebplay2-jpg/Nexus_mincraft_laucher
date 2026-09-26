@@ -15,7 +15,7 @@ except Exception:
 logger = logging.getLogger(__name__)
 
 SETTINGS_FILE = DATA_DIR / "launcher_settings.json"
-DEFAULT_DISCORD_CLIENT_ID = os.environ.get("NEXUS_DISCORD_CLIENT_ID", "").strip()
+DEFAULT_DISCORD_CLIENT_ID = os.environ.get("NEXUS_DISCORD_CLIENT_ID", "1553410427042398291").strip()
 
 
 UI_LAYOUT_VERSION = 2

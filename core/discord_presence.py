@@ -24,9 +24,8 @@ class PresenceState:
 class DiscordPresenceManager:
     """Small, optional wrapper around pypresence.
 
-    Discord Rich Presence requires a Discord Application Client ID. Nexus does
-    not hardcode a private ID; user can paste one in Settings. If pypresence is
-    missing or Discord is closed, the launcher keeps working silently.
+    Discord Rich Presence requires a Discord Application Client ID. If
+    pypresence is missing or Discord is closed, the launcher keeps working.
     """
 
     def __init__(self):
@@ -57,20 +56,20 @@ class DiscordPresenceManager:
     def connect(self) -> bool:
         settings = get_launcher_settings()
         if not settings.is_discord_presence_enabled():
-            self.close()
+            self.disconnect()
             return False
 
         client_id = settings.get_discord_client_id()
         if not client_id:
             self._set_error("Discord Client ID не указан.")
-            self.close()
+            self.disconnect()
             return False
 
         with self._lock:
             if self._rpc and self._connected_client_id == client_id:
                 return True
 
-            self.close()
+            self.disconnect()
 
             try:
                 from pypresence import Presence
@@ -136,13 +135,19 @@ class DiscordPresenceManager:
             except Exception as error:
                 self._set_error(str(error))
                 logger.debug("Discord Rich Presence update failed", exc_info=True)
-                self.close()
+                self.disconnect()
                 return False
+
+    def refresh(self) -> bool:
+        """Retry the latest activity after Discord starts or reconnects."""
+        with self._lock:
+            state = self._state
+        return self._update(state)
 
     def set_launcher_idle(self, page: str = "Главная") -> bool:
         with self._lock:
             if self._game_active:
-                return True
+                return self.refresh()
 
         return self._update(PresenceState(
             mode="idle",
@@ -155,7 +160,7 @@ class DiscordPresenceManager:
     def set_browsing_mods(self) -> bool:
         with self._lock:
             if self._game_active:
-                return True
+                return self.refresh()
 
         return self._update(PresenceState(
             mode="mods",
@@ -176,8 +181,8 @@ class DiscordPresenceManager:
         return self._update(
             PresenceState(
                 mode="launching",
-                details=f"Запускает: {name}",
-                state=f"Minecraft {version} • {loader}",
+                details="Запускает Minecraft через Nexus Launcher",
+                state=f"{name} • {version} • {loader}",
                 large_text="Launching Minecraft through Nexus",
                 start_time=int(time.time()),
             ),
@@ -195,8 +200,8 @@ class DiscordPresenceManager:
         return self._update(
             PresenceState(
                 mode="playing",
-                details=f"Играет: {name}",
-                state=f"Minecraft {version} • {loader}",
+                details="Играет в Minecraft через Nexus Launcher",
+                state=f"{name} • {version} • {loader}",
                 large_text="Playing Minecraft through Nexus",
                 start_time=int(time.time()),
             ),
@@ -218,19 +223,23 @@ class DiscordPresenceManager:
             force=True,
         )
 
-    def close(self):
+    def disconnect(self):
         with self._lock:
             rpc = self._rpc
             self._rpc = None
             self._connected_client_id = None
             self._last_payload_signature = None
-            self._game_active = False
 
         if rpc:
             try:
                 rpc.close()
             except Exception:
                 pass
+
+    def close(self):
+        self.disconnect()
+        with self._lock:
+            self._game_active = False
 
 
 _manager = DiscordPresenceManager()

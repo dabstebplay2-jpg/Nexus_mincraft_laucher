@@ -235,6 +235,8 @@ class Launcher:
         from core.skin_manager import SkinManager
 
         active_skin = SkinManager().get_account_skin(active_account)
+        if active_skin:
+            self.set_status("Подготовка локального скина для Minecraft...")
         try:
             skin_result = prepare_custom_skin_loader(
                 instance=instance,
@@ -243,11 +245,11 @@ class Launcher:
                 set_status=self.set_status,
             )
             logger.info("CustomSkinLoader preparation: %s", skin_result.message)
-            if active_skin and not skin_result.prepared:
-                self.set_status(skin_result.message)
         except Exception as error:
             logger.exception("CustomSkinLoader preparation failed")
-            self.set_status(f"CustomSkinLoader не установлен: {error}")
+            raise RuntimeError(f"Не удалось применить скин: {error}") from error
+        if active_skin and not skin_result.prepared:
+            raise RuntimeError(skin_result.message)
 
         launcher_settings = get_launcher_settings()
         if launcher_settings.is_minecraft_resolution_enabled():

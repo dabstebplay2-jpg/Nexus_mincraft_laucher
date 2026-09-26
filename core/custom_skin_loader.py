@@ -31,30 +31,48 @@ def _safe_username(username: str | None) -> str:
     return username[:16] or "NexusPlayer"
 
 
-def _write_config(minecraft_dir: Path) -> Path:
+def _write_config(minecraft_dir: Path, model: str = "auto") -> Path:
     config_dir = minecraft_dir / "CustomSkinLoader"
     config_dir.mkdir(parents=True, exist_ok=True)
 
     config_path = config_dir / "CustomSkinLoader.json"
-    config = {
-        "enable": True,
-        "loadlist": [
-            {
-                "name": "LocalSkin",
-                "type": "LocalSkin",
-                "root": "CustomSkinLoader/LocalSkin",
-                "checkPNG": True,
-            },
-            {
-                "name": "ElyBy",
-                "type": "ElyBy",
-            },
-            {
-                "name": "Mojang",
-                "type": "MojangAPI",
-            },
-        ],
-    }
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8")) if config_path.exists() else {}
+    except (OSError, ValueError):
+        config = {}
+    if not isinstance(config, dict):
+        config = {}
+
+    # CustomSkinLoader reads local PNGs through its Legacy profile loader.
+    # Keep the user's other providers and settings while repairing older Nexus configs.
+    previous = config.get("loadlist")
+    other_providers = [
+        provider for provider in previous
+        if isinstance(provider, dict) and provider.get("name") != "LocalSkin"
+    ] if isinstance(previous, list) else [
+        {
+            "name": "ElyBy",
+            "type": "ElyByAPI",
+            "root": "http://skinsystem.ely.by/textures/",
+        },
+        {
+            "name": "Mojang",
+            "type": "MojangAPI",
+            "apiRoot": "https://api.mojang.com/",
+            "sessionRoot": "https://sessionserver.mojang.com/",
+        },
+    ]
+    for provider in other_providers:
+        if provider.get("name") == "ElyBy" and provider.get("type") == "ElyBy":
+            provider.update(type="ElyByAPI", root="http://skinsystem.ely.by/textures/")
+
+    config["loadlist"] = [{
+        "name": "LocalSkin",
+        "type": "Legacy",
+        "checkPNG": True,
+        "skin": "LocalSkin/skins/{USERNAME}.png",
+        "model": "slim" if model == "slim" else "auto",
+    }, *other_providers]
 
     tmp = config_path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -125,14 +143,15 @@ def prepare_custom_skin_loader(instance: dict, account: dict | None, skin: dict 
         return CustomSkinLoaderResult(False, "Локальный skin не выбран.")
 
     skin_source = Path(skin.get("path") or "")
-    if not skin_source.exists():
+    if not skin_source.is_file():
         return CustomSkinLoaderResult(False, "Файл выбранного skin не найден.")
 
     if loader not in SUPPORTED_LOADERS:
         return CustomSkinLoaderResult(
             False,
-            "Vanilla Minecraft не умеет применять локальный PNG-скин из лаунчера. "
-            "Для этого нужна сборка Fabric, Forge, NeoForge или Quilt с CustomSkinLoader.",
+            "Локальный PNG-скин не работает в Vanilla. "
+            "Создай сборку Fabric, Forge, NeoForge или Quilt: "
+            "Nexus установит CustomSkinLoader при её запуске.",
         )
 
     minecraft_dir = Path(instance["minecraft_dir"])
@@ -145,7 +164,7 @@ def prepare_custom_skin_loader(instance: dict, account: dict | None, skin: dict 
     username = _safe_username((account or {}).get("username") or (account or {}).get("display_name"))
     local_skin_path = local_skins_dir / f"{username}.png"
     shutil.copy2(skin_source, local_skin_path)
-    _write_config(minecraft_dir)
+    _write_config(minecraft_dir, (account or {}).get("skin_model") or skin.get("model") or "auto")
 
     existing_mod = _find_existing_mod(mods_dir)
     if existing_mod:

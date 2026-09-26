@@ -561,10 +561,15 @@ class SettingsPage(QWidget):
         client_row.addWidget(self.discord_client_id_input, 1)
 
         help_text = QLabel(
-            "Discord должен быть запущен. Для Rich Presence нужен Discord Application Client ID: вставь его сюда, сохрани и нажми проверку."
+            'Создай приложение Nexus Launcher в '
+            '<a href="https://discord.com/developers/applications">Discord Developer Portal</a>. '
+            'Загрузи значок Nexus как иконку приложения и как изображение Rich Presence '
+            'с ключом nexus. Скопируй Application ID в это поле, сохрани и нажми «Проверить». '
+            'Discord должен быть запущен.'
         )
         help_text.setObjectName("PanelText")
         help_text.setWordWrap(True)
+        help_text.setOpenExternalLinks(True)
 
         self.discord_status_label = QLabel("Статус: не проверено")
         self.discord_status_label.setObjectName("PanelText")
@@ -689,7 +694,7 @@ class SettingsPage(QWidget):
                         f"Ошибка: {discord_presence().last_error()}"
                     )
             else:
-                discord_presence().close()
+                discord_presence().disconnect()
                 self.discord_status_label.setText("Статус: выключено.")
         except Exception as error:
             self.discord_status_label.setText(f"Статус: ошибка проверки — {error}")

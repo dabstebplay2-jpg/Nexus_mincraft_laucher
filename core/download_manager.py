@@ -37,6 +37,12 @@ class DownloadManager:
             data = {"tasks": []}
         if not isinstance(data.get("tasks"), list):
             data["tasks"] = []
+        for task in data["tasks"]:
+            if isinstance(task, dict):
+                try:
+                    task["progress"] = max(0, min(100, int(task.get("progress") or 0)))
+                except (TypeError, ValueError):
+                    task["progress"] = 0
         return data
 
     def load(self):
@@ -102,7 +108,7 @@ class DownloadManager:
                 "title": title,
                 "subtitle": subtitle,
                 "status": status,
-                "progress": int(progress),
+                "progress": max(0, min(100, int(progress))),
                 "state": state,
                 "created_at": int(time.time()),
                 "updated_at": int(time.time()),
@@ -189,7 +195,7 @@ class DownloadManager:
                         task["status"] = str(status)
                         changed = True
                     if progress is not None:
-                        new_progress = int(progress)
+                        new_progress = max(0, min(100, int(progress)))
                         if task.get("progress") != new_progress:
                             task["progress"] = new_progress
                             changed = True
@@ -225,7 +231,7 @@ class DownloadManager:
             for task in data["tasks"]:
                 if task.get("id") == task_id:
                     task["status"] = str(status)
-                    task["progress"] = task.get("total", 100)
+                    task["progress"] = 100
                     task["state"] = "completed"
                     task["updated_at"] = int(time.time())
                     task["finished_at"] = int(time.time())

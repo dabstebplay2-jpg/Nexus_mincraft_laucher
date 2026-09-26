@@ -231,10 +231,22 @@ class MainWindow(QMainWindow):
         self.download_indicator_timer.timeout.connect(self.refresh_download_indicator)
         self.download_indicator_timer.start(3000)
         self.refresh_download_indicator()
+        self.discord_presence_timer = QTimer(self)
+        self.discord_presence_timer.timeout.connect(self.refresh_discord_presence)
+        self.discord_presence_timer.start(30000)
         QTimer.singleShot(3000, self.check_updates_on_startup)
 
 
 
+
+    def refresh_discord_presence(self):
+        try:
+            from core.discord_presence import discord_presence
+            manager = discord_presence()
+            if manager.configured():
+                manager.refresh()
+        except Exception:
+            pass
 
     def closeEvent(self, event):
         if self.startup_update_worker and self.startup_update_worker.isRunning():

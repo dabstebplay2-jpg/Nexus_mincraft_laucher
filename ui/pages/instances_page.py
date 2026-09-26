@@ -85,6 +85,7 @@ class LaunchWorker(QThread):
 
     def run(self):
         try:
+            current_maximum = 100
             instance_name = self.instance.get("name", "Minecraft")
             self.download_task_id = self._safe_download_update(
                 "start_task",
@@ -108,11 +109,14 @@ class LaunchWorker(QThread):
                 except Exception:
                     progress = 0
 
-                self._safe_download_update(self.download_manager.update_task.__name__, self.download_task_id, progress=progress)
+                percent = max(0, min(100, round(progress * 100 / current_maximum)))
+                self._safe_download_update(self.download_manager.update_task.__name__, self.download_task_id, progress=percent)
                 self.progress.emit(progress)
 
             def emit_maximum(value):
-                self.maximum.emit(int(value or 0))
+                nonlocal current_maximum
+                current_maximum = max(1, int(value or 0))
+                self.maximum.emit(current_maximum)
 
             launcher = Launcher(
                 set_status=emit_status,
@@ -127,6 +131,11 @@ class LaunchWorker(QThread):
 
         except Exception as error:
             self._safe_download_update("fail_task", self.download_task_id, str(error), status="Ошибка запуска")
+            try:
+                from core.discord_presence import discord_presence
+                discord_presence().set_minecraft_closed("Запуск не удался")
+            except Exception:
+                pass
             self.failed.emit(str(error), traceback.format_exc())
 
 

@@ -171,7 +171,7 @@ class ProjectIntegrityTests(unittest.TestCase):
         self.assertIn("return base + themes.get(theme, DARK_STYLE) + _nexus_2_style(theme)", styles)
         self.assertIn('"Лесная глубина"', styles)
         self.assertIn("CUSTOM_SKIN_LOADER_PROJECT = \"customskinloader\"", custom_skin_loader)
-        self.assertIn('"type": "LocalSkin"', custom_skin_loader)
+        self.assertIn('"type": "Legacy"', custom_skin_loader)
         self.assertIn("api.modrinth.com", custom_skin_loader)
         self.assertIn("def mouseMoveEvent", skin_preview)
         self.assertIn("def wheelEvent", skin_preview)

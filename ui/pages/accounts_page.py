@@ -381,7 +381,7 @@ class AccountsPage(QWidget):
         ]
         self.reflow_skin_action_buttons()
 
-        note = QLabel("Важно: локальный PNG сразу используется в Nexus preview. В самой игре скин появится через Microsoft/Ely.by-профиль; для Offline-профиля ванильный Minecraft не умеет принимать локальный PNG без skin-server/mod.")
+        note = QLabel("Локальный PNG работает в сборках Fabric, Forge, NeoForge и Quilt, если для версии игры доступен CustomSkinLoader. Vanilla не поддерживает локальные скины. Другие игроки увидят скин только через Microsoft/Ely.by или свой мод скинов.")
         note.setObjectName("MutedText")
         note.setWordWrap(True)
 
@@ -781,7 +781,7 @@ class AccountsPage(QWidget):
                 )
 
             self.refresh_all()
-            QMessageBox.information(self, "Скин загружен", "Скин добавлен в библиотеку и привязан к активному профилю.")
+            QMessageBox.information(self, "Скин загружен", "Скин привязан к активному профилю. Для отображения в игре запусти сборку Fabric, Forge, NeoForge или Quilt.")
 
         except SkinError as e:
             QMessageBox.warning(self, "Не удалось загрузить скин", str(e))
